@@ -91,10 +91,12 @@ public interface OrderMapper extends BaseMapper<Order> {
 - **方法参数规范**：
   - 单个参数：直接传递参数（如 `String username`、`Long userId`）
   - 两个或以上参数：必须封装为 `xxxRequest` 实体类
+  - **禁止使用枚举类型作为参数或返回值**：使用字符串或基本类型
 - **注意事项**：
   - 继承 `IService<Entity>` 后自动拥有基础 CRUD 方法
   - 每个方法必须有详细的 JavaDoc 注释（包括参数和返回值）
   - 只定义方法签名，不包含实现
+  - 在 Service 实现层内部可以使用枚举进行类型安全的处理
 
 ---
 
@@ -169,6 +171,59 @@ public enum DeleteStatusEnum {
 
 **使用规范**：使用枚举的 `getValue()` 方法获取数据库存储值，禁止直接使用数字或字符串
 
+### 3. 枚举使用限制
+
+**重要原则**：
+- **禁止在方法入参和出参中使用枚举类型**
+- **方法参数**：使用字符串或基本类型（如 `String`、`Integer`），在方法内部转换为枚举
+- **方法返回值**：返回字符串或基本类型，而不是枚举类型
+- **允许在代码内部使用枚举**：用于类型安全的判断和转换
+
+**原因**：
+- 提高 API 的兼容性和可扩展性
+- 避免枚举类型变化导致的接口变更
+- 便于前端和其他系统调用（JSON 序列化更友好）
+
+**示例**：
+```java
+// ❌ 错误：方法参数使用枚举
+public void updateStatus(OrderStatusEnum status) {
+    // ...
+}
+
+// ✅ 正确：方法参数使用字符串，内部转换为枚举
+public void updateStatus(String status) {
+    OrderStatusEnum statusEnum = OrderStatusEnum.fromCode(status);
+    // ...
+}
+
+// ❌ 错误：方法返回值使用枚举
+public OrderStatusEnum getStatus(Long orderId) {
+    // ...
+}
+
+// ✅ 正确：方法返回值使用字符串
+public String getStatus(Long orderId) {
+    OrderStatusEnum statusEnum = ...;
+    return statusEnum.getValue();
+}
+```
+
+**DTO 设计**：
+```java
+// ❌ 错误：DTO 字段使用枚举类型
+@Data
+public class OrderRequest {
+    private OrderStatusEnum status;  // 禁止
+}
+
+// ✅ 正确：DTO 字段使用字符串
+@Data
+public class OrderRequest {
+    private String status;  // 使用字符串
+}
+```
+
 ---
 
 ## 禁止字符串满天飞规范（必须定义常量）
@@ -210,6 +265,9 @@ public class RedisKeyConstant {
 - **包路径**：`{项目包名}.model.dto.request`
 - **类命名**：大驼峰命名 + `Request` 后缀，使用 `@Data` 注解
 - **分页请求**：必须继承 `PageRequest`，使用 `@EqualsAndHashCode(callSuper = true)`
+- **重要原则**：
+  - **禁止使用枚举类型**：DTO 字段必须使用字符串或基本类型，不能使用枚举
+  - 在 Service 层接收 Request 后，将字符串转换为枚举进行业务处理
 
 **PageRequest 基类**：
 ```java
@@ -252,6 +310,7 @@ public class QueryUserListRequest extends PageRequest implements CacheableReques
   - 禁止包含敏感字段（如 `passwordHash`、`deleteFlag`）
   - 禁止直接返回 Entity
   - 使用 `BeanUtils.copyProperties()` 转换 Entity 到 Response
+  - **禁止使用枚举类型**：DTO 字段必须使用字符串或基本类型，不能使用枚举
 
 **PageResponse 封装**：
 ```java
@@ -320,6 +379,9 @@ public class ApiResponse<T> {
   - 多个查询参数：使用 `@ModelAttribute` + `Request` DTO
 - **POST/PUT 请求**：使用 `@RequestBody` + `Request` DTO
 - **路径参数**：使用 `@PathVariable`（如 `/api/users/{id}`）
+- **重要原则**：
+  - **禁止使用枚举类型作为参数或返回值**：Controller 方法的参数和返回值必须使用字符串或基本类型，不能使用枚举
+  - DTO 中的枚举字段必须使用字符串类型
 
 **示例**：
 ```java
@@ -351,7 +413,9 @@ public ApiResponse<UserResponse> createUser(@RequestBody CreateUserRequest reque
   - 分页查询：`ApiResponse<PageResponse<XXXResponse>>`
   - 列表查询：`ApiResponse<List<XXXResponse>>`
   - 无返回数据：`ApiResponse<Void>`
-- **禁止**：直接返回 Entity（如 `User`、`Order`）
+- **禁止**：
+  - 直接返回 Entity（如 `User`、`Order`）
+  - 返回类型中包含枚举（Response DTO 中的字段必须使用字符串，不能使用枚举）
 
 **示例**：
 ```java
