@@ -26,6 +26,9 @@
         <commons-collections4.version>4.5.0-M2</commons-collections4.version>
         <jakarta-validation.version>3.0.2</jakarta-validation.version>
         <hibernate-validator.version>8.0.1.Final</hibernate-validator.version>
+        <mybatis-plus.version>3.5.14</mybatis-plus.version>
+        <mybatis-plus-jsqlparser.version>3.5.14</mybatis-plus-jsqlparser.version>
+        <postgresql.version>42.7.2</postgresql.version>
     </properties>
 
     <dependencyManagement>
@@ -62,6 +65,24 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-collections4</artifactId>
                 <version>${commons-collections4.version}</version>
+            </dependency>
+            <!-- MyBatis-Plus -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- MyBatis-Plus JSqlParser (Required for Pagination Plugin since 3.5.9) -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus-jsqlparser.version}</version>
+            </dependency>
+            <!-- PostgreSQL Driver -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
