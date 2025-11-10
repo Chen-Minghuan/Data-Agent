@@ -1,7 +1,7 @@
 package edu.zsc.ai.converter;
 
 import edu.zsc.ai.model.dto.request.ConnectRequest;
-import edu.zsc.ai.plugin.model.ConnectionConfig;
+import edu.zsc.ai.plugin.connection.ConnectionConfig;
 
 
 /**

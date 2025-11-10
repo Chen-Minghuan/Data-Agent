@@ -1,4 +1,4 @@
-package edu.zsc.ai.plugin.connection;
+package edu.zsc.ai.plugin.driver;
 
 /**
  * Driver management constants.

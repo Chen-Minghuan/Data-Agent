@@ -1,4 +1,4 @@
-package edu.zsc.ai.plugin.model;
+package edu.zsc.ai.plugin.connection;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

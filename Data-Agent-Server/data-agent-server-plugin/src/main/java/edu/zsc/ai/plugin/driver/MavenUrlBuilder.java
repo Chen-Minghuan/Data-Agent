@@ -1,6 +1,4 @@
-package edu.zsc.ai.plugin.connection;
-
-import edu.zsc.ai.plugin.model.MavenCoordinates;
+package edu.zsc.ai.plugin.driver;
 
 import java.net.MalformedURLException;
 import java.net.URL;

@@ -2,7 +2,7 @@ package edu.zsc.ai.plugin;
 
 import edu.zsc.ai.plugin.enums.DbType;
 import edu.zsc.ai.plugin.enums.PluginType;
-import edu.zsc.ai.plugin.model.MavenCoordinates;
+import edu.zsc.ai.plugin.driver.MavenCoordinates;
 
 import java.util.Set;
 

@@ -8,7 +8,7 @@ import edu.zsc.ai.model.enums.ConnectionTestStatus;
 import edu.zsc.ai.plugin.Plugin;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
 import edu.zsc.ai.plugin.manager.PluginManager;
-import edu.zsc.ai.plugin.model.ConnectionConfig;
+import edu.zsc.ai.plugin.connection.ConnectionConfig;
 import edu.zsc.ai.service.ConnectionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

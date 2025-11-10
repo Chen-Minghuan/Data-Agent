@@ -1,6 +1,6 @@
-package edu.zsc.ai.plugin.connection;
+package edu.zsc.ai.plugin.driver;
 
-import edu.zsc.ai.plugin.model.ConnectionConfig;
+import edu.zsc.ai.plugin.connection.ConnectionConfig;
 
 import java.io.File;
 import java.net.URL;

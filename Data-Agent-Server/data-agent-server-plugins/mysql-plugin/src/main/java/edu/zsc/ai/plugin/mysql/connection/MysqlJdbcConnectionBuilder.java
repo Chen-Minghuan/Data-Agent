@@ -1,11 +1,10 @@
 package edu.zsc.ai.plugin.mysql.connection;
 
 import edu.zsc.ai.plugin.connection.JdbcConnectionBuilder;
-import edu.zsc.ai.plugin.model.ConnectionConfig;
+import edu.zsc.ai.plugin.connection.ConnectionConfig;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.Map;
 import java.util.Properties;
 
 /**

@@ -1,6 +1,6 @@
 package edu.zsc.ai.plugin.mysql;
 
-import edu.zsc.ai.plugin.model.ConnectionConfig;
+import edu.zsc.ai.plugin.connection.ConnectionConfig;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;

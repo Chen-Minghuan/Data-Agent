@@ -1,5 +1,6 @@
 package edu.zsc.ai.plugin.connection;
 
+import edu.zsc.ai.plugin.driver.JarFileValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

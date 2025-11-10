@@ -1,5 +1,6 @@
 package edu.zsc.ai.plugin.model;
 
+import edu.zsc.ai.plugin.driver.MavenCoordinates;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

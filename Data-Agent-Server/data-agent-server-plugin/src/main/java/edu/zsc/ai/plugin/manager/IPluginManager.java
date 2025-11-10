@@ -3,7 +3,7 @@ package edu.zsc.ai.plugin.manager;
 import edu.zsc.ai.plugin.Plugin;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
 import edu.zsc.ai.plugin.enums.DbType;
-import edu.zsc.ai.plugin.model.MavenCoordinates;
+import edu.zsc.ai.plugin.driver.MavenCoordinates;
 
 /**
  * Plugin Manager Interface

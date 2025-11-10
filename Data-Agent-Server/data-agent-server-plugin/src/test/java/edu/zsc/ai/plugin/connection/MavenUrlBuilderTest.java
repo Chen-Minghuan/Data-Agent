@@ -1,6 +1,7 @@
 package edu.zsc.ai.plugin.connection;
 
-import edu.zsc.ai.plugin.model.MavenCoordinates;
+import edu.zsc.ai.plugin.driver.MavenUrlBuilder;
+import edu.zsc.ai.plugin.driver.MavenCoordinates;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;

@@ -3,10 +3,10 @@ package edu.zsc.ai.plugin.mysql;
 import edu.zsc.ai.plugin.SqlPlugin;
 import edu.zsc.ai.plugin.base.AbstractDatabasePlugin;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
-import edu.zsc.ai.plugin.connection.DriverLoader;
+import edu.zsc.ai.plugin.driver.DriverLoader;
 import edu.zsc.ai.plugin.connection.JdbcConnectionBuilder;
-import edu.zsc.ai.plugin.model.ConnectionConfig;
-import edu.zsc.ai.plugin.model.MavenCoordinates;
+import edu.zsc.ai.plugin.connection.ConnectionConfig;
+import edu.zsc.ai.plugin.driver.MavenCoordinates;
 import edu.zsc.ai.plugin.mysql.connection.MysqlJdbcConnectionBuilder;
 
 import java.sql.Connection;

@@ -1,7 +1,5 @@
 package edu.zsc.ai.plugin.connection;
 
-import edu.zsc.ai.plugin.model.ConnectionConfig;
-
 import java.util.Properties;
 
 /**

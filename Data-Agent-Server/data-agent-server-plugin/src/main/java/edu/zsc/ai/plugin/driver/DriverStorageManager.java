@@ -1,7 +1,6 @@
-package edu.zsc.ai.plugin.connection;
+package edu.zsc.ai.plugin.driver;
 
 import edu.zsc.ai.plugin.enums.DbType;
-import edu.zsc.ai.plugin.model.MavenCoordinates;
 
 import java.io.IOException;
 import java.nio.file.Files;

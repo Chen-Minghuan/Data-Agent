@@ -1,7 +1,8 @@
 package edu.zsc.ai.plugin.connection;
 
+import edu.zsc.ai.plugin.driver.DriverStorageManager;
 import edu.zsc.ai.plugin.enums.DbType;
-import edu.zsc.ai.plugin.model.MavenCoordinates;
+import edu.zsc.ai.plugin.driver.MavenCoordinates;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
