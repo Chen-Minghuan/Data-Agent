@@ -29,7 +29,8 @@
         <mybatis-plus.version>3.5.14</mybatis-plus.version>
         <mybatis-plus-jsqlparser.version>3.5.14</mybatis-plus-jsqlparser.version>
         <postgresql.version>42.7.2</postgresql.version>
-        <spring.ai.version>1.1.0</spring.ai.version>
+        <spring.ai.version>1.0.0</spring.ai.version>
+        <spring.ai.alibaba>1.0.0.2</spring.ai.alibaba>
     </properties>
 
     <dependencyManagement>
@@ -41,6 +42,11 @@
                     <type>pom</type>
                     <scope>import</scope>
                 </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud.ai</groupId>
+                <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
+                <version>${spring.ai.alibaba}</version>
+            </dependency>
             <!-- Jackson -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
