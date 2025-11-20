@@ -3,6 +3,8 @@ package edu.zsc.ai.service.impl.ai;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+
+import cn.dev33.satoken.stp.StpUtil;
 import edu.zsc.ai.converter.MessageConverter;
 import edu.zsc.ai.enums.ai.message.MessageBlockTypeEnum;
 import edu.zsc.ai.enums.ai.message.MessageRoleEnum;
@@ -37,6 +39,7 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
         implements AiMessageService {
 
     private final AiMessageBlockService aiMessageBlockService;
+    private final edu.zsc.ai.service.AiConversationService aiConversationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -51,7 +54,8 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
         // 2. Save Block
         AiMessageBlock block = new AiMessageBlock();
         block.setMessageId(message.getId());
-        ConditionalUtil.setIfNotBlankOrElse(request.getBlockType(), MessageBlockTypeEnum.TEXT.name(), block::setBlockType);
+        ConditionalUtil.setIfNotBlankOrElse(request.getBlockType(), MessageBlockTypeEnum.TEXT.name(),
+                block::setBlockType);
         block.setContent(request.getContent());
         block.setExtensionData(request.getExtensionData());
         aiMessageBlockService.save(block);
@@ -141,7 +145,6 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
                 .build();
     }
 
-
     @Override
     public PageResponse<AiMessage> getDisplayMessagesPaginated(MessageQueryRequest request) {
         LambdaQueryWrapper<AiMessage> queryWrapper = new LambdaQueryWrapper<AiMessage>()
@@ -159,5 +162,35 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
         Page<AiMessage> result = this.page(page, queryWrapper);
 
         return PageResponse.of(result);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int rollbackMessages(Long conversationId, Long rollbackToMessageId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+
+        // Verify conversation ownership
+        aiConversationService.getByIdAndUser(conversationId, userId);
+
+        AiMessage targetMessage = this.getById(rollbackToMessageId);
+        if (targetMessage == null || !targetMessage.getConversationId().equals(conversationId)) {
+            throw new IllegalArgumentException("Invalid rollback target message");
+        }
+
+        LambdaQueryWrapper<AiMessage> queryWrapper = new LambdaQueryWrapper<AiMessage>()
+                .eq(AiMessage::getConversationId, conversationId)
+                .gt(AiMessage::getId, rollbackToMessageId)
+                .ne(AiMessage::getStatus, MessageStatusEnum.INVALID.getValue());
+
+        long count = this.count(queryWrapper);
+
+        boolean success = this.lambdaUpdate()
+                .eq(AiMessage::getConversationId, conversationId)
+                .gt(AiMessage::getId, rollbackToMessageId)
+                .ne(AiMessage::getStatus, MessageStatusEnum.INVALID.getValue())
+                .set(AiMessage::getStatus, MessageStatusEnum.INVALID.getValue())
+                .update();
+
+        return success ? (int) count : 0;
     }
 }
