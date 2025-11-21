@@ -6,5 +6,5 @@ public interface ContextManager {
 
     HistoryContextResponse getContextForAI(Long conversationId);
 
-    HistoryContextResponse compressContext(Long conversationId, HistoryContextResponse context, int maxTokens);
+    HistoryContextResponse compressContext(Long conversationId, HistoryContextResponse context);
 }

@@ -13,7 +13,6 @@ import edu.zsc.ai.mapper.AiMessageMapper;
 import edu.zsc.ai.model.dto.request.ai.message.MessageQueryRequest;
 import edu.zsc.ai.model.dto.request.ai.message.SaveMessageRequest;
 import edu.zsc.ai.model.dto.response.ai.message.HistoryContextResponse;
-import edu.zsc.ai.model.dto.response.ai.message.HistoryMessage;
 import edu.zsc.ai.model.dto.response.base.PageResponse;
 import edu.zsc.ai.model.entity.ai.AiMessage;
 import edu.zsc.ai.model.entity.ai.AiMessageBlock;
@@ -99,7 +98,7 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
                     .add(block);
         }
 
-        List<HistoryMessage> historyMessages = new ArrayList<>();
+        List<Message> historyMessages = new ArrayList<>();
         int totalTokenCount = 0;
 
         for (Map.Entry<Long, List<AiMessageBlock>> entry : blocksByMessageId.entrySet()) {
@@ -109,9 +108,6 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
 
             boolean isToolResult = blocks.stream()
                     .anyMatch(block -> MessageBlockTypeEnum.TOOL_CALL_RESULT.name().equals(block.getBlockType()));
-
-            boolean isSummary = blocks.stream()
-                    .anyMatch(block -> MessageBlockTypeEnum.SUMMARY.name().equals(block.getBlockType()));
 
             String content = blocks.stream().map(AiMessageBlock::getContent).collect(Collectors.joining());
 
@@ -123,17 +119,7 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
             }
 
             Message message = MessageConverter.toSpringMessage(role, content);
-            HistoryMessage historyMessage = HistoryMessage.builder()
-                    .message(message)
-                    .tokenCount(aiMessage.getTokenCount())
-                    .messageId(messageId)
-                    .role(role)
-                    .priority(aiMessage.getPriority())
-                    .isToolResult(isToolResult)
-                    .isSummary(isSummary)
-                    .build();
-
-            historyMessages.add(historyMessage);
+            historyMessages.add(message);
 
             // Accumulate total token count
             totalTokenCount += aiMessage.getTokenCount();
