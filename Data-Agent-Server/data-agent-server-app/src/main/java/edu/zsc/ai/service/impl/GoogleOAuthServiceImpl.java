@@ -1,10 +1,7 @@
 package edu.zsc.ai.service.impl;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
@@ -23,14 +20,13 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import edu.zsc.ai.config.properties.GoogleOAuthProperties;
 import edu.zsc.ai.enums.error.ErrorCode;
 import edu.zsc.ai.exception.BusinessException;
 import edu.zsc.ai.model.dto.response.GoogleTokenResponse;
 import edu.zsc.ai.model.dto.response.GoogleUserInfo;
 import edu.zsc.ai.service.GoogleOAuthService;
+import edu.zsc.ai.util.JsonUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +42,6 @@ import lombok.extern.slf4j.Slf4j;
 public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
     private final GoogleOAuthProperties googleOAuthProperties;
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final SecureRandom secureRandom = new SecureRandom();
     
     // Temporary in-memory storage for OAuth states (TODO: migrate to database)
@@ -93,15 +88,15 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
         // Build authorization URL with required parameters
         StringBuilder url = new StringBuilder(googleOAuthProperties.getAuthUrl());
-        url.append("?client_id=").append(urlEncode(googleOAuthProperties.getClientId()));
-        url.append("&redirect_uri=").append(urlEncode(googleOAuthProperties.getRedirectUri()));
+        url.append("?client_id=").append(JsonUtil.urlEncode(googleOAuthProperties.getClientId()));
+        url.append("&redirect_uri=").append(JsonUtil.urlEncode(googleOAuthProperties.getRedirectUri()));
         url.append("&response_type=code");
-        url.append("&scope=").append(urlEncode(googleOAuthProperties.getScope()));
+        url.append("&scope=").append(JsonUtil.urlEncode(googleOAuthProperties.getScope()));
         url.append("&access_type=offline");
         url.append("&prompt=consent");
         
         if (state != null && !state.isEmpty()) {
-            url.append("&state=").append(urlEncode(state));
+            url.append("&state=").append(JsonUtil.urlEncode(state));
         }
 
         log.debug("Generated Google OAuth authorization URL");
@@ -159,19 +154,9 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     @Override
     public GoogleUserInfo validateAndExtractUserInfo(String idToken) {
         try {
-            // Parse JWT without signature verification (Google's signature verification requires fetching public keys)
-            // In production, you should verify the signature using Google's public keys
-            String[] parts = idToken.split("\\.");
-            if (parts.length != 3) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "Invalid ID token format");
-            }
-
-            // Decode payload
-            String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-            
-            // Parse JSON to extract claims
-            @SuppressWarnings("unchecked")
-            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
+            // Parse JWT without signature verification using JsonUtil
+            // Note: In production, you should verify the signature using Google's public keys
+            Map<String, Object> claims = JsonUtil.decodeJwtPayload(idToken);
 
             // Validate issuer
             String issuer = (String) claims.get("iss");
@@ -208,9 +193,9 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
             log.info("Successfully validated and extracted user info from ID token: email={}", userInfo.getEmail());
             return userInfo;
 
-        } catch (IOException e) {
+        } catch (IllegalArgumentException e) {
             log.error("Failed to parse ID token", e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "Failed to parse ID token");
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "Failed to parse ID token: " + e.getMessage());
         }
     }
 
@@ -264,12 +249,5 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     private void cleanupExpiredStates() {
         long now = System.currentTimeMillis();
         stateStore.entrySet().removeIf(entry -> entry.getValue() < now);
-    }
-
-    /**
-     * URL encode a string
-     */
-    private String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

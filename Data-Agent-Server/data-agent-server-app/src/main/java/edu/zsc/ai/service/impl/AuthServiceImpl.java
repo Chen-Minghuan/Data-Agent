@@ -287,8 +287,8 @@ public class AuthServiceImpl implements AuthService {
         User user = new User();
         user.setEmail(email);
         user.setUsername(email.split("@")[0]); // Use email prefix as username
+        user.setPasswordHash("OAUTH_USER_NO_PASSWORD"); // Placeholder for OAuth users
         user.setVerified(true); // Email verified by code
-        // No password for email code login users
 
         boolean saved = userService.save(user);
         if (!saved) {

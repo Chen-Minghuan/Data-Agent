@@ -52,8 +52,8 @@ sa-token:
   token-name: Authorization
   # Token prefix
   token-prefix: Bearer
-  # Token style (uuid, simple-uuid, random-32, random-64, random-128, tik)
-  token-style: uuid
+  # Token style (uuid, simple-uuid, random-32, random-64, random-128, tik, jwt)
+  token-style: jwt
   # AccessToken expiration time (seconds, -1 means never expire)
   timeout: 1800  # 30 minutes
   # Allow concurrent login for same account
