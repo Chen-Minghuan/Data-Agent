@@ -1,13 +1,13 @@
 package edu.zsc.ai.controller.db;
 
-import edu.zsc.ai.model.dto.request.db.ConnectRequest;
-import edu.zsc.ai.model.dto.request.db.ConnectionCreateRequest;
-import edu.zsc.ai.model.dto.response.base.ApiResponse;
-import edu.zsc.ai.model.dto.response.db.ConnectionResponse;
-import edu.zsc.ai.model.dto.response.db.ConnectionTestResponse;
-import edu.zsc.ai.model.dto.response.db.OpenConnectionResponse;
-import edu.zsc.ai.service.db.ConnectionService;
-import edu.zsc.ai.service.db.DbConnectionService;
+import edu.zsc.ai.domain.model.dto.request.db.ConnectRequest;
+import edu.zsc.ai.domain.model.dto.request.db.ConnectionCreateRequest;
+import edu.zsc.ai.domain.model.dto.response.base.ApiResponse;
+import edu.zsc.ai.domain.model.dto.response.db.ConnectionResponse;
+import edu.zsc.ai.domain.model.dto.response.db.ConnectionTestResponse;
+import edu.zsc.ai.domain.model.dto.response.db.OpenConnectionResponse;
+import edu.zsc.ai.domain.service.db.ConnectionService;
+import edu.zsc.ai.domain.service.db.DbConnectionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
