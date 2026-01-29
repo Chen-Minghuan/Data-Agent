@@ -1,21 +1,22 @@
 import axios from 'axios';
-import { TokenPairResponse } from '../types/auth';
-import { TokenManager } from './token-manager';
+import { useAuthStore } from '../store/authStore';
+import { triggerLoginModal } from '../store/authStore';
+import { authService } from '../services/auth.service';
+import { HttpStatusCode, ErrorCode } from '../constants/errorCode';
 
 const http = axios.create({
-    baseURL: '/api', // Proxy will handle this in dev, Nginx in prod
+    baseURL: '/api',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Request interceptor: Inject token
 http.interceptors.request.use(
     (config) => {
-        const token = TokenManager.getAccessToken();
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        const { accessToken } = useAuthStore.getState();
+        if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`;
         }
         return config;
     },
@@ -24,7 +25,6 @@ http.interceptors.request.use(
     }
 );
 
-// Response interceptor: Handle 401 and refresh token
 http.interceptors.response.use(
     (response) => {
         return response;
@@ -32,35 +32,38 @@ http.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // If 401 and not already retrying
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (
+            error.response?.status === HttpStatusCode.UNAUTHORIZED &&
+            error.response?.data?.code === ErrorCode.NOT_LOGIN_ERROR &&
+            !originalRequest._retry
+        ) {
             originalRequest._retry = true;
 
             try {
-                const refreshToken = TokenManager.getRefreshToken();
+                const refreshToken = useAuthStore.getState().refreshToken;
                 if (!refreshToken) {
                     throw new Error('No refresh token');
                 }
 
-                // Call refresh endpoint directly to avoid circular dependency
-                const response = await axios.post<TokenPairResponse>('/api/auth/refresh', refreshToken, {
-                    headers: { 'Content-Type': 'application/json' }
-                });
+                const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);
 
-                const { accessToken, refreshToken: newRefreshToken } = response.data;
+                useAuthStore.getState().setAuth(
+                    useAuthStore.getState().user,
+                    accessToken,
+                    newRefreshToken
+                );
 
-                TokenManager.updateAccessToken(accessToken);
-                TokenManager.updateRefreshToken(newRefreshToken);
-
-                // Update header and retry original request
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return http(originalRequest);
             } catch (refreshError) {
-                // Refresh failed - clear tokens and redirect to login
-                TokenManager.clearTokens();
-                window.location.href = '/login'; // Or trigger a global event
+                useAuthStore.getState().clearAuth();
+                triggerLoginModal();
                 return Promise.reject(refreshError);
             }
+        }
+
+        if (error.response?.data?.code === ErrorCode.NOT_LOGIN_ERROR) {
+            triggerLoginModal();
         }
 
         return Promise.reject(error);
