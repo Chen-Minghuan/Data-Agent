@@ -1,18 +1,18 @@
 import { useEffect } from 'react';
-import { useAuthStore, triggerLoginModal } from '../../store/authStore';
+import { useAuthStore } from '../../store/authStore';
 
 interface RouteGuardProps {
     children: React.ReactNode;
 }
 
 export function RouteGuard({ children }: RouteGuardProps) {
-    const { user } = useAuthStore();
+    const { user, openLoginModal } = useAuthStore();
 
     useEffect(() => {
         if (!user) {
-            triggerLoginModal();
+            openLoginModal();
         }
-    }, [user]);
+    }, [user, openLoginModal]);
 
     if (user) {
         return <>{children}</>;

@@ -1,8 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { triggerLoginModal } from '../store/authStore';
-import { authService } from '../services/auth.service';
 import { HttpStatusCode, ErrorCode } from '../constants/errorCode';
+import type { TokenPairResponse } from '../types/auth';
 
 const http = axios.create({
     baseURL: '/api',
@@ -30,7 +29,7 @@ http.interceptors.response.use(
         return response;
     },
     async (error) => {
-        const originalRequest = error.config;
+        const originalRequest = error.config as any;
 
         if (
             error.response?.status === HttpStatusCode.UNAUTHORIZED &&
@@ -40,30 +39,30 @@ http.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refreshToken = useAuthStore.getState().refreshToken;
+                const { refreshToken, user, setAuth } = useAuthStore.getState();
                 if (!refreshToken) {
                     throw new Error('No refresh token');
                 }
 
-                const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);
+                const refreshResponse = await http.post<TokenPairResponse>('/auth/refresh', { refreshToken });
+                const { accessToken, refreshToken: newRefreshToken } = refreshResponse.data;
 
-                useAuthStore.getState().setAuth(
-                    useAuthStore.getState().user,
-                    accessToken,
-                    newRefreshToken
-                );
+                setAuth(user, accessToken, newRefreshToken);
 
+                originalRequest.headers = originalRequest.headers || {};
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return http(originalRequest);
             } catch (refreshError) {
-                useAuthStore.getState().clearAuth();
-                triggerLoginModal();
+                const { clearAuth, openLoginModal } = useAuthStore.getState();
+                clearAuth();
+                openLoginModal();
                 return Promise.reject(refreshError);
             }
         }
 
         if (error.response?.data?.code === ErrorCode.NOT_LOGIN_ERROR) {
-            triggerLoginModal();
+            const { openLoginModal } = useAuthStore.getState();
+            openLoginModal();
         }
 
         return Promise.reject(error);

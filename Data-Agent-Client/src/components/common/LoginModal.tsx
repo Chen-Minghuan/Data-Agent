@@ -4,23 +4,32 @@ import { Input } from "../ui/Input";
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/Dialog";
 import { Github } from "lucide-react";
 import { authService } from "../../services/auth.service";
+import { Alert } from "../ui/Alert";
+import { useAuthStore } from "../../store/authStore";
 
-export function LoginModal() {
+interface LoginModalProps {
+    onSwitchToRegister: () => void;
+    onClose: () => void;
+}
+
+export function LoginModal({ onSwitchToRegister, onClose }: LoginModalProps) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { setAuth } = useAuthStore();
 
     const handleLogin = async () => {
         try {
+            setError(null);
             setLoading(true);
-            await authService.login({ email, password, rememberMe });
-            // Close modal or redirect (logic depends on parent/context, for now just log)
-            console.log("Login successful");
-            window.location.reload(); // Simple reload to reflect auth state
+            const response = await authService.login({ email, password, rememberMe });
+            setAuth(null, response.accessToken, response.refreshToken, rememberMe);
+            onClose(); // Close modal after successful login
         } catch (error) {
             console.error("Login failed", error);
-            alert("Login failed. Please check your credentials.");
+            setError("Login failed. Please check your credentials.");
         } finally {
             setLoading(false);
         }
@@ -35,6 +44,11 @@ export function LoginModal() {
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+                {error && (
+                    <Alert variant="destructive">
+                        {error}
+                    </Alert>
+                )}
                 <div className="grid gap-2">
                     <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
                     <Input
@@ -119,7 +133,7 @@ export function LoginModal() {
             </div>
             <div className="text-sm text-center text-muted-foreground">
                 Don't have an account?{" "}
-                <button className="text-primary hover:underline">
+                <button className="text-primary hover:underline" onClick={onSwitchToRegister}>
                     Sign up
                 </button>
             </div>

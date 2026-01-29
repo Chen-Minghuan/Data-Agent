@@ -1,6 +1,5 @@
 import http from '../lib/http';
-import { TokenManager } from '../lib/token-manager';
-import { LoginRequest, RegisterRequest, ResetPasswordRequest, TokenPairResponse } from '../types/auth';
+import { LoginRequest, RegisterRequest, ResetPasswordRequest, TokenPairResponse, User } from '../types/auth';
 
 export const authService = {
     /**
@@ -8,8 +7,14 @@ export const authService = {
      */
     login: async (data: LoginRequest): Promise<TokenPairResponse> => {
         const response = await http.post<TokenPairResponse>('/auth/login', data);
-        const { accessToken, refreshToken } = response.data;
-        TokenManager.setTokens(accessToken, refreshToken, data.rememberMe || false);
+        return response.data;
+    },
+
+    /**
+     * Get current user info
+     */
+    getCurrentUser: async (): Promise<User> => {
+        const response = await http.get<User>('/user/me');
         return response.data;
     },
 
@@ -25,11 +30,7 @@ export const authService = {
      * Logout the current user
      */
     logout: async (): Promise<boolean> => {
-        try {
-            await http.post<boolean>('/auth/logout');
-        } finally {
-            TokenManager.clearTokens();
-        }
+        await http.post<boolean>('/auth/logout');
         return true;
     },
 
@@ -38,6 +39,14 @@ export const authService = {
      */
     resetPassword: async (data: ResetPasswordRequest): Promise<boolean> => {
         const response = await http.post<boolean>('/auth/reset-password', data);
+        return response.data;
+    },
+
+    /**
+     * Refresh access token using refresh token
+     */
+    refresh: async (refreshToken: string): Promise<TokenPairResponse> => {
+        const response = await http.post<TokenPairResponse>('/auth/refresh', { refreshToken });
         return response.data;
     },
 

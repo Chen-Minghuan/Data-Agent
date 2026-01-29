@@ -16,6 +16,11 @@ export interface ResetPasswordRequest {
     newPassword: string;
 }
 
+export interface UpdateUserRequest {
+    username?: string;
+    avatarUrl?: string;
+}
+
 export interface TokenPairResponse {
     accessToken: string;
     refreshToken: string;
@@ -27,14 +32,15 @@ export interface User {
     email: string;
     avatarUrl?: string;
     authProvider?: string;
-    verified: boolean;
-    createdAt: string;
-    updatedAt: string;
 }
 
-export interface AuthState {
-    user: User | null;
-    accessToken: string | null;
-    refreshToken: string | null;
-    isAuthenticated: boolean;
+export interface SessionInfo {
+    id: number;
+    deviceInfo?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    isCurrent: boolean;
+    lastRefreshAt: string;
+    createdAt: string;
 }
+
