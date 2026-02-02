@@ -1,5 +1,6 @@
 package edu.zsc.ai.controller;
 
+import edu.zsc.ai.domain.model.dto.response.base.ApiResponse;
 import edu.zsc.ai.domain.model.dto.response.sys.SessionResponse;
 import edu.zsc.ai.domain.service.sys.SysSessionsService;
 import lombok.extern.slf4j.Slf4j;
@@ -23,13 +24,15 @@ public class SessionController {
     private SysSessionsService sysSessionsService;
 
     @GetMapping("/list")
-    public List<SessionResponse> listActiveSessions() {
-        return sysSessionsService.listActiveSessionsByUserId();
+    public ApiResponse<List<SessionResponse>> listActiveSessions() {
+        List<SessionResponse> data = sysSessionsService.listActiveSessionsByUserId();
+        return ApiResponse.success(data);
     }
 
     @DeleteMapping("/{sessionId}")
-    public Boolean revokeSession(@PathVariable Long sessionId) {
-        return sysSessionsService.revokeSessionById(sessionId);
+    public ApiResponse<Void> revokeSession(@PathVariable Long sessionId) {
+        sysSessionsService.revokeSessionById(sessionId);
+        return ApiResponse.success();
     }
 
 }

@@ -1,6 +1,7 @@
 package edu.zsc.ai.controller;
 
 import edu.zsc.ai.domain.model.dto.request.sys.UpdateUserRequest;
+import edu.zsc.ai.domain.model.dto.response.base.ApiResponse;
 import edu.zsc.ai.domain.model.dto.response.sys.UserResponse;
 import edu.zsc.ai.domain.service.sys.AuthService;
 import edu.zsc.ai.domain.service.sys.SysUsersService;
@@ -26,13 +27,15 @@ public class UserController {
     private SysUsersService sysUsersService;
 
     @GetMapping("/me")
-    public UserResponse getCurrentUser() {
-        return authService.getCurrentUser();
+    public ApiResponse<UserResponse> getCurrentUser() {
+        UserResponse data = authService.getCurrentUser();
+        return ApiResponse.success(data);
     }
 
     @PutMapping("/me")
-    public Boolean updateProfile(@RequestBody @Validated UpdateUserRequest request) {
-        return sysUsersService.updateUserProfile(request);
+    public ApiResponse<Void> updateProfile(@RequestBody @Validated UpdateUserRequest request) {
+        sysUsersService.updateUserProfile(request);
+        return ApiResponse.success();
     }
 
 }

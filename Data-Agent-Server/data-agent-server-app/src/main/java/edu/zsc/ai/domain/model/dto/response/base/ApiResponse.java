@@ -53,7 +53,7 @@ public class ApiResponse<T> implements Serializable {
      * @return success response
      */
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(0, data, "ok");
+        return new ApiResponse<>(ErrorCode.SUCCESS.getCode(), data, "ok");
     }
 
     /**
@@ -63,7 +63,7 @@ public class ApiResponse<T> implements Serializable {
      * @return success response
      */
     public static <T> ApiResponse<T> success() {
-        return new ApiResponse<>(0, null, "ok");
+        return new ApiResponse<>(ErrorCode.SUCCESS.getCode(), null, "ok");
     }
 
     /**

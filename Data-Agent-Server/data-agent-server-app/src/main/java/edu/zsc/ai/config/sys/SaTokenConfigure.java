@@ -3,7 +3,8 @@ package edu.zsc.ai.config.sys;
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import cn.dev33.satoken.stp.StpLogic;
 import cn.dev33.satoken.stp.StpUtil;
-import edu.zsc.ai.common.constant.ResponseConstant;
+import edu.zsc.ai.common.constant.ResponseMessageKey;
+import edu.zsc.ai.common.constant.ResponseCode;
 import edu.zsc.ai.domain.model.enums.SessionStatusEnum;
 import edu.zsc.ai.domain.model.dto.request.sys.FindSessionByTokenRequest;
 import edu.zsc.ai.domain.model.entity.sys.SysSessions;
@@ -45,7 +46,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                 req.setUserId(userId);
                 SysSessions s = sessionService.findByAccessTokenAndUserId(req);
                 if (s == null || s.getActive() == null || !s.getActive().equals(SessionStatusEnum.ACTIVE.getValue())) {
-                    throw BusinessException.of(ResponseConstant.UNAUTHORIZED, ResponseConstant.NOT_LOGIN_MESSAGE);
+                    throw BusinessException.of(ResponseCode.UNAUTHORIZED, ResponseMessageKey.NOT_LOGIN_MESSAGE);
                 }
                 return true;
             }

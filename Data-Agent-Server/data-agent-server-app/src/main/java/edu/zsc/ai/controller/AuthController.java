@@ -4,6 +4,7 @@ import edu.zsc.ai.domain.model.dto.request.sys.LoginRequest;
 import edu.zsc.ai.domain.model.dto.request.sys.RefreshTokenRequest;
 import edu.zsc.ai.domain.model.dto.request.sys.RegisterRequest;
 import edu.zsc.ai.domain.model.dto.request.sys.ResetPasswordRequest;
+import edu.zsc.ai.domain.model.dto.response.base.ApiResponse;
 import edu.zsc.ai.domain.model.dto.response.sys.TokenPairResponse;
 import edu.zsc.ai.domain.service.sys.AuthService;
 import lombok.extern.slf4j.Slf4j;
@@ -24,28 +25,33 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/login")
-    public TokenPairResponse login(@RequestBody @Validated LoginRequest request) {
-        return authService.loginByEmail(request);
+    public ApiResponse<TokenPairResponse> login(@RequestBody @Validated LoginRequest request) {
+        TokenPairResponse data = authService.loginByEmail(request);
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/refresh")
-    public TokenPairResponse refresh(@RequestBody @Validated RefreshTokenRequest request) {
-        return authService.refreshToken(request.getRefreshToken());
+    public ApiResponse<TokenPairResponse> refresh(@RequestBody @Validated RefreshTokenRequest request) {
+        TokenPairResponse data = authService.refreshToken(request.getRefreshToken());
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/register")
-    public Boolean register(@RequestBody @Validated RegisterRequest request) {
-        return authService.register(request);
+    public ApiResponse<Boolean> register(@RequestBody @Validated RegisterRequest request) {
+        Boolean data = authService.register(request);
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/logout")
-    public Boolean logout() {
-        return authService.logout();
+    public ApiResponse<Void> logout() {
+        authService.logout();
+        return ApiResponse.success();
     }
 
     @PostMapping("/reset-password")
-    public Boolean resetPassword(@RequestBody @Validated ResetPasswordRequest request) {
-        return authService.resetPassword(request);
+    public ApiResponse<Void> resetPassword(@RequestBody @Validated ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ApiResponse.success();
     }
 
 }
