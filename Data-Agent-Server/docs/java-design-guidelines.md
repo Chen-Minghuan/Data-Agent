@@ -242,10 +242,13 @@ public class OrderRequest {
 ### 2. 常量示例
 
 ```java
-public class ResponseConstant {
+public class ResponseCode {
     public static final int SUCCESS = 200;
-    public static final String SUCCESS_MESSAGE = "success";
-    public static final String USER_NOT_FOUND_MESSAGE = "user not found";
+}
+
+public class ResponseMessageKey {
+    public static final String SUCCESS_MESSAGE = "common.success";
+    public static final String USER_NOT_FOUND_MESSAGE = "error.auth.user.not.found";
 }
 
 public class RedisKeyConstant {
@@ -349,13 +352,13 @@ public class ApiResponse<T> {
     private final T data;
 
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(ResponseConstant.SUCCESS, 
-            ResponseConstant.SUCCESS_MESSAGE, data);
+        return new ApiResponse<>(ResponseCode.SUCCESS,
+            ResponseMessageKey.SUCCESS_MESSAGE, data);
     }
 
     public static <T> ApiResponse<T> success() {
-        return new ApiResponse<>(ResponseConstant.SUCCESS, 
-            ResponseConstant.SUCCESS_MESSAGE, null);
+        return new ApiResponse<>(ResponseCode.SUCCESS,
+            ResponseMessageKey.SUCCESS_MESSAGE, null);
     }
 
     public static <T> ApiResponse<T> error(int code, String message) {
@@ -363,7 +366,7 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> paramError(String message) {
-        return new ApiResponse<>(ResponseConstant.PARAM_ERROR, message, null);
+        return new ApiResponse<>(ResponseCode.PARAM_ERROR, message, null);
     }
 }
 ```

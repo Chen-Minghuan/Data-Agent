@@ -3,7 +3,8 @@ package edu.zsc.ai.domain.service.sys.iml;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import edu.zsc.ai.common.constant.ResponseConstant;
+import edu.zsc.ai.common.constant.ResponseMessageKey;
+import edu.zsc.ai.common.constant.ResponseCode;
 import edu.zsc.ai.domain.mapper.sys.SysUsersMapper;
 import edu.zsc.ai.domain.model.dto.request.sys.UpdateUserRequest;
 import edu.zsc.ai.domain.model.entity.sys.SysUsers;
@@ -29,16 +30,16 @@ public class SysUsersServiceImpl extends ServiceImpl<SysUsersMapper, SysUsers>
 
                 // Get current user
                 SysUsers user = this.getById(userId);
-                BusinessException.throwIf(user == null, ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.USER_NOT_FOUND_MESSAGE);
+                BusinessException.throwIf(user == null, ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.USER_NOT_FOUND_MESSAGE);
 
                 // Check if username is being changed and if it's already taken
                 if (request.getUsername() != null && !request.getUsername().equals(user.getUsername())) {
                         boolean usernameExists = this.exists(new LambdaQueryWrapper<SysUsers>()
                                         .eq(SysUsers::getUsername, request.getUsername())
                                         .ne(SysUsers::getId, userId));
-                        BusinessException.throwIf(usernameExists, ResponseConstant.PARAM_ERROR,
-                                        "Username already taken");
+                        BusinessException.throwIf(usernameExists, ResponseCode.PARAM_ERROR,
+                                        ResponseMessageKey.USERNAME_ALREADY_EXISTS_MESSAGE);
                 }
 
                 // Update only non-null fields

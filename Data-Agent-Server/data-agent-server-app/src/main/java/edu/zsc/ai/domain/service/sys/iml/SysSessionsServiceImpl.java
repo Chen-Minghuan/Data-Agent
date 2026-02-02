@@ -3,7 +3,8 @@ package edu.zsc.ai.domain.service.sys.iml;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import edu.zsc.ai.common.constant.ResponseConstant;
+import edu.zsc.ai.common.constant.ResponseMessageKey;
+import edu.zsc.ai.common.constant.ResponseCode;
 import edu.zsc.ai.common.enums.sys.SessionStatusEnum;
 import edu.zsc.ai.domain.mapper.sys.SysSessionsMapper;
 import edu.zsc.ai.domain.model.dto.request.sys.FindSessionByTokenRequest;
@@ -71,10 +72,10 @@ public class SysSessionsServiceImpl extends ServiceImpl<SysSessionsMapper, SysSe
 
                 // Get session and verify ownership
                 SysSessions session = getById(sessionId);
-                BusinessException.throwIf(session == null, ResponseConstant.PARAM_ERROR,
-                                "Session not found");
-                BusinessException.throwIf(!session.getUserId().equals(userId), ResponseConstant.UNAUTHORIZED,
-                                "Not authorized to revoke this session");
+                BusinessException.throwIf(session == null, ResponseCode.PARAM_ERROR,
+                                ResponseMessageKey.SESSION_NOT_FOUND_MESSAGE);
+                BusinessException.throwIf(!session.getUserId().equals(userId), ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.SESSION_NOT_BELONG_TO_USER_MESSAGE);
 
                 // Mark session as inactive
                 session.setActive(SessionStatusEnum.INACTIVE.getValue());

@@ -4,7 +4,8 @@ import cn.dev33.satoken.stp.SaLoginModel;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import edu.zsc.ai.common.constant.JwtClaimConstant;
-import edu.zsc.ai.common.constant.ResponseConstant;
+import edu.zsc.ai.common.constant.ResponseMessageKey;
+import edu.zsc.ai.common.constant.ResponseCode;
 import edu.zsc.ai.common.enums.sys.SessionStatusEnum;
 import edu.zsc.ai.domain.model.dto.request.sys.CreateRefreshTokenRequest;
 import edu.zsc.ai.domain.model.dto.request.sys.FindSessionByTokenRequest;
@@ -47,8 +48,8 @@ public class AuthServiceImpl implements AuthService {
         public UserResponse getCurrentUser() {
                 long userId = StpUtil.getLoginIdAsLong();
                 SysUsers user = sysUsersService.getById(userId);
-                BusinessException.throwIf(user == null, ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.USER_NOT_FOUND_MESSAGE);
+                BusinessException.throwIf(user == null, ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.USER_NOT_FOUND_MESSAGE);
 
                 return UserResponse.builder()
                                 .id(user.getId())
@@ -69,13 +70,13 @@ public class AuthServiceImpl implements AuthService {
                                 .eq(SysUsers::getEmail, request.getEmail()));
 
                 BusinessException.throwIf(user == null,
-                                ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.INVALID_CREDENTIALS_MESSAGE);
+                                ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.INVALID_CREDENTIALS_MESSAGE);
 
                 // 2. Validate password
                 BusinessException.throwIf(!CryptoUtil.match(request.getPassword(), user.getPasswordHash()),
-                                ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.INVALID_CREDENTIALS_MESSAGE);
+                                ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.INVALID_CREDENTIALS_MESSAGE);
 
                 // 3. Login and generate JWT
                 SaLoginModel model = new SaLoginModel();
@@ -114,16 +115,16 @@ public class AuthServiceImpl implements AuthService {
         public TokenPairResponse refreshToken(String refreshTokenPlain) {
                 // 1. Verify refresh token validity
                 SysRefreshTokens refreshToken = sysRefreshTokensService.verifyAndGet(refreshTokenPlain);
-                BusinessException.throwIf(refreshToken == null, ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.INVALID_REFRESH_TOKEN_MESSAGE);
+                BusinessException.throwIf(refreshToken == null, ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.INVALID_REFRESH_TOKEN_MESSAGE);
 
                 // 2. Revoke old refresh token
                 sysRefreshTokensService.revoke(refreshTokenPlain);
 
                 // 3. Get user information
                 SysUsers user = sysUsersService.getById(refreshToken.getUserId());
-                BusinessException.throwIf(user == null, ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.USER_NOT_FOUND_MESSAGE);
+                BusinessException.throwIf(user == null, ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.USER_NOT_FOUND_MESSAGE);
 
                 // 4. Generate new access token
                 StpUtil.logout();
@@ -158,13 +159,13 @@ public class AuthServiceImpl implements AuthService {
                                 sysUsersService
                                                 .exists(new LambdaQueryWrapper<SysUsers>().eq(SysUsers::getUsername,
                                                                 request.getUsername())),
-                                ResponseConstant.PARAM_ERROR,
-                                ResponseConstant.EMAIL_OR_USERNAME_EXISTS_MESSAGE);
+                                ResponseCode.PARAM_ERROR,
+                                ResponseMessageKey.EMAIL_OR_USERNAME_EXISTS_MESSAGE);
                 BusinessException.throwIf(
                                 sysUsersService.exists(new LambdaQueryWrapper<SysUsers>().eq(SysUsers::getEmail,
                                                 request.getEmail())),
-                                ResponseConstant.PARAM_ERROR,
-                                ResponseConstant.EMAIL_OR_USERNAME_EXISTS_MESSAGE);
+                                ResponseCode.PARAM_ERROR,
+                                ResponseMessageKey.EMAIL_OR_USERNAME_EXISTS_MESSAGE);
 
                 SysUsers user = new SysUsers();
                 user.setUsername(request.getUsername());
@@ -209,14 +210,14 @@ public class AuthServiceImpl implements AuthService {
                 SysUsers user = sysUsersService.getOne(new LambdaQueryWrapper<SysUsers>()
                                 .eq(SysUsers::getEmail, request.getEmail()));
                 BusinessException.throwIf(user == null,
-                                ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.USER_NOT_FOUND_MESSAGE);
+                                ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.USER_NOT_FOUND_MESSAGE);
 
                 // 2) Validate old password
                 boolean oldOk = CryptoUtil.match(request.getOldPassword(), user.getPasswordHash());
                 BusinessException.throwIf(!oldOk,
-                                ResponseConstant.UNAUTHORIZED,
-                                ResponseConstant.INVALID_CREDENTIALS_MESSAGE);
+                                ResponseCode.UNAUTHORIZED,
+                                ResponseMessageKey.INVALID_CREDENTIALS_MESSAGE);
 
                 // 3) Update to new password
                 user.setPasswordHash(CryptoUtil.encode(request.getNewPassword()));
