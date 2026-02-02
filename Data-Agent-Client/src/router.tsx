@@ -3,6 +3,7 @@ import { RouteGuard } from "./components/auth/RouteGuard";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
+import PasswordReset from "./pages/PasswordReset";
 import Sessions from "./pages/Sessions";
 
 interface RouterConfig {
@@ -28,6 +29,7 @@ const routes: RouterConfig[] = [
         children: [
             { index: true, element: <Navigate to="/settings/profile" replace /> },
             { path: "profile", element: <Profile />, requiresAuth: true },
+            { path: "password", element: <PasswordReset />, requiresAuth: true },
             { path: "sessions", element: <Sessions />, requiresAuth: true },
         ],
     },

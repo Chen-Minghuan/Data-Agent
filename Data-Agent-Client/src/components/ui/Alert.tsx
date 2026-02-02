@@ -11,17 +11,17 @@ export function Alert({ className, variant = "default", children, ...props }: Al
         <div
             role="alert"
             className={cn(
-                "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
-                variant === "destructive" && "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive bg-destructive/10",
-                variant === "success" && "border-green-500/50 text-green-600 dark:text-green-400 dark:border-green-500 [&>svg]:text-green-600 dark:[&>svg]:text-green-400 bg-green-500/10",
+                "relative w-full rounded-lg border p-4 flex items-center gap-3",
+                variant === "destructive" && "border-destructive/50 text-destructive dark:border-destructive bg-destructive/10",
+                variant === "success" && "border-green-500/50 text-green-600 dark:text-green-400 dark:border-green-500 bg-green-500/10",
                 variant === "default" && "bg-background text-foreground",
                 className
             )}
             {...props}
         >
-            {variant === "destructive" && <XCircle className="h-4 w-4" />}
-            {variant === "success" && <CheckCircle className="h-4 w-4" />}
-            {variant === "default" && <AlertCircle className="h-4 w-4" />}
+            {variant === "destructive" && <XCircle className="h-4 w-4 shrink-0" />}
+            {variant === "success" && <CheckCircle className="h-4 w-4 shrink-0" />}
+            {variant === "default" && <AlertCircle className="h-4 w-4 shrink-0" />}
             <div className="text-sm font-medium leading-none tracking-tight">
                 {children}
             </div>

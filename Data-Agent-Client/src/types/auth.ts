@@ -12,7 +12,7 @@ export interface RegisterRequest {
 
 export interface ResetPasswordRequest {
     email: string;
-    oldPassword?: string;
+    oldPassword: string;
     newPassword: string;
 }
 

@@ -1,11 +1,12 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { User, Shield, ChevronRight } from 'lucide-react';
+import { User, Shield, Lock, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 // TODO: 支持多级 Settings 子菜单（如 /settings/profile/security），
 // 导航高亮和结构需要在后续迭代时扩展。
 const navItems = [
     { path: '/settings/profile', label: 'Profile', icon: User },
+    { path: '/settings/password', label: 'Security', icon: Lock },
     { path: '/settings/sessions', label: 'Sessions', icon: Shield },
 ] as const;
 

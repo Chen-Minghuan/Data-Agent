@@ -4,6 +4,8 @@ import { ThemeSwitcher } from "../common/ThemeSwitcher";
 import { useAuthStore } from "../../store/authStore";
 import { authService } from "../../services/auth.service";
 import { LogOut } from "lucide-react";
+import { resolveErrorMessage } from "../../lib/errorMessage";
+import { useToast } from "../../hooks/useToast";
 
 interface HeaderProps {
     onLoginClick: () => void;
@@ -12,6 +14,7 @@ interface HeaderProps {
 export function Header({ onLoginClick }: HeaderProps) {
     const navigate = useNavigate();
     const { user, accessToken, clearAuth } = useAuthStore();
+    const toast = useToast();
 
     const handleLogout = async () => {
         try {
@@ -20,6 +23,7 @@ export function Header({ onLoginClick }: HeaderProps) {
             navigate('/');
         } catch (error) {
             console.error("Logout failed", error);
+            toast.error(resolveErrorMessage(error, "Logout failed"));
         }
     };
 
