@@ -4,14 +4,18 @@ import edu.zsc.ai.plugin.SqlPlugin;
 import edu.zsc.ai.plugin.base.AbstractDatabasePlugin;
 import edu.zsc.ai.plugin.capability.CommandExecutor;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
+import edu.zsc.ai.plugin.capability.ViewProvider;
 import edu.zsc.ai.plugin.driver.DriverLoader;
 import edu.zsc.ai.plugin.connection.JdbcConnectionBuilder;
 import edu.zsc.ai.plugin.connection.ConnectionConfig;
 import edu.zsc.ai.plugin.driver.MavenCoordinates;
 import edu.zsc.ai.plugin.model.command.sql.SqlCommandRequest;
 import edu.zsc.ai.plugin.model.command.sql.SqlCommandResult;
+import edu.zsc.ai.plugin.model.command.view.ViewCommandRequest;
+import edu.zsc.ai.plugin.model.command.view.ViewCommandResult;
 import edu.zsc.ai.plugin.mysql.connection.MysqlJdbcConnectionBuilder;
 import edu.zsc.ai.plugin.mysql.executor.MySQLSqlExecutor;
+import edu.zsc.ai.plugin.mysql.view.MySQLViewProvider;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,7 +29,7 @@ import java.util.logging.Logger;
  * Implements ConnectionProvider and CommandExecutor capabilities for all MySQL plugins.
  */
 public abstract class AbstractMysqlPlugin extends AbstractDatabasePlugin
-        implements SqlPlugin, ConnectionProvider, CommandExecutor<SqlCommandRequest, SqlCommandResult> {
+        implements SqlPlugin, ConnectionProvider, CommandExecutor<SqlCommandRequest, SqlCommandResult>, ViewProvider {
 
     private static final Logger logger = Logger.getLogger(AbstractMysqlPlugin.class.getName());
 
@@ -38,6 +42,18 @@ public abstract class AbstractMysqlPlugin extends AbstractDatabasePlugin
      * SQL executor - can be reused for all SQL command executions
      */
     private final MySQLSqlExecutor sqlExecutor = new MySQLSqlExecutor();
+
+    /**
+     * View provider - handles view-related operations
+     */
+    private final MySQLViewProvider viewProvider;
+    
+    /**
+     * Constructor - initializes the view provider with this plugin as ConnectionProvider
+     */
+    public AbstractMysqlPlugin() {
+        this.viewProvider = new MySQLViewProvider(this);
+    }
     
     /**
      * Get MySQL-specific JDBC driver class name.
@@ -141,6 +157,43 @@ public abstract class AbstractMysqlPlugin extends AbstractDatabasePlugin
     @Override
     public SqlCommandResult executeCommand(SqlCommandRequest command) {
         return sqlExecutor.executeCommand(command);
+    }
+
+    // ========== ViewProvider Implementation ==========
+
+    @Override
+    public ViewCommandResult createView(ViewCommandRequest request) {
+        return viewProvider.createView(request);
+    }
+
+    @Override
+    public ViewCommandResult getViewDefinition(ViewCommandRequest request) {
+        return viewProvider.getViewDefinition(request);
+    }
+
+    @Override
+    public ViewCommandResult alterView(ViewCommandRequest request) {
+        return viewProvider.alterView(request);
+    }
+
+    @Override
+    public ViewCommandResult dropView(ViewCommandRequest request) {
+        return viewProvider.dropView(request);
+    }
+
+    @Override
+    public ViewCommandResult listViews(ViewCommandRequest request) {
+        return viewProvider.listViews(request);
+    }
+
+    @Override
+    public ViewCommandResult viewExists(ViewCommandRequest request) {
+        return viewProvider.viewExists(request);
+    }
+
+    @Override
+    public void setConnectionConfig(edu.zsc.ai.plugin.connection.ConnectionConfig connectionConfig) {
+        viewProvider.setConnectionConfig(connectionConfig);
     }
 
     // ========== Driver Maven Coordinates ==========

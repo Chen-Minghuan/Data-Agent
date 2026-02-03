@@ -15,7 +15,13 @@ public enum CapabilityEnum {
      * Command execution capability
      * Supports executing various types of commands (SQL, Redis, custom DSL, etc.)
      */
-    COMMAND_EXECUTOR("COMMAND_EXECUTOR", "Ability to execute commands and queries on data sources");
+    COMMAND_EXECUTOR("COMMAND_EXECUTOR", "Ability to execute commands and queries on data sources"),
+
+    /**
+     * View management capability
+     * Supports creating, querying, modifying, and deleting database views
+     */
+    VIEW_PROVIDER("VIEW_PROVIDER", "Ability to manage database views including CRUD operations");
 
     private final String code;
     private final String description;

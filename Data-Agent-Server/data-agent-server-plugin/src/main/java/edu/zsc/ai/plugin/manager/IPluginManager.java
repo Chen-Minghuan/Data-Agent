@@ -70,6 +70,28 @@ public interface IPluginManager {
      */
     ConnectionProvider selectConnectionProviderByPluginId(String pluginId);
 
+    // ========== View Provider Selection ==========
+
+    /**
+     * Select ViewProvider for a specific database type.
+     * Returns the first available plugin that implements ViewProvider capability.
+     * Plugins are ordered by version (newest first).
+     *
+     * @param dbTypeCode database type code (e.g., "mysql", "MYSQL")
+     * @return ViewProvider instance
+     * @throws IllegalArgumentException if no plugin with ViewProvider capability found
+     */
+    edu.zsc.ai.plugin.capability.ViewProvider selectViewProviderByDbType(String dbTypeCode);
+
+    /**
+     * Select ViewProvider by plugin ID.
+     *
+     * @param pluginId plugin ID
+     * @return ViewProvider instance
+     * @throws IllegalArgumentException if plugin not found or doesn't implement ViewProvider
+     */
+    edu.zsc.ai.plugin.capability.ViewProvider selectViewProviderByPluginId(String pluginId);
+
     // ========== Driver Management ==========
 
     /**

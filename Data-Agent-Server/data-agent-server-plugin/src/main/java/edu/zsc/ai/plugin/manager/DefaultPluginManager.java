@@ -2,6 +2,7 @@ package edu.zsc.ai.plugin.manager;
 
 import edu.zsc.ai.plugin.Plugin;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
+import edu.zsc.ai.plugin.capability.ViewProvider;
 import edu.zsc.ai.plugin.enums.DbType;
 import edu.zsc.ai.plugin.driver.MavenCoordinates;
 import org.apache.commons.lang3.StringUtils;
@@ -165,6 +166,47 @@ public class DefaultPluginManager implements IPluginManager {
             throw new IllegalArgumentException("No plugin found with ID: " + pluginId);
         }
         return (ConnectionProvider) plugin;
+    }
+
+    // ========== View Provider Selection ==========
+
+    @Override
+    public ViewProvider selectViewProviderByDbType(String dbTypeCode) {
+        if (StringUtils.isBlank(dbTypeCode)) {
+            throw new IllegalArgumentException("Database type code cannot be empty");
+        }
+
+        List<Plugin> plugins = pluginsByDbType.get(dbTypeCode.toLowerCase());
+        if (plugins == null || plugins.isEmpty()) {
+            throw new IllegalArgumentException("No plugin available for database type: " + dbTypeCode);
+        }
+
+        // Return first plugin that implements ViewProvider (sort by version, newest first)
+        List<Plugin> sortedPlugins = PluginVersionSorter.sortByVersionDesc(plugins);
+        Plugin plugin = sortedPlugins.stream()
+                .filter(p -> p instanceof ViewProvider)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No plugin with ViewProvider capability found for database type: " + dbTypeCode));
+
+        return (ViewProvider) plugin;
+    }
+
+    @Override
+    public ViewProvider selectViewProviderByPluginId(String pluginId) {
+        if (StringUtils.isBlank(pluginId)) {
+            throw new IllegalArgumentException("Plugin Id cannot be empty");
+        }
+
+        Plugin plugin = pluginMap.get(pluginId);
+        if (plugin == null) {
+            throw new IllegalArgumentException("No plugin found with ID: " + pluginId);
+        }
+        
+        if (!(plugin instanceof ViewProvider)) {
+            throw new IllegalArgumentException("Plugin " + pluginId + " does not implement ViewProvider capability");
+        }
+        
+        return (ViewProvider) plugin;
     }
 
     // ========== Driver Management ==========
