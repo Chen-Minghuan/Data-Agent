@@ -107,7 +107,6 @@ export const useAuthStore = create<AuthStore>()(
                 refreshToken: state.refreshToken,
                 rememberMe: state.rememberMe,
                 expiresAt: state.expiresAt,
-                isLoginModalOpen: state.isLoginModalOpen,
             }),
         }
     )

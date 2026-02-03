@@ -1,4 +1,5 @@
 import { ErrorCode, HttpStatusCode } from '../constants/errorCode';
+import i18n from '../i18n';
 
 interface ErrorResponseData {
     code?: number;
@@ -34,20 +35,20 @@ export function resolveErrorMessage(error: unknown, fallback: string): string {
     if (typeof code === 'number') {
         switch (code) {
             case ErrorCode.NOT_LOGIN_ERROR:
-                return 'You are not logged in. Please sign in and try again.';
+                return i18n.t('error.not_login');
             case ErrorCode.NO_AUTH_ERROR:
-                return 'You do not have permission to perform this action.';
+                return i18n.t('error.no_auth');
             case ErrorCode.VALIDATION_ERROR:
             case ErrorCode.REQUIRED_FIELD_EMPTY:
             case ErrorCode.FIELD_FORMAT_ERROR:
             case ErrorCode.FIELD_LENGTH_EXCEEDED:
             case ErrorCode.FIELD_VALUE_OUT_OF_RANGE:
-                return 'Some fields are invalid. Please check your input and try again.';
+                return i18n.t('error.validation');
             case ErrorCode.DB_CONNECTION_ERROR:
             case ErrorCode.DB_CONNECTION_TIMEOUT:
-                return 'Database connection issue. Please try again later.';
+                return i18n.t('error.db_connection');
             case ErrorCode.SYSTEM_ERROR:
-                return 'Server is busy now. Please try again later.';
+                return i18n.t('error.system');
             default:
                 break;
         }
@@ -57,15 +58,15 @@ export function resolveErrorMessage(error: unknown, fallback: string): string {
     if (typeof status === 'number') {
         switch (status) {
             case HttpStatusCode.BAD_REQUEST:
-                return 'Request is invalid. Please check your input.';
+                return i18n.t('error.http_400');
             case HttpStatusCode.UNAUTHORIZED:
-                return 'Authentication failed. Please sign in again.';
+                return i18n.t('error.http_401');
             case HttpStatusCode.FORBIDDEN:
-                return 'You are not allowed to perform this action.';
+                return i18n.t('error.http_403');
             case HttpStatusCode.NOT_FOUND:
-                return 'Requested resource was not found.';
+                return i18n.t('error.http_404');
             case HttpStatusCode.INTERNAL_SERVER_ERROR:
-                return 'Server error. Please try again later.';
+                return i18n.t('error.http_500');
             default:
                 break;
         }
