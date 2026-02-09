@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { parseSSEResponse } from '../lib/sse';
 import { ensureValidAccessToken } from '../lib/authToken';
-import type { ChatRequest, ChatMessage, UseChatOptions, UseChatReturn } from '../types/chat';
+import type { ChatRequest, ChatMessage, UseChatOptions, UseChatReturn, ChatResponseBlock } from '../types/chat';
 import type { TokenPairResponse } from '../types/auth';
 
 const DEFAULT_API = '/api/chat/stream';
@@ -113,26 +113,36 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         };
         appendMessage(assistantMessage);
 
-        // Parse streaming response
+        // Accumulate in loop — ref/state may not update between chunks, so don't rely on lastMessage.content
+        let accumulatedContent = '';
+        const accumulatedBlocks: ChatResponseBlock[] = [];
+
         for await (const block of parseSSEResponse(response)) {
           const lastMessage = messagesRef.current[messagesRef.current.length - 1];
-          if (lastMessage?.role === 'assistant') {
-            const newContent = lastMessage.content + (block.content || '');
-            setMessages((prev) => {
-              const updated = [...prev];
-              updated[updated.length - 1] = {
-                ...lastMessage,
-                content: newContent,
-                blocks: [...(lastMessage.blocks || []), block],
-              };
-              return updated;
-            });
+          if (lastMessage?.role !== 'assistant') continue;
 
-            if (block.done) {
-              const finishedMessage = messagesRef.current[messagesRef.current.length - 1];
-              options.onFinish?.(finishedMessage);
-              break;
-            }
+          accumulatedContent += block.content ?? '';
+          accumulatedBlocks.push(block);
+
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role !== 'assistant') return prev;
+            updated[updated.length - 1] = {
+              ...last,
+              content: accumulatedContent,
+              blocks: [...accumulatedBlocks],
+            };
+            return updated;
+          });
+
+          if (block.done) {
+            options.onFinish?.({
+              ...lastMessage,
+              content: accumulatedContent,
+              blocks: accumulatedBlocks,
+            });
+            break;
           }
         }
       } catch (err) {
