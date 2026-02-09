@@ -27,6 +27,10 @@ public class TableTool {
     })
     public String getTableNames(InvocationParameters parameters) {
         try {
+            Long userId = parameters.get(RequestContextConstant.USER_ID);
+            if (userId == null) {
+                return ToolResultFormatter.error("User context missing.");
+            }
             Long connectionId = parameters.get(RequestContextConstant.CONNECTION_ID);
             String databaseName = parameters.get(RequestContextConstant.DATABASE_NAME);
             String schemaName = parameters.get(RequestContextConstant.SCHEMA_NAME);
@@ -36,13 +40,14 @@ public class TableTool {
             List<String> tables = tableService.listTables(
                     connectionId,
                     databaseName,
-                    schemaName
+                    schemaName,
+                    userId
             );
-            
+
             if (tables == null || tables.isEmpty()) {
                 return ToolResultFormatter.empty("No tables found.");
             }
-            
+
             return ToolResultFormatter.success(tables.toString());
         } catch (Exception e) {
             log.error("Error in getTableNames tool", e);
@@ -58,6 +63,10 @@ public class TableTool {
     public String getTableDdl(@P("The exact name of the table in the current schema") String tableName,
                              InvocationParameters parameters) {
         try {
+            Long userId = parameters.get(RequestContextConstant.USER_ID);
+            if (userId == null) {
+                return ToolResultFormatter.error("User context missing.");
+            }
             Long connectionId = parameters.get(RequestContextConstant.CONNECTION_ID);
             String databaseName = parameters.get(RequestContextConstant.DATABASE_NAME);
             String schemaName = parameters.get(RequestContextConstant.SCHEMA_NAME);
@@ -68,12 +77,13 @@ public class TableTool {
                     connectionId,
                     databaseName,
                     schemaName,
-                    tableName
+                    tableName,
+                    userId
             );
-            
+
             return ToolResultFormatter.success(ddl);
         } catch (Exception e) {
-            log.error("Error in getTableDdl tool for table: " + tableName, e);
+            log.error("Error in getTableDdl tool for table: {}", tableName, e);
             return ToolResultFormatter.error();
         }
     }

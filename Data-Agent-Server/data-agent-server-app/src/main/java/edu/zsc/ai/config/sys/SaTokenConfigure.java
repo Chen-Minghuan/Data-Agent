@@ -41,6 +41,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                 if (DispatcherType.ASYNC.equals(request.getDispatcherType())) {
                     return true;
                 }
+                
 
                 // 1) Framework login check
                 StpUtil.checkLogin();

@@ -34,8 +34,12 @@ public class TodoTool {
         "Call this before updating the list to see existing tasks."
     })
     public String getTodoList(InvocationParameters parameters) {
+        Long userId = resolveUserId(parameters);
+        if (userId == null) {
+            return ToolResultFormatter.error("User context missing.");
+        }
         Long conversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
-        AiTodoTask task = aiTodoTaskService.getByConversationId(conversationId);
+        AiTodoTask task = aiTodoTaskService.getByConversationId(conversationId, userId);
         return (task == null || task.getContent() == null) ? ToolResultFormatter.empty("[]") : ToolResultFormatter.success(task.getContent());
     }
 
@@ -47,9 +51,13 @@ public class TodoTool {
     })
     public String updateTodoList(@P("The complete list of todo tasks; each element has title and optional description, "
             + "priority; status is for updates only") List<TodoRequest> requests, InvocationParameters parameters) {
+        Long userId = resolveUserId(parameters);
+        if (userId == null) {
+            return ToolResultFormatter.error("User context missing.");
+        }
         Long cid = parameters.get(RequestContextConstant.CONVERSATION_ID);
         if (requests == null || requests.isEmpty()) {
-            aiTodoTaskService.removeByConversationId(cid);
+            aiTodoTaskService.removeByConversationId(cid, userId);
             return ToolResultFormatter.success("Cleared.");
         }
 
@@ -65,12 +73,26 @@ public class TodoTool {
         String content = JsonUtil.object2json(TodoList.builder().conversationId(cid).todos(todos).updatedAt(LocalDateTime.now()).build());
         AiTodoTask task = AiTodoTask.builder().conversationId(cid).content(content).build();
 
-        if (aiTodoTaskService.getByConversationId(cid) == null) {
+        if (aiTodoTaskService.getByConversationId(cid, userId) == null) {
             aiTodoTaskService.saveByConversationId(task);
         } else {
-            aiTodoTaskService.updateByConversationId(task);
+            aiTodoTaskService.updateByConversationId(task, userId);
         }
 
         return ToolResultFormatter.success();
+    }
+
+    private static Long resolveUserId(InvocationParameters parameters) {
+        Object v = parameters.get(RequestContextConstant.USER_ID);
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Long l) {
+            return l;
+        }
+        if (v instanceof Number n) {
+            return n.longValue();
+        }
+        return null;
     }
 }

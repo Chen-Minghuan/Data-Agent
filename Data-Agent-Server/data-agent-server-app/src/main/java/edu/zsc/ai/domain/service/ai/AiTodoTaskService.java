@@ -22,6 +22,12 @@ public interface AiTodoTaskService extends IService<AiTodoTask> {
     AiTodoTask getByConversationId(Long conversationId);
 
     /**
+     * Get todo task by conversation ID with explicit user context.
+     * When {@code userId} is null, implementation may use current login (StpUtil); use for request-thread callers.
+     */
+    AiTodoTask getByConversationId(Long conversationId, Long userId);
+
+    /**
      * Save todo task by conversation ID.
      * Saves to database and updates cache.
      *
@@ -40,6 +46,11 @@ public interface AiTodoTaskService extends IService<AiTodoTask> {
     boolean updateByConversationId(AiTodoTask task);
 
     /**
+     * Update todo task with explicit user context. When {@code userId} is null, uses StpUtil.
+     */
+    boolean updateByConversationId(AiTodoTask task, Long userId);
+
+    /**
      * Remove todo task by conversation ID.
      * Removes from database and cache.
      *
@@ -47,4 +58,9 @@ public interface AiTodoTaskService extends IService<AiTodoTask> {
      * @return true if success
      */
     boolean removeByConversationId(Long conversationId);
+
+    /**
+     * Remove todo task with explicit user context. When {@code userId} is null, uses StpUtil.
+     */
+    boolean removeByConversationId(Long conversationId, Long userId);
 }

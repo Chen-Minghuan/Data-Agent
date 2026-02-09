@@ -1,6 +1,5 @@
 package edu.zsc.ai.domain.service.ai.impl;
 
-import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -24,6 +23,11 @@ public class AiTodoTaskServiceImpl extends ServiceImpl<AiTodoTaskMapper, AiTodoT
 
     @Override
     public AiTodoTask getByConversationId(Long conversationId) {
+        return getByConversationId(conversationId, null);
+    }
+
+    @Override
+    public AiTodoTask getByConversationId(Long conversationId, Long userId) {
         if (conversationId == null) {
             return null;
         }
@@ -38,9 +42,8 @@ public class AiTodoTaskServiceImpl extends ServiceImpl<AiTodoTaskMapper, AiTodoT
                     .build();
         }
 
-        // 2. Load from database with userId validation
+        // 2. Load from database (userId only used when needed for future ownership checks; entity has no userId column)
         log.debug("Cache miss for conversation: {}, loading from DB", conversationId);
-        Long currentUserId = StpUtil.getLoginIdAsLong();
         LambdaQueryWrapper<AiTodoTask> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(AiTodoTask::getConversationId, conversationId);
         AiTodoTask task = this.getOne(queryWrapper);
@@ -70,11 +73,15 @@ public class AiTodoTaskServiceImpl extends ServiceImpl<AiTodoTaskMapper, AiTodoT
 
     @Override
     public boolean updateByConversationId(AiTodoTask task) {
+        return updateByConversationId(task, null);
+    }
+
+    @Override
+    public boolean updateByConversationId(AiTodoTask task, Long userId) {
         if (task == null || task.getConversationId() == null) {
             return false;
         }
 
-        Long currentUserId = StpUtil.getLoginIdAsLong();
         LambdaUpdateWrapper<AiTodoTask> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(AiTodoTask::getConversationId, task.getConversationId());
         boolean success = this.update(task, updateWrapper);
@@ -86,11 +93,15 @@ public class AiTodoTaskServiceImpl extends ServiceImpl<AiTodoTaskMapper, AiTodoT
 
     @Override
     public boolean removeByConversationId(Long conversationId) {
+        return removeByConversationId(conversationId, null);
+    }
+
+    @Override
+    public boolean removeByConversationId(Long conversationId, Long userId) {
         if (conversationId == null) {
             return false;
         }
 
-        Long currentUserId = StpUtil.getLoginIdAsLong();
         LambdaQueryWrapper<AiTodoTask> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(AiTodoTask::getConversationId, conversationId);
         boolean success = this.remove(queryWrapper);
