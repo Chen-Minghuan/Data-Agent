@@ -12,7 +12,6 @@ import edu.zsc.ai.common.enums.ai.TodoPriorityEnum;
 import edu.zsc.ai.common.enums.ai.TodoStatusEnum;
 import edu.zsc.ai.model.request.TodoRequest;
 import edu.zsc.ai.util.JsonUtil;
-import edu.zsc.ai.util.ToolResultFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -34,13 +33,16 @@ public class TodoTool {
         "Call this before updating the list to see existing tasks."
     })
     public String getTodoList(InvocationParameters parameters) {
+        log.info("[Tool before] getTodoList");
         Long userId = resolveUserId(parameters);
         if (userId == null) {
-            return ToolResultFormatter.error("User context missing.");
+            return "User context missing.";
         }
         Long conversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
         AiTodoTask task = aiTodoTaskService.getByConversationId(conversationId, userId);
-        return (task == null || task.getContent() == null) ? ToolResultFormatter.empty("[]") : ToolResultFormatter.success(task.getContent());
+        String result = (task == null || task.getContent() == null) ? "EMPTY:[]" : task.getContent();
+        log.info("[Tool done] getTodoList, conversationId={}", conversationId);
+        return result;
     }
 
 
@@ -51,14 +53,16 @@ public class TodoTool {
     })
     public String updateTodoList(@P("The complete list of todo tasks; each element has title and optional description, "
             + "priority; status is for updates only") List<TodoRequest> requests, InvocationParameters parameters) {
+        log.info("[Tool before] updateTodoList, requestsSize={}", requests != null ? requests.size() : 0);
         Long userId = resolveUserId(parameters);
         if (userId == null) {
-            return ToolResultFormatter.error("User context missing.");
+            return "User context missing.";
         }
         Long cid = parameters.get(RequestContextConstant.CONVERSATION_ID);
         if (requests == null || requests.isEmpty()) {
             aiTodoTaskService.removeByConversationId(cid, userId);
-            return ToolResultFormatter.success("Cleared.");
+            log.info("[Tool done] updateTodoList -> Cleared.");
+            return "Cleared.";
         }
 
         List<Todo> todos = requests.stream().map(req -> Todo.builder()
@@ -79,7 +83,8 @@ public class TodoTool {
             aiTodoTaskService.updateByConversationId(task, userId);
         }
 
-        return ToolResultFormatter.success();
+        log.info("[Tool done] updateTodoList, conversationId={}, todosCount={}", cid, todos.size());
+        return "Operation completed successfully.";
     }
 
     private static Long resolveUserId(InvocationParameters parameters) {

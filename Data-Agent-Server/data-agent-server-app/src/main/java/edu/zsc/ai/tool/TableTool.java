@@ -5,7 +5,6 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.domain.service.db.TableService;
-import edu.zsc.ai.util.ToolResultFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,10 +25,11 @@ public class TableTool {
         "Use when the user asks what tables exist or to explore the schema."
     })
     public String getTableNames(InvocationParameters parameters) {
+        log.info("[Tool before] getTableNames");
         try {
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             if (userId == null) {
-                return ToolResultFormatter.error("User context missing.");
+                return "User context missing.";
             }
             Long connectionId = parameters.get(RequestContextConstant.CONNECTION_ID);
             String databaseName = parameters.get(RequestContextConstant.DATABASE_NAME);
@@ -45,13 +45,15 @@ public class TableTool {
             );
 
             if (tables == null || tables.isEmpty()) {
-                return ToolResultFormatter.empty("No tables found.");
+                log.info("[Tool done] getTableNames -> EMPTY: No tables found.");
+                return "EMPTY: No tables found.";
             }
 
-            return ToolResultFormatter.success(tables.toString());
+            log.info("[Tool done] getTableNames, result size={}", tables.size());
+            return tables.toString();
         } catch (Exception e) {
-            log.error("Error in getTableNames tool", e);
-            return ToolResultFormatter.error(e.getMessage());
+            log.error("[Tool error] getTableNames", e);
+            return e.getMessage();
         }
     }
 
@@ -62,10 +64,11 @@ public class TableTool {
     })
     public String getTableDdl(@P("The exact name of the table in the current schema") String tableName,
                              InvocationParameters parameters) {
+        log.info("[Tool before] getTableDdl, tableName={}", tableName);
         try {
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             if (userId == null) {
-                return ToolResultFormatter.error("User context missing.");
+                return "User context missing.";
             }
             Long connectionId = parameters.get(RequestContextConstant.CONNECTION_ID);
             String databaseName = parameters.get(RequestContextConstant.DATABASE_NAME);
@@ -81,10 +84,11 @@ public class TableTool {
                     userId
             );
 
-            return ToolResultFormatter.success(ddl);
+            log.info("[Tool done] getTableDdl, tableName={}, ddlLength={}", tableName, ddl != null ? ddl.length() : 0);
+            return ddl;
         } catch (Exception e) {
-            log.error("Error in getTableDdl tool for table: {}", tableName, e);
-            return ToolResultFormatter.error();
+            log.error("[Tool error] getTableDdl, tableName={}", tableName, e);
+            return e.getMessage();
         }
     }
 }
