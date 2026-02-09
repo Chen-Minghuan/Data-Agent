@@ -10,23 +10,23 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-@TableName("ai_message_block")
+@TableName("ai_stored_chat_message")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AiMessageBlock {
+public class StoredChatMessage {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long messageId;
+    private Long conversationId;
 
-    private String blockType;
+    private String role;
 
-    private String content;
+    private Integer tokenCount;
 
-    private String extensionData;
+    private String data;
 
     private LocalDateTime createdAt;
 

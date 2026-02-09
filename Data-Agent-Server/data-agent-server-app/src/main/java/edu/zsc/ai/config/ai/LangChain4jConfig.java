@@ -10,23 +10,14 @@ import edu.zsc.ai.tool.TableTool;
 import edu.zsc.ai.tool.TodoTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 @Slf4j
 @RequiredArgsConstructor
 public class LangChain4jConfig {
-
-    /** Max number of tool invocations running concurrently. */
-    public static final int TOOL_CONCURRENCY = 5;
 
     /** Max number of messages to retain in chat memory (no token counting, avoids DashScope Tokenization API). */
     public static final int MAX_MEMORY_MESSAGES = 50;
@@ -44,29 +35,8 @@ public class LangChain4jConfig {
     }
 
     /**
-     * Executor for concurrent tool execution. At most {@value TOOL_CONCURRENCY} tools run at once.
-     */
-    @Bean(name = "toolExecutionExecutor")
-    public Executor toolExecutionExecutor() {
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                TOOL_CONCURRENCY,
-                TOOL_CONCURRENCY,
-                0L,
-                TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(),
-                r -> {
-                    Thread t = new Thread(r, "agent-tool-exec-" + System.identityHashCode(r));
-                    t.setDaemon(false);
-                    return t;
-                },
-                new ThreadPoolExecutor.CallerRunsPolicy()
-        );
-        log.info("Tool execution executor created: max {} concurrent tools", TOOL_CONCURRENCY);
-        return executor;
-    }
-
-    /**
-     * ReActAgent built with AiServices.builder() and concurrent tool execution (max {@value TOOL_CONCURRENCY}).
+     * ReActAgent built with AiServices.builder(). Tools run synchronously so that
+     * onToolExecuted is invoked and TOOL_RESULT is emitted in the stream.
      */
     @Bean
     @ConditionalOnMissingBean(ReActAgent.class)
@@ -74,13 +44,11 @@ public class LangChain4jConfig {
             StreamingChatModel streamingChatModel,
             ChatMemoryProvider chatMemoryProvider,
             TodoTool todoTool,
-            TableTool tableTool,
-            @Qualifier("toolExecutionExecutor") Executor toolExecutionExecutor) {
+            TableTool tableTool) {
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(chatMemoryProvider)
                 .tools(todoTool, tableTool)
-                .executeToolsConcurrently(toolExecutionExecutor)
                 .build();
     }
 }

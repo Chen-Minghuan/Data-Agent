@@ -1,11 +1,12 @@
 package edu.zsc.ai.agent.memory;
 
 import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.ChatMessageDeserializer;
+import dev.langchain4j.data.message.ChatMessageSerializer;
+import dev.langchain4j.data.message.ChatMessageType;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
-import edu.zsc.ai.domain.model.entity.ai.CustomAiMessage;
-import edu.zsc.ai.domain.model.entity.ai.AiMessageBlock;
+import edu.zsc.ai.domain.model.entity.ai.StoredChatMessage;
 import edu.zsc.ai.domain.service.ai.AiConversationService;
-import edu.zsc.ai.domain.service.ai.AiMessageBlockService;
 import edu.zsc.ai.domain.service.ai.AiMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +14,9 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -24,9 +24,7 @@ import java.util.stream.Collectors;
 public class CustomChatMemoryStore implements ChatMemoryStore {
 
     private final AiMessageService aiMessageService;
-    private final AiMessageBlockService aiMessageBlockService;
     private final AiConversationService aiConversationService;
-    private final ChatMessageConverter chatMessageConverter;
 
     @Override
     public List<ChatMessage> getMessages(Object memoryId) {
@@ -41,23 +39,23 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
 
         aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId);
 
-        List<CustomAiMessage> messages = aiMessageService.getByConversationIdOrderByCreatedAtAsc(idInfo.conversationId);
-        if (messages.isEmpty()) {
+        List<StoredChatMessage> stored = aiMessageService.getByConversationIdOrderByCreatedAtAsc(idInfo.conversationId);
+        if (stored.isEmpty()) {
             return List.of();
         }
 
-        List<Long> messageIds = messages.stream()
-                .map(CustomAiMessage::getId)
-                .collect(Collectors.toList());
-
-        List<AiMessageBlock> allBlocks = aiMessageBlockService.getByMessageIds(messageIds);
-
-        Map<Long, List<AiMessageBlock>> blocksMap = allBlocks.stream()
-                .collect(Collectors.groupingBy(AiMessageBlock::getMessageId));
-
-        return chatMessageConverter.toChatMessages(messages, blocksMap);
-
-
+        List<ChatMessage> messages = new ArrayList<>(stored.size());
+        for (StoredChatMessage s : stored) {
+            try {
+                ChatMessage msg = ChatMessageDeserializer.messageFromJson(s.getData());
+                if (msg.type() != ChatMessageType.SYSTEM) {
+                    messages.add(msg);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to deserialize message id={}, skipping", s.getId(), e);
+            }
+        }
+        return messages;
     }
 
     @Override
@@ -76,26 +74,25 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
 
         aiMessageService.removeByConversationId(idInfo.conversationId);
 
-        List<MessageWithBlocks> messagesWithBlocks =
-                chatMessageConverter.toEntities(messages, idInfo.conversationId);
-
-        List<CustomAiMessage> customAiMessages = messagesWithBlocks.stream()
-                .map(MessageWithBlocks::customAiMessage)
-                .collect(Collectors.toList());
-
-        aiMessageService.saveBatchMessages(customAiMessages);
-
-        List<AiMessageBlock> allBlocks = new ArrayList<>();
-        for (int i = 0; i < messagesWithBlocks.size(); i++) {
-            CustomAiMessage savedMessage = customAiMessages.get(i);
-            List<AiMessageBlock> blocks = messagesWithBlocks.get(i).blocks();
-            for (AiMessageBlock block : blocks) {
-                block.setMessageId(savedMessage.getId());
+        LocalDateTime now = LocalDateTime.now();
+        List<StoredChatMessage> toSave = new ArrayList<>(messages.size());
+        for (ChatMessage message : messages) {
+            if (message.type() == ChatMessageType.SYSTEM) {
+                continue;
             }
-            allBlocks.addAll(blocks);
+            // TODO: Populate tokenCount from request/response tokenUsage (or ResponseMetadata); ChatMemoryStore API does not expose it—obtain from caller or streaming callback
+            StoredChatMessage stored = StoredChatMessage.builder()
+                    .conversationId(idInfo.conversationId())
+                    .role(message.type().name())
+                    .tokenCount(0)
+                    .data(ChatMessageSerializer.messageToJson(message))
+                    .createdAt(now)
+                    .updatedAt(now)
+                    .build();
+            toSave.add(stored);
         }
 
-        aiMessageBlockService.saveBatchBlocks(allBlocks);
+        aiMessageService.saveBatchMessages(toSave);
     }
 
     @Override
@@ -113,12 +110,8 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
         aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId);
 
         int deletedCount = aiMessageService.removeByConversationId(idInfo.conversationId);
-
         log.debug("Deleted {} messages for conversation {}", deletedCount, idInfo.conversationId);
-
-
     }
-
 
     private MemoryIdInfo parseMemoryId(Object memoryId) {
         if (memoryId == null) {
@@ -133,9 +126,14 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
             return null;
         }
 
-        Long userId = Long.parseLong(parts[0]);
-        Long conversationId = Long.parseLong(parts[1]);
-        return new MemoryIdInfo(userId, conversationId);
+        try {
+            Long userId = Long.parseLong(parts[0]);
+            Long conversationId = Long.parseLong(parts[1]);
+            return new MemoryIdInfo(userId, conversationId);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid memoryId format: {}. Expected format: '{{userId}}:{{conversationId}}'", id, e);
+            return null;
+        }
     }
 
     private record MemoryIdInfo(Long userId, Long conversationId) {
