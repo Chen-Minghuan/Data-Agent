@@ -6,6 +6,7 @@ import dev.langchain4j.service.AiServices;
 import edu.zsc.ai.agent.ReActAgent;
 import edu.zsc.ai.agent.ReActAgentProvider;
 import edu.zsc.ai.common.enums.ai.ModelEnum;
+import edu.zsc.ai.tool.AskUserQuestionTool;
 import edu.zsc.ai.tool.TableTool;
 import edu.zsc.ai.tool.TodoTool;
 import lombok.RequiredArgsConstructor;
@@ -80,11 +81,12 @@ public class MultiModelAgentConfig {
             @Qualifier("streamingChatModelQwen3Max") StreamingChatModel streamingChatModel,
             ChatMemoryProvider chatMemoryProvider,
             TodoTool todoTool,
-            TableTool tableTool) {
+            TableTool tableTool,
+            AskUserQuestionTool askUserQuestionTool) {
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(chatMemoryProvider)
-                .tools(todoTool, tableTool)
+                .tools(todoTool, tableTool, askUserQuestionTool)
                 .build();
     }
 
@@ -93,11 +95,12 @@ public class MultiModelAgentConfig {
             @Qualifier("streamingChatModelQwen3MaxThinking") StreamingChatModel streamingChatModel,
             ChatMemoryProvider chatMemoryProvider,
             TodoTool todoTool,
-            TableTool tableTool) {
+            TableTool tableTool,
+            AskUserQuestionTool askUserQuestionTool) {
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(chatMemoryProvider)
-                .tools(todoTool, tableTool)
+                .tools(todoTool, tableTool, askUserQuestionTool)
                 .build();
     }
 
@@ -106,11 +109,12 @@ public class MultiModelAgentConfig {
             @Qualifier("streamingChatModelQwenPlus") StreamingChatModel streamingChatModel,
             ChatMemoryProvider chatMemoryProvider,
             TodoTool todoTool,
-            TableTool tableTool) {
+            TableTool tableTool,
+            AskUserQuestionTool askUserQuestionTool) {
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(chatMemoryProvider)
-                .tools(todoTool, tableTool)
+                .tools(todoTool, tableTool, askUserQuestionTool)
                 .build();
     }
 
