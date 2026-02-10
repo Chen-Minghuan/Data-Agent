@@ -2,102 +2,40 @@ package edu.zsc.ai.tool;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.invocation.InvocationParameters;
-import edu.zsc.ai.common.constant.RequestContextConstant;
-import edu.zsc.ai.domain.model.entity.ai.AiTodoTask;
-import edu.zsc.ai.domain.service.ai.AiTodoTaskService;
 import edu.zsc.ai.model.Todo;
-import edu.zsc.ai.model.TodoList;
-import edu.zsc.ai.common.enums.ai.TodoPriorityEnum;
-import edu.zsc.ai.common.enums.ai.TodoStatusEnum;
-import edu.zsc.ai.model.request.TodoRequest;
 import edu.zsc.ai.util.JsonUtil;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
-
+import java.util.Map;
 
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class TodoTool {
 
-    private final AiTodoTaskService aiTodoTaskService;
-
-
     @Tool({
-            "Retrieve the entire current list of tasks for this conversation.",
-            "Call this before updating the list to see existing tasks."
+        "Update the entire todo list (full overwrite).",
+        "Pass todoId to identify the list (e.g. use a new id when starting a new list after the previous one is done or cleared).",
+        "Pass a list of tasks; each task has title and optional description, priority, status. Pass an empty list to clear. Data is not persisted."
     })
-    public String getTodoList(InvocationParameters parameters) {
-        log.info("[Tool before] getTodoList");
-        Long userId = resolveUserId(parameters);
-        if (userId == null) {
-            return "User context missing.";
-        }
-        Long conversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
-        AiTodoTask task = aiTodoTaskService.getByConversationId(conversationId, userId);
-        String result = (task == null || task.getContent() == null) ? "[]" : task.getContent();
-        log.info("[Tool done] getTodoList, conversationId={}", conversationId);
-        return result;
+    public String updateTodoList(
+            @P("Id of the todo list (e.g. 'list-1'). Use the same id for updates; use a new id only when creating a new list after the current one is all completed or cleared.")
+            String todoId,
+            @P("The complete list of todo tasks; each element has title and optional description, priority, status.")
+            List<Todo> items) {
+        log.info("[Tool before] updateTodoList, todoId={}, itemsSize={}", todoId, items != null ? items.size() : 0);
+        List<Todo> list = items != null && !items.isEmpty() ? items : List.of();
+        log.info("[Tool done] updateTodoList, todoId={}, count={}", todoId, list.size());
+        return buildTodoResponse(todoId, list);
     }
 
-
-    @Tool({
-            "Update the entire todo list for this conversation (full overwrite).",
-            "Pass a list of tasks; each task's fields are described in the parameter.",
-            "Pass an empty list to clear all tasks."
-    })
-    public String updateTodoList(@P("The complete list of todo tasks; each element has title and optional description, "
-            + "priority; status is for updates only") List<TodoRequest> requests, InvocationParameters parameters) {
-        log.info("[Tool before] updateTodoList, requestsSize={}", requests != null ? requests.size() : 0);
-        Long userId = resolveUserId(parameters);
-        if (userId == null) {
-            return "User context missing.";
-        }
-        Long cid = parameters.get(RequestContextConstant.CONVERSATION_ID);
-        if (requests == null || requests.isEmpty()) {
-            aiTodoTaskService.removeByConversationId(cid, userId);
-            log.info("[Tool done] updateTodoList -> Cleared.");
-            return "Cleared.";
-        }
-
-        List<Todo> todos = requests.stream().map(req -> Todo.builder()
-                .title(req.getTitle())
-                .description(req.getDescription())
-                .status(req.getStatus() != null ? req.getStatus() : TodoStatusEnum.NOT_STARTED.name())
-                .priority(req.getPriority() != null ? req.getPriority() : TodoPriorityEnum.MEDIUM.name())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build()).toList();
-
-        String content = JsonUtil.object2json(TodoList.builder().conversationId(cid).todos(todos).updatedAt(LocalDateTime.now()).build());
-        AiTodoTask task = AiTodoTask.builder().conversationId(cid).content(content).build();
-
-        if (aiTodoTaskService.getByConversationId(cid, userId) == null) {
-            aiTodoTaskService.saveByConversationId(task);
-        } else {
-            aiTodoTaskService.updateByConversationId(task, userId);
-        }
-
-        log.info("[Tool done] updateTodoList, conversationId={}, todosCount={}", cid, todos.size());
-        return "Operation completed successfully.";
-    }
-
-    private static Long resolveUserId(InvocationParameters parameters) {
-        Object v = parameters.get(RequestContextConstant.USER_ID);
-        if (v == null) {
-            return null;
-        }
-        if (v instanceof Long l) {
-            return l;
-        }
-        if (v instanceof Number n) {
-            return n.longValue();
-        }
-        return null;
+    /** Response format: { "todoId": string, "items": Todo[] }. Frontend uses todoId for single-box logic. */
+    private static String buildTodoResponse(String todoId, List<Todo> items) {
+        Map<String, Object> out = new HashMap<>();
+        out.put("todoId", todoId != null ? todoId : "");
+        out.put("items", items != null ? items : List.of());
+        return JsonUtil.object2json(out);
     }
 }
