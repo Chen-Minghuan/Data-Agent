@@ -21,7 +21,17 @@ public interface DbConnectionService extends IService<DbConnection> {
 
     ConnectionResponse getConnectionById(Long id);
 
+    /**
+     * Get connection by id for a specific user. When userId is null, uses current login (StpUtil).
+     */
+    ConnectionResponse getConnectionById(Long id, Long userId);
+
     List<ConnectionResponse> getAllConnections();
+
+    /**
+     * Get all connections for a specific user. When userId is null, uses current login (StpUtil).
+     */
+    List<ConnectionResponse> getAllConnections(Long userId);
 
     void deleteConnection(Long id);
 }

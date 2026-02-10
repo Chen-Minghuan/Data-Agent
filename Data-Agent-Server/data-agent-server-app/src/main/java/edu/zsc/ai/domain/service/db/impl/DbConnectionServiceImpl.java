@@ -105,15 +105,25 @@ public class DbConnectionServiceImpl extends ServiceImpl<DbConnectionMapper, DbC
 
     @Override
     public ConnectionResponse getConnectionById(Long connectionId) {
-        DbConnection connection = this.getOwnedById(connectionId);
+        return getConnectionById(connectionId, null);
+    }
+
+    @Override
+    public ConnectionResponse getConnectionById(Long connectionId, Long userId) {
+        DbConnection connection = this.getOwnedById(connectionId, userId);
         return ConnectionConverter.convertToResponse(connection);
     }
 
     @Override
     public List<ConnectionResponse> getAllConnections() {
-        long currentUserId = StpUtil.getLoginIdAsLong();
+        return getAllConnections(null);
+    }
+
+    @Override
+    public List<ConnectionResponse> getAllConnections(Long userId) {
+        long ownerId = userId != null ? userId : StpUtil.getLoginIdAsLong();
         LambdaQueryWrapper<DbConnection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(DbConnection::getUserId, currentUserId).orderByAsc(DbConnection::getId);
+        wrapper.eq(DbConnection::getUserId, ownerId).orderByAsc(DbConnection::getId);
         List<DbConnection> connections = this.list(wrapper);
         return connections.stream()
                 .map(ConnectionConverter::convertToResponse)

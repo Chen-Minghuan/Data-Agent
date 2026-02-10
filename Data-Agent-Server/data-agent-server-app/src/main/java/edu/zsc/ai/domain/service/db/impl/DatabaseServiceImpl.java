@@ -1,5 +1,6 @@
 package edu.zsc.ai.domain.service.db.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import edu.zsc.ai.domain.service.db.ConnectionService;
 import edu.zsc.ai.domain.service.db.DatabaseService;
 import edu.zsc.ai.plugin.capability.DatabaseProvider;
@@ -19,9 +20,15 @@ public class DatabaseServiceImpl implements DatabaseService {
 
     @Override
     public List<String> listDatabases(Long connectionId) {
-        connectionService.openConnection(connectionId);
+        return listDatabases(connectionId, null);
+    }
 
-        ConnectionManager.ActiveConnection active = ConnectionManager.getAnyOwnedActiveConnection(connectionId);
+    @Override
+    public List<String> listDatabases(Long connectionId, Long userId) {
+        long uid = userId != null ? userId : StpUtil.getLoginIdAsLong();
+        connectionService.openConnection(connectionId, null, null, uid);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getAnyOwnedActiveConnection(connectionId, uid);
 
         DatabaseProvider provider = DefaultPluginManager.getInstance().getDatabaseProviderByPluginId(active.pluginId());
 
