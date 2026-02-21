@@ -1,11 +1,8 @@
 {
   "mcpServers": {
-    "mcpadvisor": {
+    "mcp-server-chart": {
       "command": "npx.cmd",
-      "args": [
-        "-y",
-        "@xiaohui-wang/mcpadvisor"
-      ]
+      "args": ["-y", "@antv/mcp-server-chart"]
     }
   }
 }
