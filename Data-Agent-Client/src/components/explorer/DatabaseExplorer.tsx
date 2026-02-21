@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { Database, Folder, Table, ChevronRight, ChevronDown, Plus, Search, RefreshCw, MoreVertical, Pencil, Trash2, Plug, Settings, FileText } from 'lucide-react';
+import { Database, Plus, Search, RefreshCw, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +8,8 @@ import { Tree as ArboristTree, NodeApi } from 'react-arborist';
 import { ConnectionFormModal, type ConnectionFormMode } from '../common/ConnectionFormModal';
 import { DriverManageModal } from '../common/DriverManageModal';
 import { DeleteConnectionDialog } from './DeleteConnectionDialog';
-import { TableDdlDialog } from './TableDdlDialog';
+import { DdlViewerDialog } from './DdlViewerDialog';
+import { ExplorerTreeNode } from './ExplorerTreeNode';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +20,14 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from '../ui/DropdownMenu';
-import { Button } from '../ui/Button';
 import { useConnectionTree, type ExplorerNode } from '../../hooks/useConnectionTree';
+import { ExplorerTreeConfig, ExplorerNodeType } from '../../constants/explorer';
+import { DataAttributes } from '../../constants/dataAttributes';
+import { tableService } from '../../services/table.service';
+import { viewService } from '../../services/view.service';
+import { functionService } from '../../services/function.service';
+import { procedureService } from '../../services/procedure.service';
+import { triggerService } from '../../services/trigger.service';
 
 export function DatabaseExplorer() {
   const { t } = useTranslation();
@@ -42,12 +49,9 @@ export function DatabaseExplorer() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [driverModalOpen, setDriverModalOpen] = useState(false);
   const [selectedDriverDbType, setSelectedDriverDbType] = useState<string>('');
-  
+
   const [ddlDialogOpen, setDdlDialogOpen] = useState(false);
-  const [selectedTableNode, setSelectedTableNode] = useState<ExplorerNode | null>(null);
-  
-  const [contextMenuOpen, setContextMenuOpen] = useState(false);
-  const [contextMenuNode, setContextMenuNode] = useState<NodeApi<ExplorerNode> | null>(null);
+  const [selectedDdlNode, setSelectedDdlNode] = useState<ExplorerNode | null>(null);
 
   React.useEffect(() => {
     useWorkspaceStore.getState().fetchSupportedDbTypes();
@@ -67,143 +71,81 @@ export function DatabaseExplorer() {
   };
 
   const handleViewDdl = (node: ExplorerNode) => {
-    setSelectedTableNode(node);
+    setSelectedDdlNode(node);
     setDdlDialogOpen(true);
-    setContextMenuOpen(false);
   };
 
+  const getDdlConfig = () => {
+    const node = selectedDdlNode;
+    if (!node?.connectionId) return null;
+    const connId = node.connectionId;
+    const catalog = node.catalog ?? '';
+    const schema = node.schema;
+    const displayName = [catalog, schema, node.name].filter(Boolean).join('.');
+    const objectName = node.objectName ?? node.name;
+
+    switch (node.type) {
+      case ExplorerNodeType.TABLE:
+        return {
+          title: t('explorer.table_ddl'),
+          displayName,
+          loadDdl: () => tableService.getTableDdl(connId, objectName, catalog, schema),
+        };
+      case ExplorerNodeType.VIEW:
+        return {
+          title: t('explorer.view_ddl_title'),
+          displayName,
+          loadDdl: () => viewService.getViewDdl(connId, objectName, catalog, schema),
+        };
+      case ExplorerNodeType.FUNCTION:
+        return {
+          title: t('explorer.function_ddl_title'),
+          displayName,
+          loadDdl: () => functionService.getFunctionDdl(connId, objectName, catalog, schema),
+        };
+      case ExplorerNodeType.PROCEDURE:
+        return {
+          title: t('explorer.procedure_ddl_title'),
+          displayName,
+          loadDdl: () => procedureService.getProcedureDdl(connId, objectName, catalog, schema),
+        };
+      case ExplorerNodeType.TRIGGER:
+        return {
+          title: t('explorer.trigger_ddl_title'),
+          displayName,
+          loadDdl: () => triggerService.getTriggerDdl(connId, objectName, catalog, schema),
+        };
+      default:
+        return null;
+    }
+  };
+
+  const ddlConfig = getDdlConfig();
+
   const renderNode = ({ node, style, dragHandle }: { node: NodeApi<ExplorerNode>; style: React.CSSProperties; dragHandle?: unknown }) => {
-    const isConnected = !!node.data.connectionId;
     const isLoading = node.isInternal && node.isOpen && (!node.data.children || node.data.children.length === 0);
 
     return (
-      <div
+      <ExplorerTreeNode
+        node={node}
         style={style}
-        ref={dragHandle as React.RefObject<HTMLDivElement>}
-        className={cn(
-          'flex items-center py-1 px-2 hover:bg-accent/50 cursor-pointer group select-none text-xs',
-          node.isSelected && 'bg-accent/30'
-        )}
-        onClick={() => node.select()}
-        onDoubleClick={() => {
-          if (node.isInternal) {
-            if (!node.isOpen && (!node.data.children || node.data.children.length === 0)) {
-              loadNodeData(node);
-            }
-            node.toggle();
-          }
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          node.select();
-          // Show context menu for table nodes
-          if (node.data.type === 'table') {
-            setContextMenuNode(node);
-            setContextMenuOpen(true);
-          }
-        }}
-      >
-        <span 
-          className="w-4 flex items-center justify-center mr-1 hover:bg-accent rounded-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (node.isInternal) {
-              if (!node.isOpen && (!node.data.children || node.data.children.length === 0)) {
-                loadNodeData(node);
-              }
-              node.toggle();
-            }
-          }}
-        >
-          {node.isInternal && (node.isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />)}
-        </span>
-        <span className="mr-2">{renderIcon(node.data.type, node.isOpen)}</span>
-        <span className="flex-1 truncate theme-text-primary">{node.data.name}</span>
-
-        {node.data.type === 'root' && (
-          <div className="opacity-0 group-hover:opacity-100 flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-            {isLoading ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin theme-text-secondary" />
-            ) : (
-              <>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        loadNodeData(node);
-                    }}
-                    title={t('common.refresh')}
-                >
-                    <RefreshCw className="w-3 h-3 theme-text-secondary" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <MoreVertical className="w-3 h-3 theme-text-secondary" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {isConnected && (
-                      <DropdownMenuItem onClick={() => handleDisconnect(node)}>
-                        <Plug className="w-3.5 h-3.5 mr-2" />
-                        {t('explorer.disconnect')}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => openEditModal(Number(node.id.replace('conn-', '')))}>
-                      <Pencil className="w-3.5 h-3.5 mr-2" />
-                      {t('explorer.edit')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setDeleteConfirmId(Number(node.id.replace('conn-', '')))}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 mr-2" />
-                      {t('explorer.delete_connection')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-          </div>
-        )}
-
-        {node.data.type === 'table' && (
-          <div className="opacity-0 group-hover:opacity-100 flex items-center" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenu open={contextMenuOpen && contextMenuNode?.id === node.id} onOpenChange={(open) => {
-              setContextMenuOpen(open);
-              if (!open) setContextMenuNode(null);
-            }}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setContextMenuNode(node);
-                    setContextMenuOpen(true);
-                  }}
-                >
-                  <MoreVertical className="w-3 h-3 theme-text-secondary" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleViewDdl(node.data)}>
-                  <FileText className="w-3.5 h-3.5 mr-2" />
-                  {t('explorer.view_ddl')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
-      </div>
+        dragHandle={dragHandle as React.RefObject<HTMLDivElement>}
+        isLoading={isLoading}
+        onLoadData={loadNodeData}
+        onDisconnect={handleDisconnect}
+        onEditConnection={openEditModal}
+        onDeleteConnection={(id) => setDeleteConfirmId(id)}
+        onViewDdl={handleViewDdl}
+      />
     );
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div
+      className="flex flex-col h-full overflow-hidden"
+      {...{ [DataAttributes.EXPLORER_TREE]: true }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="flex items-center justify-between px-3 py-2 theme-text-secondary text-[10px] uppercase font-bold tracking-wider border-b theme-border shrink-0">
         <span>{t('explorer.title')}</span>
         <div className="flex items-center space-x-2">
@@ -295,9 +237,9 @@ export function DatabaseExplorer() {
             data={treeDataState}
             openByDefault={false}
             width="100%"
-            height={800}
-            indent={12}
-            rowHeight={28}
+            height={ExplorerTreeConfig.HEIGHT}
+            indent={ExplorerTreeConfig.INDENT}
+            rowHeight={ExplorerTreeConfig.ROW_HEIGHT}
             searchTerm={searchTerm}
             searchMatch={(node, term) => node.data.name.toLowerCase().includes(term.toLowerCase())}
           >
@@ -330,33 +272,19 @@ export function DatabaseExplorer() {
         }}
         isPending={deleteMutation.isPending}
       />
-      
-      {selectedTableNode && (
-        <TableDdlDialog
+
+      {ddlConfig && (
+        <DdlViewerDialog
           open={ddlDialogOpen}
-          onOpenChange={setDdlDialogOpen}
-          connectionId={selectedTableNode.connectionId || ''}
-          tableName={selectedTableNode.name}
-          catalog={selectedTableNode.catalog}
-          schema={selectedTableNode.schema}
+          onOpenChange={(open) => {
+            setDdlDialogOpen(open);
+            if (!open) setSelectedDdlNode(null);
+          }}
+          title={ddlConfig.title}
+          displayName={ddlConfig.displayName}
+          loadDdl={ddlConfig.loadDdl}
         />
       )}
     </div>
   );
-}
-
-function renderIcon(type: string, expanded?: boolean) {
-  switch (type) {
-    case 'root':
-      return <Database className="w-3.5 h-3.5 text-blue-400" />;
-    case 'db':
-      return <Database className="w-3.5 h-3.5 text-teal-400" />;
-    case 'folder':
-    case 'schema':
-      return expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />;
-    case 'table':
-      return <Table className="w-3.5 h-3.5 text-green-400" />;
-    default:
-      return <Folder className="w-3.5 h-3.5 text-gray-400" />;
-  }
 }
