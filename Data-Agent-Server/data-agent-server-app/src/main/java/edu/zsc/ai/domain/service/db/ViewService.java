@@ -4,7 +4,7 @@ import java.util.List;
 
 public interface ViewService {
 
-    List<String> listViews(Long connectionId, String catalog, String schema);
+    List<String> listViews(Long connectionId, String catalog, String schema, Long userId);
 
-    String getViewDdl(Long connectionId, String catalog, String schema, String viewName);
+    String getViewDdl(Long connectionId, String catalog, String schema, String viewName, Long userId);
 }

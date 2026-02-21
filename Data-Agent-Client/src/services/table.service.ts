@@ -1,4 +1,5 @@
 import http from '../lib/http';
+import { ApiPaths } from '../constants/apiPaths';
 
 export const tableService = {
   listTables: async (connectionId: string, catalog?: string, schema?: string): Promise<string[]> => {
@@ -6,7 +7,7 @@ export const tableService = {
     if (catalog != null && catalog !== '') params.catalog = catalog;
     if (schema != null && schema !== '') params.schema = schema;
     
-    const response = await http.get<string[]>('/tables', { params });
+    const response = await http.get<string[]>(ApiPaths.TABLES, { params });
     return response.data;
   },
 
@@ -23,7 +24,7 @@ export const tableService = {
     if (catalog != null && catalog !== '') params.catalog = catalog;
     if (schema != null && schema !== '') params.schema = schema;
     
-    const response = await http.get<string>('/tables/ddl', { params });
+    const response = await http.get<string>(ApiPaths.TABLES_DDL, { params });
     return response.data;
   },
 };

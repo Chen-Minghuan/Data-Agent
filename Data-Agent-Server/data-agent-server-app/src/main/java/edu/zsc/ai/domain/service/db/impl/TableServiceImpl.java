@@ -1,5 +1,6 @@
 package edu.zsc.ai.domain.service.db.impl;
 
+import edu.zsc.ai.common.enums.db.DdlResourceTypeEnum;
 import edu.zsc.ai.domain.service.db.ConnectionService;
 import edu.zsc.ai.domain.service.db.TableService;
 import edu.zsc.ai.plugin.capability.TableProvider;
@@ -16,6 +17,7 @@ import java.util.List;
 public class TableServiceImpl implements TableService {
 
     private final ConnectionService connectionService;
+    private final DdlFetcher ddlFetcher;
 
     @Override
     public List<String> listTables(Long connectionId, String catalog, String schema, Long userId) {
@@ -29,18 +31,10 @@ public class TableServiceImpl implements TableService {
 
     @Override
     public String getTableDdl(Long connectionId, String catalog, String schema, String tableName, Long userId) {
-        log.info("Getting DDL for table: connectionId={}, catalog={}, schema={}, tableName={}",
-                connectionId, catalog, schema, tableName);
-
-        connectionService.openConnection(connectionId, catalog, schema, userId);
-
-        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
-
-        TableProvider provider = DefaultPluginManager.getInstance().getTableProviderByPluginId(active.pluginId());
-
-        String ddl = provider.getTableDdl(active.connection(), catalog, schema, tableName);
-
-        log.debug("Successfully retrieved DDL for table: {}", tableName);
-        return ddl;
+        return ddlFetcher.fetch(connectionId, catalog, schema, tableName, userId, DdlResourceTypeEnum.TABLE,
+                active -> {
+                    TableProvider provider = DefaultPluginManager.getInstance().getTableProviderByPluginId(active.pluginId());
+                    return provider.getTableDdl(active.connection(), catalog, schema, tableName);
+                });
     }
 }

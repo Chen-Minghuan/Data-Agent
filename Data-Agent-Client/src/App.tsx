@@ -10,6 +10,9 @@ import { ToastContainer } from "./components/ui/Toast";
 import { useAuthStore } from "./store/authStore";
 import { useWorkspaceStore } from "./store/workspaceStore";
 import { routerConfig } from "./router.tsx";
+import { ROUTES } from "./constants/routes";
+import { AuthModalType } from "./constants/modal";
+import { DataAttributes } from "./constants/dataAttributes";
 import { useOAuthCallbackFromUrl } from "./hooks/useOAuthCallbackFromUrl";
 import { WorkspaceLayout } from "./components/layouts/WorkspaceLayout";
 
@@ -28,7 +31,7 @@ function AppRoutes({
     const location = useLocation();
     
     // Show IDE layout (sidebar + AI assistant) only at root path "/"
-    const isWorkspace = location.pathname === '/';
+    const isWorkspace = location.pathname === ROUTES.HOME;
 
     if (!isWorkspace) {
         return (
@@ -54,7 +57,7 @@ function AppRoutes({
 
 function App() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-    const [modalType, setModalType] = useState<"login" | "register">("login");
+    const [modalType, setModalType] = useState<AuthModalType>(AuthModalType.LOGIN);
     const { isLoginModalOpen, closeLoginModal } = useAuthStore();
     const { setSettingsModalOpen } = useWorkspaceStore();
 
@@ -70,19 +73,32 @@ function App() {
         useWorkspaceStore.getState().fetchSupportedDbTypes();
     }, []);
 
-    // Disable browser context menu globally
+    // Disable browser context menu except where custom menus exist (e.g. Explorer ContextMenu)
     useEffect(() => {
-        const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+        const handleContextMenu = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Allow Radix context menus: trigger is inside [data-radix-context-menu-trigger] or similar
+            if (target.closest('[data-radix-popper-content-wrapper]') ||
+                target.closest('[role="menu"]') ||
+                target.closest('[data-explorer-context-menu]')) {
+                return;
+            }
+            // Allow Explorer tree nodes - they use ContextMenu for "View DDL"
+            if (target.closest(`[${DataAttributes.EXPLORER_TREE}]`)) {
+                return;
+            }
+            e.preventDefault();
+        };
         document.addEventListener('contextmenu', handleContextMenu);
         return () => document.removeEventListener('contextmenu', handleContextMenu);
     }, []);
 
     const handleSwitchToRegister = () => {
-        setModalType("register");
+        setModalType(AuthModalType.REGISTER);
     };
 
     const handleSwitchToLogin = () => {
-        setModalType("login");
+        setModalType(AuthModalType.LOGIN);
     };
 
     const toggleAISidebar = useCallback(() => {
@@ -90,7 +106,7 @@ function App() {
             const newState = !prev;
             if (newState) {
                 setTimeout(() => {
-                    const aiInput = document.querySelector('textarea[data-ai-input]') as HTMLTextAreaElement;
+                    const aiInput = document.querySelector(`textarea[${DataAttributes.AI_INPUT}]`) as HTMLTextAreaElement;
                     aiInput?.focus();
                 }, 100);
             }
@@ -141,7 +157,7 @@ function App() {
                 <div className="h-screen flex flex-col theme-bg-main theme-text-primary overflow-hidden">
                     <Header 
                         onLoginClick={() => {
-                            setModalType("login");
+                            setModalType(AuthModalType.LOGIN);
                             setIsAuthModalOpen(true);
                         }} 
                         onToggleAI={toggleAISidebar}
@@ -161,11 +177,11 @@ function App() {
                             if (!open) {
                                 closeLoginModal();
                             } else if (open && isLoginModalOpen) {
-                                setModalType("login");
+                                setModalType(AuthModalType.LOGIN);
                             }
                         }}
                     >
-                        {modalType === "login" ? (
+                        {modalType === AuthModalType.LOGIN ? (
                             <LoginModal
                                 onSwitchToRegister={handleSwitchToRegister}
                                 onClose={() => {

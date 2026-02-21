@@ -24,6 +24,9 @@ public class SqlCommandRequest implements CommandRequest {
 
     private boolean needTransaction;
 
+    /** PreparedStatement parameters, null or empty uses Statement */
+    private Object[] params;
+
     @Override
     public String getCommand() {
         return originalSql;

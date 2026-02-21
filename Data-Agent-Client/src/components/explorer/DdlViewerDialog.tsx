@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Copy, Check, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import {
   Dialog,
   DialogContent,
@@ -8,26 +10,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../ui/Dialog';
+import { DdlViewerConfig } from '../../constants/explorer';
 import { Button } from '../ui/Button';
-import { tableService } from '../../services/table.service';
 
-interface TableDdlDialogProps {
+export interface DdlViewerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  connectionId: string;
-  tableName: string;
-  catalog?: string;
-  schema?: string;
+  title: string;
+  displayName: string;
+  loadDdl: () => Promise<string>;
 }
 
-export function TableDdlDialog({
+export function DdlViewerDialog({
   open,
   onOpenChange,
-  connectionId,
-  tableName,
-  catalog,
-  schema,
-}: TableDdlDialogProps) {
+  title,
+  displayName,
+  loadDdl,
+}: DdlViewerDialogProps) {
   const { t } = useTranslation();
   const [ddl, setDdl] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -36,24 +36,23 @@ export function TableDdlDialog({
 
   useEffect(() => {
     if (open) {
-      loadDdl();
+      loadDdlContent();
     } else {
-      // Reset state when dialog closes
       setDdl('');
       setError(null);
       setCopied(false);
     }
-  }, [open, connectionId, tableName, catalog, schema]);
+  }, [open]);
 
-  const loadDdl = async () => {
+  const loadDdlContent = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await tableService.getTableDdl(connectionId, tableName, catalog, schema);
+      const result = await loadDdl();
       setDdl(result);
-    } catch (err: any) {
-      console.error('Failed to load table DDL:', err);
-      setError(err.message || t('explorer.load_ddl_failed'));
+    } catch (err: unknown) {
+      console.error('Failed to load DDL:', err);
+      setError((err as Error).message || t('explorer.load_ddl_failed'));
     } finally {
       setLoading(false);
     }
@@ -63,19 +62,17 @@ export function TableDdlDialog({
     try {
       await navigator.clipboard.writeText(ddl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), DdlViewerConfig.COPY_FEEDBACK_MS);
     } catch (err) {
       console.error('Failed to copy DDL:', err);
     }
   };
 
-  const displayName = [catalog, schema, tableName].filter(Boolean).join('.');
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t('explorer.table_ddl')}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="font-mono text-xs">
             {displayName}
           </DialogDescription>
@@ -121,9 +118,25 @@ export function TableDdlDialog({
               </div>
 
               <div className="flex-1 overflow-auto border theme-border rounded-md">
-                <pre className="p-4 text-xs font-mono whitespace-pre-wrap theme-text-primary">
-                  {ddl}
-                </pre>
+                <div className="text-[11px] max-h-[50vh] overflow-auto">
+                  <SyntaxHighlighter
+                    language={DdlViewerConfig.SYNTAX_LANGUAGE}
+                    style={oneDark}
+                    showLineNumbers={false}
+                    customStyle={{
+                      margin: 0,
+                      padding: '1rem',
+                      fontSize: '11px',
+                      lineHeight: 1.5,
+                      background: 'var(--code-bg, #282c34)',
+                      minHeight: '100%',
+                    }}
+                    codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                    PreTag="div"
+                  >
+                    {ddl}
+                  </SyntaxHighlighter>
+                </div>
               </div>
             </>
           )}

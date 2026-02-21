@@ -24,4 +24,20 @@ public class SqlCommandResult extends BaseCommandResult implements CommandResult
 
     private List<List<Object>> rows;
 
+    /**
+     * Get value from a row by column name. Use this instead of row.get(index) to avoid
+     * magic indices when column order may vary.
+     *
+     * @param row        the row (must match headers order)
+     * @param columnName column name from headers (case-sensitive)
+     * @return the value, or null if column not found or row is null
+     */
+    public Object getValueByColumnName(List<Object> row, String columnName) {
+        if (headers == null || row == null || columnName == null) {
+            return null;
+        }
+        int idx = headers.indexOf(columnName);
+        return idx >= 0 && idx < row.size() ? row.get(idx) : null;
+    }
+
 }

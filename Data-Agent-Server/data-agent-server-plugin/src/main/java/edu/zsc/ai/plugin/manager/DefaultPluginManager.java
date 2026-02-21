@@ -5,8 +5,12 @@ import edu.zsc.ai.plugin.capability.ColumnProvider;
 import edu.zsc.ai.plugin.capability.CommandExecutor;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
 import edu.zsc.ai.plugin.capability.DatabaseProvider;
+import edu.zsc.ai.plugin.capability.FunctionProvider;
+import edu.zsc.ai.plugin.capability.IndexProvider;
+import edu.zsc.ai.plugin.capability.ProcedureProvider;
 import edu.zsc.ai.plugin.capability.SchemaProvider;
 import edu.zsc.ai.plugin.capability.TableProvider;
+import edu.zsc.ai.plugin.capability.TriggerProvider;
 import edu.zsc.ai.plugin.capability.ViewProvider;
 import edu.zsc.ai.plugin.model.command.sql.SqlCommandRequest;
 import edu.zsc.ai.plugin.model.command.sql.SqlCommandResult;
@@ -192,6 +196,51 @@ public class DefaultPluginManager implements PluginManager {
     @Override
     public ColumnProvider getColumnProviderByDbTypeAndVersion(@NotBlank String dbTypeCode, String databaseVersion) {
         return PluginCapabilityResolver.getProviderByDbTypeAndVersion(getPluginsByDbTypeInternal(dbTypeCode), databaseVersion, ColumnProvider.class);
+    }
+
+    @Override
+    public List<IndexProvider> getIndexProviderByDbType(@NotBlank String dbTypeCode) {
+        return PluginCapabilityResolver.getProviders(getPluginsByDbTypeInternal(dbTypeCode), IndexProvider.class, dbTypeCode);
+    }
+
+    @Override
+    public IndexProvider getIndexProviderByPluginId(@NotBlank String pluginId) {
+        return PluginCapabilityResolver.getProviderByPluginId(pluginMap, pluginId, IndexProvider.class);
+    }
+
+    @Override
+    public IndexProvider getIndexProviderByDbTypeAndVersion(@NotBlank String dbTypeCode, String databaseVersion) {
+        return PluginCapabilityResolver.getProviderByDbTypeAndVersion(getPluginsByDbTypeInternal(dbTypeCode), databaseVersion, IndexProvider.class);
+    }
+
+    @Override
+    public List<FunctionProvider> getFunctionProviderByDbType(@NotBlank String dbTypeCode) {
+        return PluginCapabilityResolver.getProviders(getPluginsByDbTypeInternal(dbTypeCode), FunctionProvider.class, dbTypeCode);
+    }
+
+    @Override
+    public FunctionProvider getFunctionProviderByPluginId(@NotBlank String pluginId) {
+        return PluginCapabilityResolver.getProviderByPluginId(pluginMap, pluginId, FunctionProvider.class);
+    }
+
+    @Override
+    public List<ProcedureProvider> getProcedureProviderByDbType(@NotBlank String dbTypeCode) {
+        return PluginCapabilityResolver.getProviders(getPluginsByDbTypeInternal(dbTypeCode), ProcedureProvider.class, dbTypeCode);
+    }
+
+    @Override
+    public ProcedureProvider getProcedureProviderByPluginId(@NotBlank String pluginId) {
+        return PluginCapabilityResolver.getProviderByPluginId(pluginMap, pluginId, ProcedureProvider.class);
+    }
+
+    @Override
+    public List<TriggerProvider> getTriggerProviderByDbType(@NotBlank String dbTypeCode) {
+        return PluginCapabilityResolver.getProviders(getPluginsByDbTypeInternal(dbTypeCode), TriggerProvider.class, dbTypeCode);
+    }
+
+    @Override
+    public TriggerProvider getTriggerProviderByPluginId(@NotBlank String pluginId) {
+        return PluginCapabilityResolver.getProviderByPluginId(pluginMap, pluginId, TriggerProvider.class);
     }
 
     @Override
