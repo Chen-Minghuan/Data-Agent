@@ -3,6 +3,10 @@ package edu.zsc.ai.plugin.manager;
 import edu.zsc.ai.plugin.Plugin;
 import edu.zsc.ai.plugin.capability.ColumnProvider;
 import edu.zsc.ai.plugin.capability.CommandExecutor;
+import edu.zsc.ai.plugin.capability.FunctionProvider;
+import edu.zsc.ai.plugin.capability.IndexProvider;
+import edu.zsc.ai.plugin.capability.ProcedureProvider;
+import edu.zsc.ai.plugin.capability.TriggerProvider;
 import edu.zsc.ai.plugin.capability.ConnectionProvider;
 import edu.zsc.ai.plugin.capability.DatabaseProvider;
 import edu.zsc.ai.plugin.capability.SchemaProvider;
@@ -60,6 +64,24 @@ public interface PluginManager {
     ColumnProvider getColumnProviderByPluginId(@NotBlank String pluginId);
 
     ColumnProvider getColumnProviderByDbTypeAndVersion(@NotBlank String dbTypeCode, String databaseVersion);
+
+    List<IndexProvider> getIndexProviderByDbType(@NotBlank String dbTypeCode);
+
+    IndexProvider getIndexProviderByPluginId(@NotBlank String pluginId);
+
+    IndexProvider getIndexProviderByDbTypeAndVersion(@NotBlank String dbTypeCode, String databaseVersion);
+
+    List<FunctionProvider> getFunctionProviderByDbType(@NotBlank String dbTypeCode);
+
+    FunctionProvider getFunctionProviderByPluginId(@NotBlank String pluginId);
+
+    List<ProcedureProvider> getProcedureProviderByDbType(@NotBlank String dbTypeCode);
+
+    ProcedureProvider getProcedureProviderByPluginId(@NotBlank String pluginId);
+
+    List<TriggerProvider> getTriggerProviderByDbType(@NotBlank String dbTypeCode);
+
+    TriggerProvider getTriggerProviderByPluginId(@NotBlank String pluginId);
 
     CommandExecutor<SqlCommandRequest, SqlCommandResult> getSqlCommandExecutorByPluginId(@NotBlank String pluginId);
 }
