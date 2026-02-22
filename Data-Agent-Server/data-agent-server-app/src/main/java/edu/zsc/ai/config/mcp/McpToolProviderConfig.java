@@ -15,30 +15,16 @@ import dev.langchain4j.service.tool.ToolExecutionResult;
 import dev.langchain4j.service.tool.ToolExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 /**
- * Configuration for MCP Tool Provider.
- * 
- * Provides tools from MCP servers to LangChain4j AI services.
- * Tools can be filtered by name or other criteria.
+ * MCP tool provider configuration - aggregates tools from all MCP clients for AI Agent.
  */
 @Configuration
 @Slf4j
 @RequiredArgsConstructor
 public class McpToolProviderConfig {
-    
-    /**
-     * Create a map of tool specifications and executors from all MCP clients.
-     * 
-     * This approach provides tools directly to AI services without using ToolProvider.
-     * The tools are discovered from connected MCP servers and made available for execution.
-     * 
-     * @param mcpClients List of MCP clients to aggregate tools from
-     * @return Map of tool specifications to their executors
-     */
+
     @Bean("mcpToolProvider")
-    public Map<ToolSpecification, ToolExecutor> mcpToolProvider(
-            List<McpClient> mcpClients) {
+    public Map<ToolSpecification, ToolExecutor> mcpToolProvider(List<McpClient> mcpClients) {
         
         Map<ToolSpecification, ToolExecutor> toolsMap = new HashMap<>();
         
@@ -53,25 +39,14 @@ public class McpToolProviderConfig {
         for (McpClient client : mcpClients) {
             try {
                 if (client instanceof DefaultMcpClient defaultClient) {
-                    // Get tools from the client
                     List<ToolSpecification> toolSpecs = new ArrayList<>(defaultClient.listTools());
                     
-                    log.info("Found {} tools from MCP client #{}", 
-                        toolSpecs.size(), 
-                        clientIndex);
+                    log.info("Found {} tools from MCP client #{}", toolSpecs.size(), clientIndex);
                     
-                    // Create executors for each tool
                     for (ToolSpecification toolSpec : toolSpecs) {
                         ToolExecutor executor = (toolExecutionRequest, memoryId) -> {
                             ToolExecutionResult result = defaultClient.executeTool(toolExecutionRequest);
-                            String resultText = result.resultText();
-                            
-                            // Post-process chart tool results: add .png extension to image URLs
-                            if (isChartTool(toolSpec.name()) && isImageUrl(resultText)) {
-                                resultText = addImageExtension(resultText);
-                            }
-                            
-                            return resultText;
+                            return result.resultText();
                         };
                         
                         toolsMap.put(toolSpec, executor);
@@ -80,59 +55,11 @@ public class McpToolProviderConfig {
                 clientIndex++;
             } catch (Exception e) {
                 log.error("Failed to load tools from MCP client #{}", clientIndex, e);
-                // Continue with other clients even if one fails
                 clientIndex++;
             }
         }
         
         log.info("MCP tools created successfully: {} tools total", toolsMap.size());
         return toolsMap;
-    }
-    
-    /**
-     * Check if the tool is a chart generation tool.
-     */
-    private boolean isChartTool(String toolName) {
-        if (toolName == null) {
-            return false;
-        }
-        String lowerName = toolName.toLowerCase();
-        return lowerName.contains("chart") 
-            || lowerName.contains("graph") 
-            || lowerName.contains("diagram")
-            || lowerName.contains("visualization");
-    }
-    
-    /**
-     * Check if the text is an image URL (typically from Aliyun OSS).
-     */
-    private boolean isImageUrl(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return false;
-        }
-        String trimmed = text.trim();
-        return (trimmed.startsWith("http://") || trimmed.startsWith("https://"))
-            && (trimmed.contains("alipayobjects.com") 
-                || trimmed.contains("/img/") 
-                || trimmed.contains("/image/"));
-    }
-    
-    /**
-     * Add .png extension to image URL if it doesn't have one.
-     */
-    private String addImageExtension(String url) {
-        if (url == null) {
-            return url;
-        }
-        
-        String trimmed = url.trim();
-        
-        // Check if URL already has an image extension
-        if (trimmed.matches(".*\\.(png|jpg|jpeg|gif|svg|webp)$")) {
-            return url;
-        }
-        
-        // Add .png extension
-        return trimmed + ".png";
     }
 }
