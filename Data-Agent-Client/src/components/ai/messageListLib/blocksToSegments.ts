@@ -122,6 +122,7 @@ export function blocksToSegments(blocks: ChatResponseBlock[]): Segment[] {
             responseError: resultPayload.error ?? false,
             pending: false,
             toolCallId: lastCall.id,
+            serverName: lastCall.serverName ?? resultPayload.serverName,
           });
           // Mark the paired TOOL_RESULT as processed
           if (resultInfo) {
@@ -136,6 +137,7 @@ export function blocksToSegments(blocks: ChatResponseBlock[]): Segment[] {
             responseError: false,
             pending: true,
             toolCallId: lastCall.id,
+            serverName: lastCall.serverName,
           });
         }
         i = j; // Skip to the end of merged blocks
@@ -155,6 +157,7 @@ export function blocksToSegments(blocks: ChatResponseBlock[]): Segment[] {
             responseError: resultPayload.error ?? false,
             pending: false,
             toolCallId: resultPayload.id,
+            serverName: resultPayload.serverName,
           });
         }
         break;

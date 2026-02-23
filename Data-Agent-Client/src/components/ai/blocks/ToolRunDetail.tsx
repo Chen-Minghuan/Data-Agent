@@ -1,5 +1,6 @@
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useTheme } from '../../../hooks/useTheme';
 import {
   TOOL_RUN_SECTION_PARAMETERS,
   TOOL_RUN_SECTION_RESPONSE,
@@ -41,8 +42,10 @@ export function ToolRunDetail({
   responseData,
   toolName,
 }: ToolRunDetailProps) {
+  const { theme } = useTheme();
   const shouldHighlightSql = isSqlContent(responseData, toolName);
-  
+  const syntaxTheme = theme === 'dark' ? oneDark : oneLight;
+
   return (
     <div className="mt-1 space-y-2 theme-text-primary">
       <div>
@@ -54,7 +57,7 @@ export function ToolRunDetail({
           <div className="rounded overflow-hidden bg-black/10 dark:bg-black/20 text-[11px] max-h-[220px] overflow-auto">
             <SyntaxHighlighter
               language="json"
-              style={oneDark}
+              style={syntaxTheme}
               showLineNumbers={false}
               customStyle={{
                 margin: 0,
@@ -83,7 +86,7 @@ export function ToolRunDetail({
           <div className="rounded overflow-hidden bg-black/10 dark:bg-black/20 text-[11px] max-h-[220px] overflow-auto">
             <SyntaxHighlighter
               language="sql"
-              style={oneDark}
+              style={syntaxTheme}
               showLineNumbers={true}
               customStyle={{
                 margin: 0,
