@@ -8,41 +8,49 @@ import {
   DialogTitle,
 } from '../ui/Dialog';
 import { Button } from '../ui/Button';
+import { DELETE_DIALOG_CONFIG } from '../../constants/deleteConfig';
+import type { ExplorerNodeType } from '../../constants/explorer';
 
-interface DeleteTableDialogProps {
+interface DeleteEntityDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tableName: string;
+  entityName: string;
+  entityType: ExplorerNodeType;
   onConfirm: () => void;
   isPending: boolean;
-  title?: string;
-  confirmMessage?: string;
+  itemCount?: number; // For folder deletion
 }
 
-export function DeleteTableDialog({
+export function DeleteEntityDialog({
   open,
   onOpenChange,
-  tableName,
+  entityName,
+  entityType,
   onConfirm,
   isPending,
-  title,
-  confirmMessage,
-}: DeleteTableDialogProps) {
+  itemCount,
+}: DeleteEntityDialogProps) {
   const { t } = useTranslation();
+
+  const config = DELETE_DIALOG_CONFIG[entityType];
+  if (!config) return null;
 
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
   };
 
+  const title = t(config.titleKey);
+  const message = itemCount !== undefined
+    ? t(config.messageKey, { name: entityName, count: itemCount })
+    : t(config.messageKey, { name: entityName });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>{title || t('explorer.delete_table')}</DialogTitle>
-          <DialogDescription>
-            {confirmMessage || t('explorer.delete_table_confirm', { name: tableName })}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

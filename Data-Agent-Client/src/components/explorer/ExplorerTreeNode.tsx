@@ -31,13 +31,7 @@ export interface ExplorerTreeNodeProps {
   onDeleteConnection: (connId: number) => void;
   onViewDdl: (node: ExplorerNode) => void;
   onViewData: (node: ExplorerNode, highlightColumn?: string) => void;
-  onDeleteTable: (node: ExplorerNode) => void;
-  onDeleteView: (node: ExplorerNode) => void;
-  onDeleteFunction: (node: ExplorerNode) => void;
-  onDeleteProcedure: (node: ExplorerNode) => void;
-  onDeleteTrigger: (node: ExplorerNode) => void;
-  onDeleteAllInFolder: (node: ExplorerNode) => void;
-  onDeleteDatabase: (node: ExplorerNode) => void;
+  onDelete: (node: ExplorerNode, type: ExplorerNodeType) => void;
 }
 
 export function ExplorerTreeNode({
@@ -51,13 +45,7 @@ export function ExplorerTreeNode({
   onDeleteConnection,
   onViewDdl,
   onViewData,
-  onDeleteTable,
-  onDeleteView,
-  onDeleteFunction,
-  onDeleteProcedure,
-  onDeleteTrigger,
-  onDeleteAllInFolder,
-  onDeleteDatabase,
+  onDelete,
 }: ExplorerTreeNodeProps) {
   const { t } = useTranslation();
   const isConnected = !!node.data.connectionId;
@@ -231,43 +219,43 @@ export function ExplorerTreeNode({
             </ContextMenuItem>
           )}
           {node.data.type === ExplorerNodeType.TABLE && (
-            <ContextMenuItem onSelect={() => onDeleteTable(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.TABLE)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_table')}
             </ContextMenuItem>
           )}
           {node.data.type === ExplorerNodeType.VIEW && (
-            <ContextMenuItem onSelect={() => onDeleteView(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.VIEW)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_view')}
             </ContextMenuItem>
           )}
           {node.data.type === ExplorerNodeType.FUNCTION && (
-            <ContextMenuItem onSelect={() => onDeleteFunction(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.FUNCTION)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_function')}
             </ContextMenuItem>
           )}
           {node.data.type === ExplorerNodeType.PROCEDURE && (
-            <ContextMenuItem onSelect={() => onDeleteProcedure(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.PROCEDURE)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_procedure')}
             </ContextMenuItem>
           )}
           {node.data.type === ExplorerNodeType.TRIGGER && (
-            <ContextMenuItem onSelect={() => onDeleteTrigger(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.TRIGGER)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_trigger')}
             </ContextMenuItem>
           )}
           {isDb && (
-            <ContextMenuItem onSelect={() => onDeleteDatabase(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.DB)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_database')}
             </ContextMenuItem>
           )}
           {isDeletableFolder && folderCount != null && folderCount > 0 && (
-            <ContextMenuItem onSelect={() => onDeleteAllInFolder(node.data)} className="text-destructive focus:text-destructive">
+            <ContextMenuItem onSelect={() => onDelete(node.data, ExplorerNodeType.FOLDER)} className="text-destructive focus:text-destructive">
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               {t('explorer.delete_all_in_folder')}
             </ContextMenuItem>

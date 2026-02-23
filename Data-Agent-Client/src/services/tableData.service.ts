@@ -2,8 +2,8 @@ import http from '../lib/http';
 import { ApiPaths } from '../constants/apiPaths';
 
 export interface TableDataResponse {
-  columns: string[];
-  rows: Record<string, unknown>[];
+  headers: string[];
+  rows: unknown[][];
   totalCount: number;
   currentPage: number;
   pageSize: number;

@@ -2,6 +2,7 @@ package edu.zsc.ai.controller.db;
 
 import cn.dev33.satoken.stp.StpUtil;
 import edu.zsc.ai.domain.model.dto.response.base.ApiResponse;
+import edu.zsc.ai.domain.model.dto.response.db.TableDataResponse;
 import edu.zsc.ai.domain.service.db.TableService;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -59,5 +60,20 @@ public class TableController {
         long userId = StpUtil.getLoginIdAsLong();
         tableService.deleteTable(connectionId, catalog, schema, tableName, userId);
         return ApiResponse.success(null);
+    }
+
+    @GetMapping("/data")
+    public ApiResponse<TableDataResponse> getTableData(
+            @RequestParam @NotNull(message = "connectionId is required") Long connectionId,
+            @RequestParam @NotNull(message = "tableName is required") String tableName,
+            @RequestParam(required = false) String catalog,
+            @RequestParam(required = false) String schema,
+            @RequestParam(defaultValue = "1") Integer currentPage,
+            @RequestParam(defaultValue = "100") Integer pageSize) {
+        log.info("Getting table data: connectionId={}, tableName={}, catalog={}, schema={}, currentPage={}, pageSize={}",
+                connectionId, tableName, catalog, schema, currentPage, pageSize);
+        long userId = StpUtil.getLoginIdAsLong();
+        TableDataResponse response = tableService.getTableData(connectionId, catalog, schema, tableName, userId, currentPage, pageSize);
+        return ApiResponse.success(response);
     }
 }

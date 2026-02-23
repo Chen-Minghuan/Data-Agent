@@ -155,7 +155,7 @@ export function TableDataDialog({
                 <table className="w-full text-xs border-collapse">
                   <thead className="sticky top-0 bg-accent">
                     <tr>
-                      {data.columns.map((col) => (
+                      {data.headers.map((col) => (
                         <th
                           key={col}
                           className={cn(
@@ -174,16 +174,16 @@ export function TableDataDialog({
                         key={rowIndex}
                         className="hover:bg-accent/50"
                       >
-                        {data.columns.map((col) => (
+                        {data.headers.map((col, colIndex) => (
                           <td
                             key={col}
                             className={cn(
                               "border theme-border px-2 py-1 max-w-xs truncate",
                               highlightColumn === col && "bg-yellow-100 dark:bg-yellow-900/30"
                             )}
-                            title={formatCellValue(row[col])}
+                            title={formatCellValue(row[colIndex])}
                           >
-                            {formatCellValue(row[col])}
+                            {formatCellValue(row[colIndex])}
                           </td>
                         ))}
                       </tr>
@@ -191,7 +191,7 @@ export function TableDataDialog({
                     {data.rows.length === 0 && (
                       <tr>
                         <td
-                          colSpan={data.columns.length}
+                          colSpan={data.headers.length}
                           className="border theme-border px-2 py-4 text-center theme-text-secondary"
                         >
                           {t('explorer.no_data')}
