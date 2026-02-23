@@ -34,13 +34,13 @@ export const tableService = {
     catalog?: string,
     schema?: string
   ): Promise<void> => {
-    const params: Record<string, string> = {
-      connectionId,
-      tableName
-    };
-    if (catalog != null && catalog !== '') params.catalog = catalog;
-    if (schema != null && schema !== '') params.schema = schema;
-
-    await http.post(`${ApiPaths.TABLES}/delete`, null, { params });
+    await http.delete(ApiPaths.TABLES, {
+      data: {
+        connectionId,
+        tableName,
+        catalog,
+        schema
+      }
+    });
   },
 };

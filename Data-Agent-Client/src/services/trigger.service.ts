@@ -44,10 +44,13 @@ export const triggerService = {
     catalog?: string,
     schema?: string
   ): Promise<void> => {
-    const params: Record<string, string> = { connectionId, triggerName };
-    if (catalog != null && catalog !== '') params.catalog = catalog;
-    if (schema != null && schema !== '') params.schema = schema;
-
-    await http.post(`${ApiPaths.TRIGGERS}/delete`, null, { params });
+    await http.delete(ApiPaths.TRIGGERS, {
+      data: {
+        connectionId,
+        triggerName,
+        catalog,
+        schema
+      }
+    });
   },
 };

@@ -14,8 +14,8 @@ export const databaseService = {
   },
 
   deleteDatabase: async (connectionId: string, databaseName: string): Promise<void> => {
-    await http.post(`${ApiPaths.DATABASES}/delete`, null, {
-      params: { connectionId, databaseName },
+    await http.delete(ApiPaths.DATABASES, {
+      data: { connectionId, databaseName }
     });
   },
 };

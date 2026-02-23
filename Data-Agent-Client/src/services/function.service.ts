@@ -46,10 +46,13 @@ export const functionService = {
     catalog?: string,
     schema?: string
   ): Promise<void> => {
-    const params: Record<string, string> = { connectionId, functionName };
-    if (catalog != null && catalog !== '') params.catalog = catalog;
-    if (schema != null && schema !== '') params.schema = schema;
-
-    await http.post(`${ApiPaths.FUNCTIONS}/delete`, null, { params });
+    await http.delete(ApiPaths.FUNCTIONS, {
+      data: {
+        connectionId,
+        functionName,
+        catalog,
+        schema
+      }
+    });
   },
 };

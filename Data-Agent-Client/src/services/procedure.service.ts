@@ -45,10 +45,13 @@ export const procedureService = {
     catalog?: string,
     schema?: string
   ): Promise<void> => {
-    const params: Record<string, string> = { connectionId, procedureName };
-    if (catalog != null && catalog !== '') params.catalog = catalog;
-    if (schema != null && schema !== '') params.schema = schema;
-
-    await http.post(`${ApiPaths.PROCEDURES}/delete`, null, { params });
+    await http.delete(ApiPaths.PROCEDURES, {
+      data: {
+        connectionId,
+        procedureName,
+        catalog,
+        schema
+      }
+    });
   },
 };

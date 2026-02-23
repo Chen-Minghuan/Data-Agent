@@ -34,13 +34,13 @@ export const viewService = {
     catalog?: string,
     schema?: string
   ): Promise<void> => {
-    const params: Record<string, string> = {
-      connectionId,
-      viewName,
-    };
-    if (catalog != null && catalog !== '') params.catalog = catalog;
-    if (schema != null && schema !== '') params.schema = schema;
-
-    await http.post(`${ApiPaths.VIEWS}/delete`, null, { params });
+    await http.delete(ApiPaths.VIEWS, {
+      data: {
+        connectionId,
+        viewName,
+        catalog,
+        schema
+      }
+    });
   },
 };

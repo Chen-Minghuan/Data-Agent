@@ -1,15 +1,18 @@
 package edu.zsc.ai.controller.db;
 
 import cn.dev33.satoken.stp.StpUtil;
+import edu.zsc.ai.domain.model.dto.request.db.DeleteTableRequest;
 import edu.zsc.ai.domain.model.dto.response.base.ApiResponse;
 import edu.zsc.ai.domain.model.dto.response.db.TableDataResponse;
 import edu.zsc.ai.domain.service.db.TableService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,16 +52,13 @@ public class TableController {
         return ApiResponse.success(ddl);
     }
 
-    @PostMapping("/delete")
-    public ApiResponse<Void> deleteTable(
-            @RequestParam @NotNull(message = "connectionId is required") Long connectionId,
-            @RequestParam @NotNull(message = "tableName is required") String tableName,
-            @RequestParam(required = false) String catalog,
-            @RequestParam(required = false) String schema) {
+    @DeleteMapping
+    public ApiResponse<Void> deleteTable(@Valid @RequestBody DeleteTableRequest request) {
         log.info("Deleting table: connectionId={}, tableName={}, catalog={}, schema={}",
-                connectionId, tableName, catalog, schema);
+                request.getConnectionId(), request.getTableName(), request.getCatalog(), request.getSchema());
         long userId = StpUtil.getLoginIdAsLong();
-        tableService.deleteTable(connectionId, catalog, schema, tableName, userId);
+        tableService.deleteTable(request.getConnectionId(), request.getCatalog(),
+                request.getSchema(), request.getTableName(), userId);
         return ApiResponse.success(null);
     }
 
