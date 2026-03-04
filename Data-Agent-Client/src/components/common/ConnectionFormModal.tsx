@@ -17,6 +17,7 @@ import { connectionService } from '../../services/connection.service';
 import { driverService } from '../../services/driver.service';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useToast } from '../../hooks/useToast';
+import { Eye, EyeOff } from 'lucide-react';
 import { resolveErrorMessage } from '../../lib/errorMessage';
 import { DriverManageModal } from './DriverManageModal';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -85,6 +86,7 @@ export function ConnectionFormModal({
   const [step, setStep] = useState<'select-type' | 'form'>('select-type');
   const [driverModalOpen, setDriverModalOpen] = useState(false);
   const [isNameManuallyEdited, setIsNameManuallyEdited] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -287,7 +289,17 @@ export function ConnectionFormModal({
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium">{t(I18N_KEYS.CONNECTIONS.PASSWORD)}</label>
-                <Input type="password" {...register('password')} autoComplete="off" />
+                <div className="relative">
+                  <Input type={showPassword ? 'text' : 'password'} {...register('password')} autoComplete="off" className="pr-10" />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-4 gap-4">
