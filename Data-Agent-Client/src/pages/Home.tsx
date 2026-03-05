@@ -109,7 +109,7 @@ export default function Home() {
                                     onChange={(val) => updateTabContent(activeTab.id, val || '')}
                                 />
                             ) : activeTab?.type === 'table' && activeTab.metadata ? (
-                                <TableDataTab tabId={activeTab.id} metadata={activeTab.metadata as TableTabMetadata} />
+                                <TableDataTab key={activeTab.id} tabId={activeTab.id} metadata={activeTab.metadata as TableTabMetadata} />
                             ) : activeTab?.type === 'table' ? (
                                 <div className="flex-1 h-full flex items-center justify-center theme-text-secondary italic text-xs">
                                     -- {t(I18N_KEYS.WORKSPACE.DATA_GRID_PLACEHOLDER)} --

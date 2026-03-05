@@ -14,7 +14,7 @@ import type { TableTabMetadata } from '../../types/tab';
 import { TransactionMode, IsolationLevel } from '../../constants/transactionSettings';
 import { TransactionModeSelector } from './TransactionModeSelector';
 import { DdlViewerDialog } from '../explorer/DdlViewerDialog';
-import { AddRowDialog } from './AddRowDialog';
+import { columnService, type ColumnMetadata } from '../../services/column.service';
 import { useToast } from '../../hooks/useToast';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { databaseService } from '../../services/database.service';
@@ -57,7 +57,12 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
   const [txMode, setTxMode] = useState<TransactionMode>(TransactionMode.AUTO);
   const [isolationLevel, setIsolationLevel] = useState<IsolationLevel>(IsolationLevel.DEFAULT);
   const [ddlDialogOpen, setDdlDialogOpen] = useState(false);
-  const [addRowDialogOpen, setAddRowDialogOpen] = useState(false);
+  const [isAddingRow, setIsAddingRow] = useState(false);
+  const [newRowValues, setNewRowValues] = useState<Record<string, string>>({});
+  const [columnMetadata, setColumnMetadata] = useState<ColumnMetadata[]>([]);
+  const [loadingColumns, setLoadingColumns] = useState(false);
+  const [insertSubmitting, setInsertSubmitting] = useState(false);
+  const [insertError, setInsertError] = useState<string | null>(null);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
@@ -192,13 +197,97 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
     [metadata.connectionId, metadata.databaseName, metadata.schemaName]
   );
 
-  const handleAddRow = () => {
+  const handleAddRow = useCallback(() => {
     if (!isTable) {
       toast.warning(t(I18N_KEYS.EXPLORER.VIEW_READONLY));
       return;
     }
-    setAddRowDialogOpen(true);
-  };
+    setIsAddingRow(true);
+    setNewRowValues({});
+    setInsertError(null);
+    setLoadingColumns(true);
+    columnService
+      .listColumns(connId, objectName, catalog || undefined, schema || undefined)
+      .then((cols) => setColumnMetadata(cols || []))
+      .catch(() => setColumnMetadata([]))
+      .finally(() => setLoadingColumns(false));
+    // 跳转到最后一页，使新增行出现在整个表的最后
+    if (data && data.totalPages > 0) {
+      loadData(data.totalPages);
+    }
+  }, [isTable, connId, objectName, catalog, schema, t, data, loadData]);
+
+  const handleCancelAddRow = useCallback(() => {
+    setIsAddingRow(false);
+    setNewRowValues({});
+    setInsertError(null);
+  }, []);
+
+  const handleNewRowValueChange = useCallback((colName: string, val: string) => {
+    setNewRowValues((prev) => ({ ...prev, [colName]: val }));
+    setInsertError(null);
+  }, []);
+
+  const handleConfirmInsert = useCallback(async () => {
+    const editableColumns = columnMetadata.filter((c) => !c.isAutoIncrement);
+    if (editableColumns.length === 0) {
+      setInsertError('No editable columns');
+      return;
+    }
+    const quoteId = (n: string) => '`' + n.replace(/`/g, '``') + '`';
+    const escapeSql = (val: string) => "'" + String(val).replace(/'/g, "''") + "'";
+    const cols: string[] = [];
+    const vals: string[] = [];
+    for (const col of editableColumns) {
+      const v = (newRowValues[col.name] ?? '').trim();
+      const nullable = col.nullable ?? true;
+      if (v === '' || v.toUpperCase() === 'NULL') {
+        if (!nullable) {
+          setInsertError(`Column ${col.name} is required`);
+          return;
+        }
+        cols.push(quoteId(col.name));
+        vals.push('NULL');
+      } else {
+        cols.push(quoteId(col.name));
+        const typeLower = (col.typeName || '').toLowerCase();
+        const isNumeric =
+          typeLower.includes('int') ||
+          typeLower.includes('decimal') ||
+          typeLower.includes('numeric') ||
+          typeLower.includes('float') ||
+          typeLower.includes('double') ||
+          typeLower.includes('bit');
+        if (isNumeric && /^-?\d*\.?\d+$/.test(v)) {
+          vals.push(v);
+        } else {
+          vals.push(escapeSql(v));
+        }
+      }
+    }
+    setInsertSubmitting(true);
+    setInsertError(null);
+    try {
+      const catalogOrSchema = catalog || schema || '';
+      const tablePart = catalogOrSchema ? `${quoteId(catalogOrSchema)}.${quoteId(objectName)}` : quoteId(objectName);
+      const sql = `INSERT INTO ${tablePart} (${cols.join(', ')}) VALUES (${vals.join(', ')})`;
+      const result = await executeInsert(sql);
+      if (result.success) {
+        toast.success(t(I18N_KEYS.EXPLORER.ROW_INSERT_SUCCESS));
+        setIsAddingRow(false);
+        setNewRowValues({});
+        // 插入成功后停留在最后一页以显示新插入的行
+        const lastPage = data ? Math.max(1, Math.ceil((data.totalCount + 1) / pageSize)) : 1;
+        loadData(lastPage);
+      } else {
+        setInsertError(result.errorMessage || 'Insert failed');
+      }
+    } catch (err) {
+      setInsertError((err as Error).message);
+    } finally {
+      setInsertSubmitting(false);
+    }
+  }, [columnMetadata, newRowValues, catalog, schema, objectName, executeInsert, loadData, t, data, pageSize]);
 
   const handleDeleteRow = () => {
     if (!isTable) {
@@ -316,9 +405,37 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
           className="h-6 w-6"
           title={t(I18N_KEYS.EXPLORER.ADD_ROW)}
           onClick={handleAddRow}
+          disabled={!isTable}
         >
           <Plus className="w-3.5 h-3.5 theme-text-secondary" />
         </Button>
+        {isAddingRow && (
+          <>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={handleConfirmInsert}
+              disabled={insertSubmitting || loadingColumns}
+            >
+              {insertSubmitting ? '...' : t(I18N_KEYS.EXPLORER.INSERT_ROW)}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={handleCancelAddRow}
+              disabled={insertSubmitting}
+            >
+              {t(I18N_KEYS.CONNECTIONS.CANCEL)}
+            </Button>
+            {insertError && (
+              <span className="text-destructive text-[10px] max-w-[180px] truncate" title={insertError}>
+                {insertError}
+              </span>
+            )}
+          </>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -434,21 +551,6 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
         loadDdl={loadDdl}
       />
 
-      <AddRowDialog
-        open={addRowDialogOpen}
-        onOpenChange={setAddRowDialogOpen}
-        tableName={objectName}
-        connectionId={connId}
-        catalog={catalog || undefined}
-        schema={schema || undefined}
-        displayName={displayName}
-        onSuccess={() => {
-          toast.success(t(I18N_KEYS.EXPLORER.ROW_INSERT_SUCCESS));
-          loadData(1);
-        }}
-        executeInsert={executeInsert}
-      />
-
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -480,7 +582,13 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
 
         {!loading && !error && data && (
           <div className="overflow-auto h-full">
-            <table className="text-[11px] w-full border-collapse">
+            <table className="text-[11px] w-full border-collapse table-fixed">
+              <colgroup>
+                <col style={{ width: '40px' }} />
+                {data.headers.map((col) => (
+                  <col key={col} />
+                ))}
+              </colgroup>
               <thead className="sticky top-0 theme-bg-panel z-10">
                 <tr>
                   <th className="px-3 py-1.5 text-left font-medium theme-text-secondary border-b border-r theme-border whitespace-nowrap w-10">
@@ -491,15 +599,15 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
                       key={col}
                       onClick={() => handleColumnSort(col)}
                       className={cn(
-                        'px-3 py-1.5 text-left font-medium theme-text-secondary border-b border-r theme-border whitespace-nowrap cursor-pointer hover:bg-accent/50',
+                        'px-3 py-1.5 text-left font-medium theme-text-secondary border-b border-r theme-border whitespace-nowrap cursor-pointer hover:bg-accent/50 overflow-hidden',
                         orderByColumn === col && 'bg-accent/30'
                       )}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 min-w-0 max-w-full">
                         <span className="truncate min-w-0">{col}</span>
                         <span
                           className={cn(
-                            'shrink-0 w-3 h-3 flex items-center justify-center',
+                            'shrink-0 w-3 h-3 flex items-center justify-center flex-shrink-0',
                             orderByColumn !== col && 'invisible'
                           )}
                           aria-hidden
@@ -539,7 +647,7 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
                     ))}
                   </tr>
                 ))}
-                {data.rows.length === 0 && (
+                {data.rows.length === 0 && !isAddingRow && (
                   <tr>
                     <td
                       colSpan={data.headers.length + 1}
@@ -547,6 +655,43 @@ export function TableDataTab({ tabId, metadata }: TableDataTabProps) {
                     >
                       {t(I18N_KEYS.EXPLORER.NO_DATA)}
                     </td>
+                  </tr>
+                )}
+                {isAddingRow && isTable && (
+                  <tr className="hover:bg-accent/30">
+                    <td className="px-3 py-1 theme-text-secondary border-b border-r theme-border">
+                      {data.totalCount + 1}
+                    </td>
+                    {data.headers.map((col) => {
+                      const meta = columnMetadata.find((m) => m.name === col);
+                      const editable = meta && !meta.isAutoIncrement;
+                      const firstEditableCol = data.headers.find((h) => {
+                        const m = columnMetadata.find((x) => x.name === h);
+                        return m && !m.isAutoIncrement;
+                      });
+                      return (
+                        <td key={col} className="px-3 py-1 border-b border-r theme-border">
+                          {loadingColumns ? (
+                            <span className="text-[11px] theme-text-secondary">...</span>
+                          ) : editable ? (
+                            <Input
+                              value={newRowValues[col] ?? ''}
+                              onChange={(e) => handleNewRowValueChange(col, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleConfirmInsert();
+                                if (e.key === 'Escape') handleCancelAddRow();
+                              }}
+                              placeholder={meta?.nullable ? 'NULL' : ''}
+                              className="h-auto min-h-[22px] py-0.5 px-2 text-[11px] font-mono theme-bg-main theme-text-primary border-0 rounded-none max-w-full w-full focus-visible:ring-1 focus-visible:ring-ring"
+                              disabled={insertSubmitting}
+                              autoFocus={col === firstEditableCol}
+                            />
+                          ) : (
+                            <span className="text-[11px] theme-text-secondary italic">auto</span>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 )}
               </tbody>
