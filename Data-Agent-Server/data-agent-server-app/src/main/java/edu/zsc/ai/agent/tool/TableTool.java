@@ -19,9 +19,11 @@ public class TableTool {
     private final TableService tableService;
 
     @Tool({
-        "[WHAT] Count the number of tables matching a name pattern in the current database/schema.",
-        "[WHEN] ALWAYS call this before searchObjects(objectType=TABLE) to assess schema size.",
-        "IMPORTANT — If the count exceeds 50, MUST use a specific objectNamePattern in searchObjects instead of listing all tables."
+        "[GOAL] Estimate schema breadth before object exploration.",
+        "[PRECHECK] connection/catalog/schema should be selected; pattern should reflect user intent scope.",
+        "[WHEN] Call before broad table searches to avoid uncontrolled listing in large schemas.",
+        "[SAFETY] If count is high (e.g., >50), refine pattern and avoid blind enumeration.",
+        "[AFTER] Continue with targeted searchObjects/getObjectNames or askUserQuestion for narrower scope."
     })
     public AgentToolResult countTables(
             @P(value = "Table name pattern. Supports '%' and '_' wildcards. Pass null or '%' to count all tables.", required = false) String tableNamePattern,
@@ -46,9 +48,11 @@ public class TableTool {
     }
 
     @Tool({
-        "[WHAT] Count the total number of rows in a specific table.",
-        "[WHEN] ALWAYS call this before executing any SELECT query to assess data volume.",
-        "IMPORTANT — If the row count exceeds 10000, MUST add a WHERE clause or LIMIT. NEVER run an unfiltered SELECT on a large table."
+        "[GOAL] Estimate data volume to enforce safe query shape.",
+        "[PRECHECK] tableName should be resolved and fully qualified in user-confirmed scope.",
+        "[WHEN] Call before SELECT to decide if WHERE/LIMIT/pagination is mandatory.",
+        "[SAFETY] Large row counts (e.g., >10000) require bounded SQL; avoid unfiltered scans.",
+        "[AFTER] Feed result into executeSelectSql planning and response risk explanation."
     })
     public AgentToolResult countTableRows(
             @P("The exact name of the table to count rows in") String tableName,

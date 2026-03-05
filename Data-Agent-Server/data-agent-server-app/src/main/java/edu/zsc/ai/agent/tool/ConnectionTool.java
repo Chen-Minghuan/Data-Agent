@@ -21,8 +21,10 @@ public class ConnectionTool {
     private final DbConnectionService dbConnectionService;
 
     @Tool({
-        "[WHAT] List all database connections owned by the current user.",
-        "[WHEN] Use when connectionId is not known, the user asks about their connections, or wants to switch to a different connection."
+        "[GOAL] Start source resolution by discovering which connections the user can operate on.",
+        "[PRECHECK] Call this before assuming any connection when current context is missing or ambiguous.",
+        "[WHEN] Use when connectionId is unknown, multiple data sources may match, or user asks to switch source.",
+        "[AFTER] Use result to narrow candidate sources, then continue with getCatalogNames/searchObjects."
     })
     public AgentToolResult getMyConnections(InvocationParameters parameters) {
         log.info("{} getMyConnections", "[Tool]");
@@ -45,8 +47,10 @@ public class ConnectionTool {
     }
 
     @Tool({
-        "[WHAT] Get full details of a specific database connection by its ID.",
-        "[WHEN] Use when you need host, port, or database name for a given connectionId from session context or getMyConnections."
+        "[GOAL] Inspect one selected connection in detail to validate target source context.",
+        "[PRECHECK] connectionId should come from session context or getMyConnections.",
+        "[WHEN] Use when host/port/default-database details are needed for planning or disambiguation.",
+        "[AFTER] If multiple candidates remain, askUserQuestion before proceeding to SQL."
     })
     public AgentToolResult getConnectionById(
             @P("The connection id (from session context or getMyConnections result)") Long connectionId,

@@ -17,9 +17,10 @@ import java.util.Map;
 public class TodoTool {
 
     @Tool({
-        "[WHAT] Create a real-time step-by-step task list visible to the user.",
-        "[WHEN] Call at the START of any operation with 3 or more steps, BEFORE taking any other action.",
-        "[HOW] Pass a unique todoId and the full list of planned steps (first step IN_PROGRESS, rest NOT_STARTED)."
+        "[GOAL] Expose execution plan to user for multi-step tasks (clarification → exploration → SQL → response).",
+        "[WHEN] Call at the start of complex workflows (>=3 steps) before heavy tool execution.",
+        "[INPUT] Provide unique todoId and complete step list (first step IN_PROGRESS, others NOT_STARTED).",
+        "[AFTER] Keep this plan synchronized with real progress via todo_update."
     })
     public AgentToolResult todo_create(
             @P("Unique id for this todo list (e.g. 'task-1').")
@@ -33,9 +34,10 @@ public class TodoTool {
     }
 
     @Tool({
-        "[WHAT] Update the task progress list after a step completes.",
-        "[WHEN] Call at milestones to reflect current progress; batching multiple completed steps is allowed.",
-        "[HOW] Use the same todoId as todo_create; pass the full updated items list with revised statuses."
+        "[GOAL] Keep user-visible plan aligned with actual execution milestones.",
+        "[WHEN] Call after each significant step (clarification answered, source resolved, SQL executed, chart rendered).",
+        "[INPUT] Use same todoId as todo_create and send the full updated list.",
+        "[AFTER] Ensure statuses are current before user-facing summaries."
     })
     public AgentToolResult todo_update(
             @P("Same todoId used in todo_create.")
@@ -49,9 +51,10 @@ public class TodoTool {
     }
 
     @Tool({
-        "[WHAT] Clear the task list when all steps are fully done.",
-        "[WHEN] Call after all tasks are COMPLETED to dismiss the progress box.",
-        "[HOW] Pass the todoId of the list to clear; returns an empty list."
+        "[GOAL] Close progress context when workflow is fully completed.",
+        "[WHEN] Call only after all tasks are COMPLETED and final response is ready.",
+        "[INPUT] Pass todoId of the active plan; returns empty task payload.",
+        "[AFTER] Do not keep stale task panels after completion."
     })
     public AgentToolResult todo_delete(
             @P("The todoId of the list to clear.")

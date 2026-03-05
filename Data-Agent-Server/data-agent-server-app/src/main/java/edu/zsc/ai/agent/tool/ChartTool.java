@@ -23,10 +23,12 @@ import org.apache.commons.lang3.StringUtils;
 public class ChartTool {
 
     @Tool({
-            "[WHAT] Create a chart payload for frontend ECharts rendering.",
-            "[HOW] Pass chartType + optionJson (+ optional description). optionJson must be a valid JSON object string.",
-            "[DESCRIPTION] description should briefly explain chart meaning, key insight(s), and how to read it.",
-            "[WHEN] Use after query results are ready and a visual chart is needed."
+            "[GOAL] Produce frontend-renderable chart payload after SQL results are validated.",
+            "[PRECHECK] Ensure chart use is justified (user requested or clear visual gain) and data aggregation is complete.",
+            "[WHEN] Use after executeSelectSql result is ready; default to <=1 chart per request unless user explicitly asks more.",
+            "[INPUT] Pass chartType + optionJson (+ optional description). optionJson must be valid JSON object.",
+            "[DESCRIPTION] description should explain chart meaning, key insight(s), and how to read the result.",
+            "[AFTER] Return payload only; frontend handles rendering/retry and model can continue textual conclusion."
     })
     public AgentToolResult renderChart(
             @P("Chart type: LINE/BAR/PIE/SCATTER/AREA") String chartType,

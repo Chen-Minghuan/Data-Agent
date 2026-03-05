@@ -39,13 +39,15 @@ public class DatabaseObjectTool {
     private final IndexService indexService;
 
     @Tool({
-            "[WHAT] List all database names (catalogs) available on a given connection.",
-            "[WHEN] Use when the user has not specified a database, or when exploring what databases exist on a connection. Pass connectionId from session context or getMyConnections."
+            "[GOAL] Resolve source scope at catalog level before object lookup or SQL.",
+            "[PRECHECK] connectionId must be selected from session context or getMyConnections; do not guess.",
+            "[WHEN] Use when database/catalog is unspecified or multiple catalogs may contain same-name objects.",
+            "[AFTER] Use selected catalog with searchObjects/getObjectNames to continue disambiguation."
     })
-    public AgentToolResult getCatologNames(
+    public AgentToolResult getCatalogNames(
             @P("The connection id (from session context or getMyConnections result)") Long connectionId,
             InvocationParameters parameters) {
-        log.info("[Tool] getCatologNames, connectionId={}", connectionId);
+        log.info("[Tool] getCatalogNames, connectionId={}", connectionId);
         try {
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             if (Objects.isNull(userId)) {
@@ -53,21 +55,23 @@ public class DatabaseObjectTool {
             }
             List<String> databases = databaseService.listDatabases(connectionId, userId);
             if (CollectionUtils.isEmpty(databases)) {
-                log.info("[Tool done] getCatologNames -> empty");
+                log.info("[Tool done] getCatalogNames -> empty");
                 return AgentToolResult.empty();
             }
-            log.info("[Tool done] getCatologNames, result size={}", databases.size());
+            log.info("[Tool done] getCatalogNames, result size={}", databases.size());
             return AgentToolResult.success(databases);
         } catch (Exception e) {
-            log.error("[Tool error] getCatologNames, connectionId={}", connectionId, e);
+            log.error("[Tool error] getCatalogNames, connectionId={}", connectionId, e);
             return AgentToolResult.fail(e);
         }
     }
 
     @Tool({
-            "[WHAT] List object names by object type in the current database/schema.",
-            "[WHEN] Use this to list names for TABLE/VIEW/FUNCTION/PROCEDURE/TRIGGER.",
-            "IMPORTANT — For objectType=TRIGGER, tableName is required."
+            "[GOAL] Enumerate exact candidate object names in a bounded scope.",
+            "[PRECHECK] connectionId/databaseName should already be resolved; schemaName should be explicit when possible.",
+            "[WHEN] Use to list TABLE/VIEW/FUNCTION/PROCEDURE/TRIGGER names for existence checks and disambiguation.",
+            "[BOUNDARY] For objectType=TRIGGER, tableName is required.",
+            "[AFTER] If multiple business-relevant candidates remain, askUserQuestion before SQL generation."
     })
     public AgentToolResult getObjectNames(
             @P("Object type: TABLE, VIEW, FUNCTION, PROCEDURE, TRIGGER") String objectType,
@@ -101,10 +105,12 @@ public class DatabaseObjectTool {
     }
 
     @Tool({
-            "[WHAT] Search database objects by JDBC-style name pattern and object type.",
-            "[WHEN] Use this to search TABLE/VIEW/FUNCTION/PROCEDURE/TRIGGER names.",
+            "[GOAL] Pattern-search objects to quickly narrow large schemas into actionable candidates.",
+            "[PRECHECK] Prefer after countTables/countTableRows or when exact name is unknown.",
+            "[WHEN] Use to search TABLE/VIEW/FUNCTION/PROCEDURE/TRIGGER with JDBC wildcards.",
             "[HOW] Supports '%' (any sequence) and '_' (single char).",
-            "IMPORTANT — For objectType=TRIGGER, tableName is required."
+            "[BOUNDARY] For objectType=TRIGGER, tableName is required.",
+            "[AFTER] If results are empty or too broad, refine pattern or ask user for clearer scope."
     })
     public AgentToolResult searchObjects(
             @P("Object type: TABLE, VIEW, FUNCTION, PROCEDURE, TRIGGER") String objectType,
@@ -140,9 +146,11 @@ public class DatabaseObjectTool {
     }
 
     @Tool({
-            "[WHAT] Get DDL for an object by type and name.",
-            "[WHEN] Use this to inspect TABLE/VIEW/FUNCTION/PROCEDURE/TRIGGER before writing SQL.",
-            "IMPORTANT — objectName must be exact in the target schema."
+            "[GOAL] Validate schema facts before composing SQL (column names, types, keys, constraints).",
+            "[PRECHECK] objectName must already be resolved to one exact target; avoid ambiguous candidates.",
+            "[WHEN] Use before writing SQL filters/joins/time conditions or before write operations.",
+            "[BOUNDARY] objectName must be exact in target schema.",
+            "[AFTER] Use DDL to verify required fields and safe predicates before executeSelectSql/executeNonSelectSql."
     })
     public AgentToolResult getObjectDdl(
             @P("Object type: TABLE, VIEW, FUNCTION, PROCEDURE, TRIGGER") String objectType,
@@ -176,8 +184,10 @@ public class DatabaseObjectTool {
     }
 
     @Tool({
-            "[WHAT] List all indexes defined on a specific table.",
-            "[WHEN] Use when the user asks about indexes, or when diagnosing query performance issues. Pass connectionId, databaseName, schemaName from current session context."
+            "[GOAL] Inspect indexing to support performance diagnosis and safer query plans.",
+            "[PRECHECK] table scope must be resolved (connection/catalog/schema/table).",
+            "[WHEN] Use for index-related user questions or slow-query diagnosis.",
+            "[AFTER] Use result to explain performance risks and suggest filter/join optimizations."
     })
     public AgentToolResult getIndexes(
             @P("The exact name of the table") String tableName,

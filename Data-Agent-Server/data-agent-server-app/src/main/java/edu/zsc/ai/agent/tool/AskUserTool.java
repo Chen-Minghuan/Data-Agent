@@ -26,14 +26,14 @@ public class AskUserTool {
     private final WriteConfirmationStore confirmationStore;
 
     @Tool(
-            value = "[WHAT] Ask the user one or more questions with structured choices and optional free-text input. "
-                    + "[WHEN] Use when: (1) user intent is ambiguous or critical information is missing; "
-                    + "(2) a decision must be made before proceeding. "
-                    + "IMPORTANT — Use askUserConfirm (NOT askUserQuestion) for write operation confirmation. "
-                    + "[HOW] Each question should have 2-3 options (maximum 3). "
-                    + "Users can select options and/or provide custom input. "
-                    + "Use allowMultiSelect=true for multi-select (checkboxes), false for single-select (radio buttons, default). "
-                    + "After receiving the response, interpret the answers and continue the operation.",
+            value = {
+                    "[GOAL] Resolve business ambiguity before SQL generation/execution (intent, metric definition, time range, filters, target source).",
+                    "[PRECHECK] Use this only for user-owned decisions that cannot be inferred from tools; tool-discoverable facts should be fetched via exploration tools first.",
+                    "[WHEN] Call when intent is ambiguous, multiple same-name candidates exist, filter values are uncertain, or critical constraints are missing.",
+                    "[INPUT] Each question should have 2-3 options (max 3), plus optional free text. Prefer concrete options over open-ended prompts.",
+                    "[BOUNDARY] NEVER use askUserQuestion for write confirmation; write operations must use askUserConfirm.",
+                    "[AFTER] Interpret answers, lock selected scope/constraints, then continue with exploration or SQL execution."
+            },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )
     public List<UserQuestion> askUserQuestion(
@@ -46,17 +46,12 @@ public class AskUserTool {
 
     @Tool(
             value = {
-                    "[WHAT] Request user confirmation before executing a write SQL statement (INSERT, UPDATE, DELETE, DDL).",
-                    "[WHEN] YOU MUST call this tool BEFORE every write operation. "
-                            + "Use askUserQuestion ONLY for intent clarification when the request is ambiguous — "
-                            + "NEVER use askUserQuestion for write operation confirmation.",
-                    "[HOW] Pass the exact SQL, connection id, and a clear explanation of the operation's effect. "
-                            + "Include database and schema only when the operation is bound to a specific database/schema; "
-                            + "for example, omit them for CREATE DATABASE statements.",
-                    "[AFTER] After the user confirms, you will receive a message like "
-                            + "'Confirmed. confirmationToken: <token>'. "
-                            + "Then call executeNonSelectSql with the sql AND the confirmationToken. "
-                            + "NEVER call executeNonSelectSql without a valid confirmationToken from this tool."
+                    "[GOAL] Enforce explicit user approval before any write SQL (INSERT/UPDATE/DELETE/DDL).",
+                    "[PRECHECK] SQL must already be concrete and impact-explained; do not call this for unresolved intent.",
+                    "[WHEN] MUST be called before every write operation. Without it, executeNonSelectSql should be rejected.",
+                    "[INPUT] Pass exact SQL, connectionId, and clear impact explanation; include database/schema only when applicable.",
+                    "[AFTER] Only after user confirmation, call executeNonSelectSql with the same SQL and user-confirmed tableName context.",
+                    "[FAILSAFE] If user rejects/cancels or context is missing, stop write execution and return to clarification/planning."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )

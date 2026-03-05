@@ -33,9 +33,10 @@ public class MemoryCandidateTool {
     private final MemoryProperties memoryProperties;
 
     @Tool({
-            "[WHAT] Search the user's committed long-term memories by semantic similarity.",
-            "[WHEN] Use when the user asks about their saved preferences, past decisions, or known business rules.",
-            "[HOW] Provide a query text describing what to search for. Returns top-K most relevant memories."
+            "[GOAL] Retrieve reusable user-confirmed knowledge (preferences, rules, terms) to guide current decisions.",
+            "[PRECHECK] Use when prior memory may affect SQL scope, filter conventions, naming, or output style.",
+            "[WHEN] Call for memory-aware tasks, especially repeated workflows or preference-sensitive behavior.",
+            "[INPUT] Provide concise queryText; limit controls top-K candidates."
     })
     public AgentToolResult searchMemories(
             @P("Natural language query to search memories") String queryText,
@@ -65,9 +66,10 @@ public class MemoryCandidateTool {
     }
 
     @Tool({
-            "[WHAT] List memory candidates for the current conversation.",
-            "[WHEN] Use to review existing candidate memories before creating new ones and avoid duplicates.",
-            "[HOW] Conversation id is resolved from invocation context; optional limit defaults to 50."
+            "[GOAL] Review pending candidate memories in current conversation to avoid duplicate creation.",
+            "[PRECHECK] Prefer before createCandidateMemory in the same conversation.",
+            "[WHEN] Use when deciding whether a new candidate is necessary or existing candidate should be edited/deleted.",
+            "[INPUT] conversationId is context-driven; limit controls response size."
     })
     public AgentToolResult listCandidateMemories(
             @P(value = "Conversation id from current session context", required = false) Long conversationId,
@@ -103,9 +105,10 @@ public class MemoryCandidateTool {
     }
 
     @Tool({
-            "[WHAT] Create a memory candidate in the current conversation.",
-            "[WHEN] Use when the user explicitly confirms reusable preference, business rule, term definition, or reusable SQL pattern.",
-            "[HOW] Conversation id is resolved from invocation context. Set candidateType, candidateContent, and optional reason."
+            "[GOAL] Propose a new reusable memory candidate for later user review/commit.",
+            "[PRECHECK] Candidate must be stable, reusable, and explicitly confirmed by user; avoid transient facts.",
+            "[WHEN] Use for confirmed preferences, business rules, terminology mappings, or stable SQL conventions.",
+            "[INPUT] Provide candidateType + normalized candidateContent + optional reason."
     })
     public AgentToolResult createCandidateMemory(
             @P(value = "Conversation id from current session context", required = false) Long conversationId,
@@ -139,9 +142,10 @@ public class MemoryCandidateTool {
     }
 
     @Tool({
-            "[WHAT] Delete a memory candidate by id.",
-            "[WHEN] Use when a candidate is incorrect, outdated, duplicated, or no longer useful.",
-            "[HOW] Provide the candidate id exactly as returned by listCandidateMemories."
+            "[GOAL] Remove invalid or redundant candidate memories to keep candidate box clean.",
+            "[WHEN] Use when candidate is incorrect, stale, duplicate, or user rejects it.",
+            "[INPUT] candidateId must come from listCandidateMemories output.",
+            "[AFTER] Continue with corrected candidate strategy if needed."
     })
     public AgentToolResult deleteCandidateMemory(
             @P("Candidate id to delete") Long candidateId,
