@@ -35,6 +35,10 @@ public interface TableProvider {
         }
     }
 
+    default long countTables(Connection connection, String catalog, String schema, String tableNamePattern) {
+        return searchTables(connection, catalog, schema, tableNamePattern).size();
+    }
+
     default String getTableDdl(Connection connection, String catalog, String schema, String tableName) {
         throw new UnsupportedOperationException("Plugin does not support getting table DDL");
     }

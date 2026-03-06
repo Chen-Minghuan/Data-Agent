@@ -21,10 +21,10 @@ public enum ModelEnum {
         this.supportThinking = supportThinking;
     }
 
-    public static void fromModelName(String modelName) {
+    public static ModelEnum fromModelName(String modelName) {
         for (ModelEnum limit : values()) {
             if (limit.modelName.equalsIgnoreCase(modelName)) {
-                return;
+                return limit;
             }
         }
         throw new IllegalArgumentException("Unknown model: " + modelName);

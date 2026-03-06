@@ -66,7 +66,7 @@ public class ChatServiceImpl implements ChatService {
     public Flux<ChatResponseBlock> chat(ChatRequest request) {
         String modelName = validateAndResolveModel(request.getModel());
 
-        ReActAgent agent = reActAgentProvider.getAgent(modelName);
+        ReActAgent agent = reActAgentProvider.getAgent(modelName, request.getLanguage());
 
         if (request.getConversationId() == null) {
             Long userId = RequestContext.getUserId();
@@ -176,7 +176,7 @@ public class ChatServiceImpl implements ChatService {
                 }
             }
 
-            sink.tryEmitNext(ChatResponseBlock.doneBlock(conversationId));
+            sink.tryEmitNext(ChatResponseBlock.doneBlock());
             sink.tryEmitComplete();
         });
 
@@ -187,7 +187,12 @@ public class ChatServiceImpl implements ChatService {
 
         tokenStream.start();
 
-        return sink.asFlux();
+        return sink.asFlux().map(block -> {
+            if (block != null && block.getConversationId() == null) {
+                block.setConversationId(conversationId);
+            }
+            return block;
+        });
     }
 
     /**
@@ -197,12 +202,11 @@ public class ChatServiceImpl implements ChatService {
     private String validateAndResolveModel(String requestModel) {
         String modelName = StringUtils.isNotBlank(requestModel) ? requestModel.trim() : DEFAULT_MODEL;
         try {
-            ModelEnum.fromModelName(modelName);
+            return ModelEnum.fromModelName(modelName).getModelName();
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     ChatErrorConstants.UNKNOWN_MODEL_PREFIX + modelName, e);
         }
-        return modelName;
     }
 
     private String buildMessageWithMemoryContext(Long userId, Long conversationId, String userMessage) {

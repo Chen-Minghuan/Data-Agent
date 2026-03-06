@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool;
+package edu.zsc.ai.agent.tool.memory;
 
 import java.util.HashMap;
 import java.util.List;
@@ -8,6 +8,7 @@ import java.util.Objects;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
+import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.common.converter.ai.MemoryConverter;
@@ -23,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @AgentTool
 @Slf4j
 @RequiredArgsConstructor
-public class MemoryCandidateTool {
+public class MemoryTool {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 100;

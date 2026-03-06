@@ -35,6 +35,10 @@ public interface ViewProvider {
         }
     }
 
+    default long countViews(Connection connection, String catalog, String schema, String viewNamePattern) {
+        return searchViews(connection, catalog, schema, viewNamePattern).size();
+    }
+
     default String getViewDdl(Connection connection, String catalog, String schema, String viewName) {
         throw new UnsupportedOperationException("Plugin does not support getting view DDL");
     }

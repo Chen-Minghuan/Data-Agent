@@ -46,6 +46,10 @@ public interface ProcedureProvider {
         }
     }
 
+    default long countProcedures(Connection connection, String catalog, String schema, String procedureNamePattern) {
+        return searchProcedures(connection, catalog, schema, procedureNamePattern).size();
+    }
+
     default String getProcedureDdl(Connection connection, String catalog, String schema, String procedureName) {
         throw new UnsupportedOperationException("Plugin does not support getting procedure DDL");
     }

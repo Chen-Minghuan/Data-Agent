@@ -50,12 +50,11 @@ public class ChatResponseBlock {
     }
 
     /**
-     * End-of-stream block: done=true and optional conversationId for new sessions.
+     * End-of-stream block: done=true. conversationId can be injected by stream mapping.
      */
-    public static ChatResponseBlock doneBlock(Long conversationId) {
+    public static ChatResponseBlock doneBlock() {
         return ChatResponseBlock.builder()
                 .done(true)
-                .conversationId(conversationId)
                 .build();
     }
 

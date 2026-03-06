@@ -17,7 +17,7 @@ export function normalizeTodoStatus(status: string | undefined): TodoStatus | un
 }
 
 /**
- * Todo item shape for display. Matches backend Todo (TodoTool returns JSON array of these).
+ * Todo item shape for display. Matches backend Todo.
  * Each item's status is returned by the server: NOT_STARTED | IN_PROGRESS | PAUSED | COMPLETED.
  */
 export interface TodoItem {
@@ -48,12 +48,7 @@ export interface TodoListResponse {
   items: TodoItem[];
 }
 
-/**
- * Parse tool response. Accepts:
- * - New format: { "todoId": string, "items": TodoItem[] }
- * - Legacy / history: bare JSON array of TodoItem[] (no todoId; use '' so TodoListBlock still renders).
- * Returns null on parse error.
- */
+/** Parse tool response for `todo_write`. Returns null on parse error. */
 export function parseTodoListResponse(responseData: string): TodoListResponse | null {
   if (responseData == null) return null;
   const trimmed = responseData.trim();
@@ -78,11 +73,6 @@ export function parseTodoListResponse(responseData: string): TodoListResponse | 
       }
     }
     
-    // Handle direct array format
-    if (Array.isArray(parsed)) {
-      return { todoId: '', items: parsed as TodoItem[] };
-    }
-    
     // Handle direct object format: { todoId, items }
     if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
       const obj = parsed as { todoId?: string; items: TodoItem[] };
@@ -96,7 +86,8 @@ export function parseTodoListResponse(responseData: string): TodoListResponse | 
   }
 }
 
-export const TODO_TOOL_NAMES = ['todo_create', 'todo_update', 'todo_delete'] as const;
+/** Recognized todo tools. */
+export const TODO_TOOL_NAMES = ['todo_write'] as const;
 
 export function isTodoTool(toolName: string): boolean {
   return TODO_TOOL_NAMES.includes(toolName as (typeof TODO_TOOL_NAMES)[number]);

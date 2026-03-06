@@ -1,7 +1,8 @@
-package edu.zsc.ai.agent.tool;
+package edu.zsc.ai.agent.tool.think;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -118,7 +119,7 @@ public class SequentialThinkingTool {
             return "askUserQuestion";
         }
         if (!sourceResolved) {
-            return "getMyConnections -> getCatalogNames -> searchObjects";
+            return "getConnections -> getCatalogNames -> searchObjects";
         }
         if (writeOperation && !ThinkingPhase.SAFETY.equals(phase)) {
             return "askUserConfirm";

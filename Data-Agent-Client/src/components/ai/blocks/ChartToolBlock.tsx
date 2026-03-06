@@ -239,7 +239,7 @@ export function ChartToolBlock({
   toolCallId,
   allowAutoRetry = false,
 }: ChartToolBlockProps) {
-  const { submitMessage, enqueueMessage, isLoading } = useAIAssistantContext();
+  const { submitMessage, isLoading } = useAIAssistantContext();
   const { t } = useTranslation();
   const { theme } = useTheme();
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
@@ -314,7 +314,7 @@ export function ChartToolBlock({
   );
 
   useEffect(() => {
-    if (!allowAutoRetry || !autoRetryReason) {
+    if (!allowAutoRetry || !autoRetryReason || isLoading) {
       return;
     }
 
@@ -334,21 +334,16 @@ export function ChartToolBlock({
       autoRetryReason
     );
 
-    if (isLoading && enqueueMessage) {
-      enqueueMessage(feedback);
-    } else {
-      void submitMessage(feedback);
-    }
+    void submitMessage(feedback);
   }, [
     allowAutoRetry,
     autoRetryReason,
+    isLoading,
     retryKey,
     toolName,
     parsedParams.chartType,
     chartPayload.chartType,
     effectiveOptionJson,
-    isLoading,
-    enqueueMessage,
     submitMessage,
   ]);
 

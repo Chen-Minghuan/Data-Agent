@@ -39,6 +39,10 @@ public interface FunctionProvider {
         }
     }
 
+    default long countFunctions(Connection connection, String catalog, String schema, String functionNamePattern) {
+        return searchFunctions(connection, catalog, schema, functionNamePattern).size();
+    }
+
     default String getFunctionDdl(Connection connection, String catalog, String schema, String functionName) {
         throw new UnsupportedOperationException("Plugin does not support getting function DDL");
     }

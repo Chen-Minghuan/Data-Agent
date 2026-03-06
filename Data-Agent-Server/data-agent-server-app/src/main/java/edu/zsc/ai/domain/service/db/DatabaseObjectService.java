@@ -21,6 +21,21 @@ public interface DatabaseObjectService {
                                String tableName,
                                Long userId);
 
+    long countObjects(DatabaseObjectTypeEnum objectType,
+                      String namePattern,
+                      Long connectionId,
+                      String catalog,
+                      String schema,
+                      String tableName,
+                      Long userId);
+
+    long countObjectRows(DatabaseObjectTypeEnum objectType,
+                         Long connectionId,
+                         String catalog,
+                         String schema,
+                         String objectName,
+                         Long userId);
+
     String getObjectDdl(DatabaseObjectTypeEnum objectType,
                         String objectName,
                         Long connectionId,

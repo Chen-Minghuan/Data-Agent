@@ -10,6 +10,10 @@ public interface ViewService {
 
     List<String> searchViews(Long connectionId, String catalog, String schema, String viewNamePattern, Long userId);
 
+    long countViews(Long connectionId, String catalog, String schema, String viewNamePattern, Long userId);
+
+    long countViewRows(Long connectionId, String catalog, String schema, String viewName, Long userId);
+
     String getViewDdl(Long connectionId, String catalog, String schema, String viewName, Long userId);
 
     void deleteView(Long connectionId, String catalog, String schema, String viewName, Long userId);

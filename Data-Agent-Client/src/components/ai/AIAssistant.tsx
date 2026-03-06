@@ -20,7 +20,7 @@ import type { ModelOption } from '../../types/ai';
 import { chatMessagesToMessages } from './MessageList';
 
 export function AIAssistant() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const accessToken = useAuthStore((s) => s.accessToken);
 
   const [agent, setAgent] = useState<AgentType>('Agent');
@@ -48,10 +48,19 @@ export function AIAssistant() {
     api: ChatPaths.STREAM,
     body: {
       model,
+      language: i18n.resolvedLanguage ?? i18n.language ?? 'en',
       ...(currentConversationId != null && { conversationId: currentConversationId }),
       ...(chatContext.connectionId != null && { connectionId: chatContext.connectionId }),
       ...(chatContext.databaseName != null && chatContext.databaseName !== '' && { databaseName: chatContext.databaseName }),
       ...(chatContext.schemaName != null && chatContext.schemaName !== '' && { schemaName: chatContext.schemaName }),
+    },
+    onResponse: (response) => {
+      const headerConversationId = response.headers.get('X-Conversation-Id');
+      if (!headerConversationId) return;
+      const parsed = Number(headerConversationId);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        setCurrentConversationId(parsed);
+      }
     },
     onConversationId: (id) => setCurrentConversationId(id),
     onFinish: messageQueue.drainOnFinish,
@@ -93,8 +102,14 @@ export function AIAssistant() {
   }, [input, isLoading, handleSubmit, setInput, messageQueue.addToQueue]);
 
   const chatMessages = chatMessagesToMessages(messages);
-  const lastMessage = messages[messages.length - 1];
-  const candidateRefreshKey = `${messages.length}:${lastMessage?.blocks?.length ?? 0}`;
+  // Refresh memory candidates only when an assistant response is completed,
+  // instead of on every streaming block append.
+  const completedAssistantCount = messages.reduce((count, message) => {
+    if (message.role !== 'assistant') return count;
+    const hasDoneBlock = message.blocks?.some((block) => block.done) ?? false;
+    return hasDoneBlock ? count + 1 : count;
+  }, 0);
+  const candidateRefreshKey = `${currentConversationId ?? 'none'}:${completedAssistantCount}`;
 
   const contextValue = {
     input,

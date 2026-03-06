@@ -1,9 +1,10 @@
-package edu.zsc.ai.agent.tool;
+package edu.zsc.ai.agent.tool.sql;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.confirm.WriteConfirmationStore;
+import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.domain.model.dto.request.db.AgentExecuteSqlRequest;
 import edu.zsc.ai.domain.model.dto.response.db.ExecuteSqlResponse;
@@ -24,7 +25,7 @@ public class ExecuteSqlTool {
     @Tool({
         "[GOAL] Execute finalized read-only SQL after intent, scope, and filters are clear.",
         "[PRECHECK] Confirm target source is resolved, tableName is user-confirmed, and filter semantics (time range/category values) are validated.",
-        "[WHEN] Use for SELECT/WITH/SHOW/EXPLAIN only. Prefer after countTableRows + necessary schema checks.",
+        "[WHEN] Use for SELECT/WITH/SHOW/EXPLAIN only. Prefer after countObjectRows + necessary schema checks.",
         "[TABLE] tableName must be user-confirmed and fully qualified (schema.table or catalog.schema.table); never guess ambiguous objects.",
         "[CONSISTENCY] tableName parameter and the main table referenced in SQL MUST be identical. Mismatch may crash the system.",
         "[SAFETY] For large tables (>10000 rows), SQL should include WHERE/LIMIT to avoid excessive scans.",

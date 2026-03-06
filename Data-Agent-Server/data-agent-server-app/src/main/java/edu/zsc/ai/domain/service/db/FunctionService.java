@@ -10,6 +10,8 @@ public interface FunctionService {
 
     List<FunctionMetadata> searchFunctions(Long connectionId, String catalog, String schema, String functionNamePattern, Long userId);
 
+    long countFunctions(Long connectionId, String catalog, String schema, String functionNamePattern, Long userId);
+
     String getFunctionDdl(Long connectionId, String catalog, String schema, String functionName, Long userId);
 
     void deleteFunction(Long connectionId, String catalog, String schema, String functionName, Long userId);

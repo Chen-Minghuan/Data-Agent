@@ -40,6 +40,17 @@ public class ProcedureServiceImpl implements ProcedureService {
     }
 
     @Override
+    public long countProcedures(Long connectionId, String catalog, String schema,
+                                String procedureNamePattern, Long userId) {
+        connectionService.openConnection(connectionId, catalog, schema, userId);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
+
+        ProcedureProvider provider = DefaultPluginManager.getInstance().getProcedureProviderByPluginId(active.pluginId());
+        return provider.countProcedures(active.connection(), catalog, schema, procedureNamePattern);
+    }
+
+    @Override
     public String getProcedureDdl(Long connectionId, String catalog, String schema, String procedureName, Long userId) {
         connectionService.openConnection(connectionId, catalog, schema, userId);
 

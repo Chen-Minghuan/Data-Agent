@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool;
+package edu.zsc.ai.agent.tool.annotation;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

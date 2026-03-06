@@ -14,12 +14,24 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class DatabaseObjectServiceImpl implements DatabaseObjectService {
+
+    private static final EnumSet<DatabaseObjectTypeEnum> COUNT_SUPPORTED_TYPES = EnumSet.of(
+            DatabaseObjectTypeEnum.TABLE,
+            DatabaseObjectTypeEnum.VIEW,
+            DatabaseObjectTypeEnum.FUNCTION,
+            DatabaseObjectTypeEnum.PROCEDURE
+    );
+    private static final EnumSet<DatabaseObjectTypeEnum> ROW_COUNT_SUPPORTED_TYPES = EnumSet.of(
+            DatabaseObjectTypeEnum.TABLE,
+            DatabaseObjectTypeEnum.VIEW
+    );
 
     private final TableService tableService;
     private final ViewService viewService;
@@ -77,6 +89,43 @@ public class DatabaseObjectServiceImpl implements DatabaseObjectService {
                         .collect(Collectors.toList());
             }
             default -> throw new IllegalArgumentException("Unsupported objectType: " + objectType);
+        };
+    }
+
+    @Override
+    public long countObjects(DatabaseObjectTypeEnum objectType,
+                             String namePattern,
+                             Long connectionId,
+                             String catalog,
+                             String schema,
+                             String tableName,
+                             Long userId) {
+        if (!COUNT_SUPPORTED_TYPES.contains(objectType)) {
+            throw new IllegalArgumentException("Unsupported objectType for countObjects: " + objectType);
+        }
+        return switch (objectType) {
+            case TABLE -> tableService.countTables(connectionId, catalog, schema, namePattern, userId);
+            case VIEW -> viewService.countViews(connectionId, catalog, schema, namePattern, userId);
+            case FUNCTION -> functionService.countFunctions(connectionId, catalog, schema, namePattern, userId);
+            case PROCEDURE -> procedureService.countProcedures(connectionId, catalog, schema, namePattern, userId);
+            default -> throw new IllegalArgumentException("Unsupported objectType for countObjects: " + objectType);
+        };
+    }
+
+    @Override
+    public long countObjectRows(DatabaseObjectTypeEnum objectType,
+                                Long connectionId,
+                                String catalog,
+                                String schema,
+                                String objectName,
+                                Long userId) {
+        if (!ROW_COUNT_SUPPORTED_TYPES.contains(objectType)) {
+            throw new IllegalArgumentException("Unsupported objectType for countObjectRows: " + objectType);
+        }
+        return switch (objectType) {
+            case TABLE -> tableService.countTableRows(connectionId, catalog, schema, objectName, userId);
+            case VIEW -> viewService.countViewRows(connectionId, catalog, schema, objectName, userId);
+            default -> throw new IllegalArgumentException("Unsupported objectType for countObjectRows: " + objectType);
         };
     }
 

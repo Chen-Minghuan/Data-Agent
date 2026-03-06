@@ -40,6 +40,16 @@ public class TableServiceImpl implements TableService {
     }
 
     @Override
+    public long countTables(Long connectionId, String catalog, String schema, String tableNamePattern, Long userId) {
+        connectionService.openConnection(connectionId, catalog, schema, userId);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
+
+        TableProvider provider = DefaultPluginManager.getInstance().getTableProviderByPluginId(active.pluginId());
+        return provider.countTables(active.connection(), catalog, schema, tableNamePattern);
+    }
+
+    @Override
     public String getTableDdl(Long connectionId, String catalog, String schema, String tableName, Long userId) {
         connectionService.openConnection(connectionId, catalog, schema, userId);
 

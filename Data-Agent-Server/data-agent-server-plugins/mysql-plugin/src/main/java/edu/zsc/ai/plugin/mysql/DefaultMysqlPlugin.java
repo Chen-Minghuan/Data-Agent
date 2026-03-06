@@ -318,6 +318,50 @@ public abstract class DefaultMysqlPlugin extends AbstractDatabasePlugin
     }
 
     @Override
+    public long countTables(Connection connection, String catalog, String schema, String tableNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_TABLES,
+                tableNamePattern,
+                MysqlSqlConstants.SQL_COUNT_TABLES_NAME_CLAUSE);
+    }
+
+    @Override
+    public long countViews(Connection connection, String catalog, String schema, String viewNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_VIEWS,
+                viewNamePattern,
+                MysqlSqlConstants.SQL_COUNT_TABLES_NAME_CLAUSE);
+    }
+
+    @Override
+    public long countFunctions(Connection connection, String catalog, String schema, String functionNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_FUNCTIONS,
+                functionNamePattern,
+                MysqlSqlConstants.SQL_COUNT_ROUTINES_NAME_CLAUSE);
+    }
+
+    @Override
+    public long countProcedures(Connection connection, String catalog, String schema, String procedureNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_PROCEDURES,
+                procedureNamePattern,
+                MysqlSqlConstants.SQL_COUNT_ROUTINES_NAME_CLAUSE);
+    }
+
+    @Override
     public SqlCommandResult getTableData(Connection connection, String catalog, String schema, String tableName,
             int offset, int pageSize, String whereClause, String orderByColumn, String orderByDirection) {
         if (connection == null || StringUtils.isBlank(tableName)) {
@@ -569,6 +613,32 @@ public abstract class DefaultMysqlPlugin extends AbstractDatabasePlugin
             result.put(e.getKey(), params);
         }
         return result;
+    }
+
+    private long countObjectsByName(Connection connection, String db, String baseSql, String namePattern, String nameClause) {
+        if (connection == null || StringUtils.isBlank(db)) {
+            return 0;
+        }
+
+        boolean hasNameFilter = StringUtils.isNotBlank(namePattern) && !"%".equals(namePattern);
+        String sql = hasNameFilter ? baseSql + nameClause : baseSql;
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            int parameterIndex = 1;
+            stmt.setString(parameterIndex++, db);
+            if (hasNameFilter) {
+                stmt.setString(parameterIndex, namePattern);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong("total");
+                }
+                return 0;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count MySQL objects: " + e.getMessage(), e);
+        }
     }
 
     private String getObjectDdl(Connection connection, String catalog, String objectName,

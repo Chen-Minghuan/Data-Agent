@@ -1,8 +1,9 @@
-package edu.zsc.ai.agent.tool;
+package edu.zsc.ai.agent.tool.sql;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
+import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.domain.service.db.DatabaseService;
@@ -33,6 +34,16 @@ public class DatabaseObjectTool {
             DatabaseObjectTypeEnum.PROCEDURE,
             DatabaseObjectTypeEnum.TRIGGER
     );
+    private static final EnumSet<DatabaseObjectTypeEnum> COUNT_SUPPORTED_TYPES = EnumSet.of(
+            DatabaseObjectTypeEnum.TABLE,
+            DatabaseObjectTypeEnum.VIEW,
+            DatabaseObjectTypeEnum.FUNCTION,
+            DatabaseObjectTypeEnum.PROCEDURE
+    );
+    private static final EnumSet<DatabaseObjectTypeEnum> ROW_COUNT_SUPPORTED_TYPES = EnumSet.of(
+            DatabaseObjectTypeEnum.TABLE,
+            DatabaseObjectTypeEnum.VIEW
+    );
 
     private final DatabaseObjectService databaseObjectService;
     private final DatabaseService databaseService;
@@ -40,12 +51,12 @@ public class DatabaseObjectTool {
 
     @Tool({
             "[GOAL] Resolve source scope at catalog level before object lookup or SQL.",
-            "[PRECHECK] connectionId must be selected from session context or getMyConnections; do not guess.",
+            "[PRECHECK] connectionId must be selected from session context or getConnections; do not guess.",
             "[WHEN] Use when database/catalog is unspecified or multiple catalogs may contain same-name objects.",
             "[AFTER] Use selected catalog with searchObjects/getObjectNames to continue disambiguation."
     })
     public AgentToolResult getCatalogNames(
-            @P("The connection id (from session context or getMyConnections result)") Long connectionId,
+            @P("The connection id (from session context or getConnections result)") Long connectionId,
             InvocationParameters parameters) {
         log.info("[Tool] getCatalogNames, connectionId={}", connectionId);
         try {
@@ -105,8 +116,77 @@ public class DatabaseObjectTool {
     }
 
     @Tool({
+            "[GOAL] Estimate object-set breadth before enumeration.",
+            "[PRECHECK] connection/catalog/schema should be selected; pattern should reflect user intent scope.",
+            "[WHEN] Call before broad object searches to avoid uncontrolled listing in large schemas.",
+            "[HOW] Supports '%' (any sequence) and '_' (single char).",
+            "[BOUNDARY] Supports objectType=TABLE/VIEW/FUNCTION/PROCEDURE only.",
+            "[AFTER] Continue with targeted searchObjects/getObjectNames or askUserQuestion for narrower scope."
+    })
+    public AgentToolResult countObjects(
+            @P("Object type: TABLE, VIEW, FUNCTION, PROCEDURE") String objectType,
+            @P(value = "Name pattern. Supports '%' and '_' wildcards. Pass null or '%' to count all.", required = false)
+            String objectNamePattern,
+            @P("Connection id from current session context") Long connectionId,
+            @P("Database (catalog) name from current session context") String databaseName,
+            @P(value = "Schema name from current session context; omit if not used", required = false) String schemaName,
+            InvocationParameters parameters) {
+        log.info("[Tool] countObjects, objectType={}, pattern={}, connectionId={}, database={}, schema={}",
+                objectType, objectNamePattern, connectionId, databaseName, schemaName);
+        try {
+            Long userId = parameters.get(RequestContextConstant.USER_ID);
+            if (Objects.isNull(userId)) {
+                return AgentToolResult.noContext();
+            }
+
+            DatabaseObjectTypeEnum normalizedType = normalizeCountType(objectType);
+            long count = databaseObjectService.countObjects(
+                    normalizedType, objectNamePattern, connectionId, databaseName, schemaName, null, userId);
+            log.info("[Tool done] countObjects, objectType={}, pattern={}, count={}", normalizedType, objectNamePattern, count);
+            return AgentToolResult.success(count);
+        } catch (Exception e) {
+            log.error("[Tool error] countObjects, objectType={}", objectType, e);
+            return AgentToolResult.fail(e);
+        }
+    }
+
+    @Tool({
+            "[GOAL] Estimate exact row volume of a resolved object to enforce safe query shape.",
+            "[PRECHECK] objectName should be resolved and fully qualified in user-confirmed scope.",
+            "[WHEN] Call before SELECT to decide if WHERE/LIMIT/pagination is mandatory.",
+            "[BOUNDARY] Supports objectType=TABLE/VIEW only.",
+            "[SAFETY] Large row counts (e.g., >10000) require bounded SQL; avoid unfiltered scans.",
+            "[AFTER] Feed result into executeSelectSql planning and response risk explanation."
+    })
+    public AgentToolResult countObjectRows(
+            @P("Object type: TABLE, VIEW") String objectType,
+            @P("The exact name of the table/view to count rows in") String objectName,
+            @P("Connection id from current session context") Long connectionId,
+            @P("Database (catalog) name from current session context") String databaseName,
+            @P(value = "Schema name from current session context; omit if not used", required = false) String schemaName,
+            InvocationParameters parameters) {
+        log.info("[Tool] countObjectRows, objectType={}, objectName={}, connectionId={}, database={}, schema={}",
+                objectType, objectName, connectionId, databaseName, schemaName);
+        try {
+            Long userId = parameters.get(RequestContextConstant.USER_ID);
+            if (Objects.isNull(userId)) {
+                return AgentToolResult.noContext();
+            }
+
+            DatabaseObjectTypeEnum normalizedType = normalizeRowCountType(objectType);
+            long count = databaseObjectService.countObjectRows(
+                    normalizedType, connectionId, databaseName, schemaName, objectName, userId);
+            log.info("[Tool done] countObjectRows, objectType={}, objectName={}, count={}", normalizedType, objectName, count);
+            return AgentToolResult.success(count);
+        } catch (Exception e) {
+            log.error("[Tool error] countObjectRows, objectType={}, objectName={}", objectType, objectName, e);
+            return AgentToolResult.fail(e);
+        }
+    }
+
+    @Tool({
             "[GOAL] Pattern-search objects to quickly narrow large schemas into actionable candidates.",
-            "[PRECHECK] Prefer after countTables/countTableRows or when exact name is unknown.",
+            "[PRECHECK] Prefer after countObjects/countObjectRows or when exact name is unknown.",
             "[WHEN] Use to search TABLE/VIEW/FUNCTION/PROCEDURE/TRIGGER with JDBC wildcards.",
             "[HOW] Supports '%' (any sequence) and '_' (single char).",
             "[BOUNDARY] For objectType=TRIGGER, tableName is required.",
@@ -237,5 +317,31 @@ public class DatabaseObjectTool {
 
     private String allowedTypes() {
         return SUPPORTED_TYPES.stream().map(Enum::name).collect(Collectors.joining(", "));
+    }
+
+    private DatabaseObjectTypeEnum normalizeCountType(String rawType) {
+        DatabaseObjectTypeEnum type = normalizeType(rawType);
+        if (!COUNT_SUPPORTED_TYPES.contains(type)) {
+            throw new IllegalArgumentException("Unsupported objectType for countObjects: " + rawType
+                    + ". Allowed values: " + allowedCountTypes());
+        }
+        return type;
+    }
+
+    private String allowedCountTypes() {
+        return COUNT_SUPPORTED_TYPES.stream().map(Enum::name).collect(Collectors.joining(", "));
+    }
+
+    private DatabaseObjectTypeEnum normalizeRowCountType(String rawType) {
+        DatabaseObjectTypeEnum type = normalizeType(rawType);
+        if (!ROW_COUNT_SUPPORTED_TYPES.contains(type)) {
+            throw new IllegalArgumentException("Unsupported objectType for countObjectRows: " + rawType
+                    + ". Allowed values: " + allowedRowCountTypes());
+        }
+        return type;
+    }
+
+    private String allowedRowCountTypes() {
+        return ROW_COUNT_SUPPORTED_TYPES.stream().map(Enum::name).collect(Collectors.joining(", "));
     }
 }
