@@ -8,12 +8,15 @@ import {
   parseAskUserQuestionParameters,
   parseAskUserQuestionResponse,
 } from './askUserQuestionTypes';
-import { parseWriteConfirmPayload } from './writeConfirmTypes';
+import { parseWriteConfirmPayload, parseWriteConfirmToken } from './writeConfirmTypes';
+import { parseExitPlanPayload } from './exitPlanModeTypes';
 import { getToolType, ToolType } from './toolTypes';
 import { formatParameters } from './formatParameters';
 import { ToolExecutionState } from '../messageListLib/types';
 import { AskUserQuestionCard } from './AskUserQuestionCard';
 import { WriteConfirmCard } from './WriteConfirmCard';
+import { ExitPlanModeCard } from './ExitPlanModeCard';
+import { ThoughtBlock } from './ThoughtBlock';
 
 export interface ToolRunBlockProps {
   toolName: string;
@@ -54,6 +57,33 @@ export function ToolRunBlock({
   const formattedParameters = formatParameters(parametersData);
   const isInteractive = toolType === ToolType.ASK_USER || toolType === ToolType.WRITE_CONFIRM;
 
+  // 0a. Thinking tool — render as thought block at every lifecycle stage
+  if (toolType === ToolType.THINKING) {
+    const isStreaming = executionState === ToolExecutionState.STREAMING_ARGUMENTS
+      || executionState === ToolExecutionState.EXECUTING
+      || (pending && !executionState);
+    const analysis = extractThinkingAnalysis(parametersData);
+    if (!analysis) return null;
+    return <ThoughtBlock data={analysis} defaultExpanded={isStreaming} />;
+  }
+
+  // 0b. ExitPlanMode — stream as thought block, render card when complete
+  if (toolType === ToolType.EXIT_PLAN) {
+    const isStreaming = executionState === ToolExecutionState.STREAMING_ARGUMENTS
+      || executionState === ToolExecutionState.EXECUTING
+      || (pending && !executionState);
+    if (isStreaming) {
+      // During streaming, show raw arguments as a thought block (like thinking tool)
+      const analysis = extractThinkingAnalysis(parametersData);
+      if (!analysis) return null;
+      return <ThoughtBlock data={analysis} defaultExpanded={true} />;
+    }
+    // Complete — render the full plan card
+    const payload = parseExitPlanPayload(parametersData);
+    if (!payload) return null;
+    return <ExitPlanModeCard payload={payload} />;
+  }
+
   // 1. Handle Execution Lifecycle States
   if (executionState === ToolExecutionState.STREAMING_ARGUMENTS) {
     if (isInteractive) return <ToolRunExecuting toolName={toolName} parametersData={parametersData} />;
@@ -86,9 +116,13 @@ export function ToolRunBlock({
       const askUserPayloadFromParams = parseAskUserQuestionParameters(parametersData);
       const askUserPayload = askUserPayloadFromResponse ?? askUserPayloadFromParams ?? null;
 
+      // Detect if responseData is a user's submitted answer (not a minimal tool summary).
+      // Minimal summaries like "2 question(s) presented to user." are NOT user answers.
+      const responseText = (responseData ?? '').trim();
+      const isMinimalToolSummary = /^\d+ question\(s\) presented to user\.$/.test(responseText);
       const askUserSubmittedAnswer =
-        askUserPayloadFromResponse == null && askUserPayloadFromParams != null && (responseData ?? '').trim() !== ''
-          ? responseData.trim()
+        askUserPayloadFromResponse == null && askUserPayloadFromParams != null && responseText !== '' && !isMinimalToolSummary
+          ? responseText
           : undefined;
 
       if (!askUserPayload) return null;
@@ -104,7 +138,17 @@ export function ToolRunBlock({
     }
 
     case ToolType.WRITE_CONFIRM: {
-      const writeConfirmPayload = parseWriteConfirmPayload(parametersData) ?? parseWriteConfirmPayload(responseData);
+      // Display data (sql, explanation) is in tool call arguments;
+      // confirmationToken is in tool result (generated server-side).
+      const fromParams = parseWriteConfirmPayload(parametersData);
+      const fromResponse = parseWriteConfirmPayload(responseData);
+      const tokenOnly = parseWriteConfirmToken(responseData);
+
+      // Merge: prefer params for display data, fill in token from response
+      let writeConfirmPayload = fromResponse ?? fromParams ?? null;
+      if (fromParams && tokenOnly) {
+        writeConfirmPayload = { ...fromParams, confirmationToken: tokenOnly.confirmationToken, expiresInSeconds: tokenOnly.expiresInSeconds };
+      }
       if (!writeConfirmPayload) return null;
 
       // Determine if it was already answered checking responseData text if parameters held the token
@@ -155,5 +199,38 @@ export function ToolRunBlock({
           responseError={responseError}
         />
       );
+  }
+}
+
+/** Extract the "analysis" field from sequentialThinking tool call arguments. */
+function extractThinkingAnalysis(parametersData: string): string | null {
+  if (!parametersData) return null;
+  try {
+    let parsed: unknown = JSON.parse(parametersData);
+    // Handle double-encoded JSON string
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const obj = parsed as Record<string, unknown>;
+    // Try nested request.analysis first, then top-level analysis
+    if (obj.request && typeof obj.request === 'object') {
+      const req = obj.request as Record<string, unknown>;
+      if (typeof req.analysis === 'string' && req.analysis) return req.analysis;
+    }
+    if (typeof obj.analysis === 'string' && obj.analysis) return obj.analysis;
+    // Fallback: if only goal is available during streaming, show that
+    if (typeof obj.goal === 'string' && obj.goal) return obj.goal;
+    if (obj.request && typeof obj.request === 'object') {
+      const req = obj.request as Record<string, unknown>;
+      if (typeof req.goal === 'string' && req.goal) return req.goal;
+    }
+    return null;
+  } catch {
+    // During streaming, parametersData may be partial/incomplete JSON.
+    // Try to extract analysis text with regex as fallback.
+    const match = parametersData.match(/"analysis"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (match?.[1]) return match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+    const goalMatch = parametersData.match(/"goal"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (goalMatch?.[1]) return goalMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+    return null;
   }
 }

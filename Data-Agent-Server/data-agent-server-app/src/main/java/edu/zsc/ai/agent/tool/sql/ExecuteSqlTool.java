@@ -5,6 +5,7 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.guard.AgentModeGuard;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.agent.tool.model.AgentSqlResult;
 import edu.zsc.ai.domain.model.dto.request.db.AgentExecuteSqlRequest;
@@ -25,7 +26,7 @@ public class ExecuteSqlTool {
     @Tool({
         "[GOAL] Execute read-only SQL (SELECT/WITH/SHOW/EXPLAIN).",
         "[WHEN] Use after data source is resolved and schema is confirmed.",
-        "[WHEN_NOT] Do not use for INSERT/UPDATE/DELETE/DDL — use executeNonSelectSql. Do not call before data source is resolved.",
+        "[WHEN_NOT] Do not use for INSERT/UPDATE/DELETE/DDL — use executeNonSelectSql. Do not call before data source is resolved. DISABLED in Plan mode — include SQL in exitPlanMode instead.",
         "[SAFETY] For large tables (>10000 rows), include WHERE/LIMIT."
     })
     public AgentSqlResult executeSelectSql(
@@ -39,6 +40,7 @@ public class ExecuteSqlTool {
                 "[Tool]", connectionId, databaseName, schemaName,
                 sql != null ? sql.length() : 0);
         try {
+            AgentModeGuard.assertNotPlanMode(parameters, "executeSelectSql");
             if (!isReadOnlySql(sql)) {
                 return AgentSqlResult.fail("Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed.");
             }
@@ -65,7 +67,7 @@ public class ExecuteSqlTool {
     @Tool({
         "[GOAL] Execute write SQL (INSERT/UPDATE/DELETE/DDL) after user confirmation.",
         "[WHEN] Use only after askUserConfirm and user has confirmed.",
-        "[WHEN_NOT] Do not use for read-only queries — use executeSelectSql. Do not call without prior askUserConfirm.",
+        "[WHEN_NOT] Do not use for read-only queries — use executeSelectSql. Do not call without prior askUserConfirm. DISABLED in Plan mode — include SQL in exitPlanMode instead.",
         "[SAFETY] Server validates confirmation token; missing/expired confirmation is auto-rejected."
     })
     public AgentSqlResult executeNonSelectSql(
@@ -79,6 +81,7 @@ public class ExecuteSqlTool {
                 "[Tool]", connectionId, databaseName, schemaName,
                 sql != null ? sql.length() : 0);
         try {
+            AgentModeGuard.assertNotPlanMode(parameters, "executeNonSelectSql");
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             Long conversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
             if (userId == null || conversationId == null) {

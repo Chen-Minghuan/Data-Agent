@@ -1,7 +1,5 @@
 package edu.zsc.ai.agent.tool.ask;
 
-import java.util.List;
-
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.Tool;
@@ -9,7 +7,6 @@ import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.confirm.WriteConfirmationEntry;
 import edu.zsc.ai.agent.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.model.UserQuestion;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import lombok.Builder;
 import lombok.Data;
@@ -17,37 +14,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Unified tool class for asking user questions and requesting write confirmation.
+ * Tool for requesting explicit user approval before write SQL operations.
+ * DISABLED in Plan mode (filtered out from tool list).
  */
 @AgentTool
 @Slf4j
 @RequiredArgsConstructor
-public class AskUserTool {
+public class AskUserConfirmTool {
 
     private final WriteConfirmationStore confirmationStore;
 
     @Tool(
             value = {
-                    "[GOAL] Ask the user structured clarification/selection questions to resolve ambiguity.",
-                    "[WHEN] Call when intent is ambiguous, multiple candidates exist, or critical constraints are missing.",
-                    "[WHEN_NOT] Do not use for write operation confirmation — use askUserConfirm. Do not ask questions that tools can answer (e.g., table existence, schema info).",
-                    "[INPUT] Each question should have 2-3 options (max 3). Prefer concrete options over open-ended prompts."
-            },
-            returnBehavior = ReturnBehavior.IMMEDIATE
-    )
-    public List<UserQuestion> askUserQuestion(
-            @P("List of questions to ask the user. Each question should have 2-3 options (maximum 3).")
-            List<UserQuestion> questions) {
-
-        log.info("[Tool] askUserQuestion, {} question(s)", questions == null ? 0 : questions.size());
-        return questions;
-    }
-
-    @Tool(
-            value = {
                     "[GOAL] Request explicit user approval before any write SQL (INSERT/UPDATE/DELETE/DDL).",
                     "[WHEN] MUST be called before every write operation. Without it, executeNonSelectSql will be rejected.",
-                    "[WHEN_NOT] Do not use for clarification questions — use askUserQuestion. Do not call before SQL is finalized.",
+                    "[WHEN_NOT] Do not use for clarification questions — use askUserQuestion. Do not call before SQL is finalized. DISABLED in Plan mode.",
                     "[INPUT] Pass exact SQL, connectionId, and clear impact explanation."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
@@ -82,11 +63,6 @@ public class AskUserTool {
         log.info("[Tool done] askUserConfirm, token={}", entry.getToken());
         return WriteConfirmationResult.builder()
                 .confirmationToken(entry.getToken())
-                .sqlPreview(sql)
-                .explanation(explanation)
-                .connectionId(connectionId)
-                .databaseName(databaseName)
-                .schemaName(schemaName)
                 .expiresInSeconds(300)
                 .build();
     }

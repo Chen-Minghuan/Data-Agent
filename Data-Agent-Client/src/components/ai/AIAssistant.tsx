@@ -49,6 +49,7 @@ export function AIAssistant() {
     body: {
       model,
       language: i18n.resolvedLanguage ?? i18n.language ?? 'en',
+      agentType: agent,
       ...(currentConversationId != null && { conversationId: currentConversationId }),
       ...(chatContext.connectionId != null && { connectionId: chatContext.connectionId }),
       ...(chatContext.databaseName != null && chatContext.databaseName !== '' && { databaseName: chatContext.databaseName }),

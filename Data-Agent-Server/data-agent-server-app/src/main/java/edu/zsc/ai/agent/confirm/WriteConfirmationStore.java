@@ -94,6 +94,7 @@ public class WriteConfirmationStore {
      */
     public boolean consumeConfirmedBySql(Long userId, Long conversationId, Long connectionId,
                                          String databaseName, String schemaName, String sql) {
+        String normalizedSql = normalizeSql(sql);
         return cache.asMap().values().stream()
                 .filter(e -> e.getUserId().equals(userId)
                         && e.getConversationId().equals(conversationId)
@@ -101,7 +102,7 @@ public class WriteConfirmationStore {
                         && Objects.equals(e.getConnectionId(), connectionId)
                         && Objects.equals(e.getDatabaseName(), databaseName)
                         && Objects.equals(e.getSchemaName(), schemaName)
-                        && e.getSql().equals(sql))
+                        && normalizeSql(e.getSql()).equals(normalizedSql))
                 .findFirst()
                 .map(entry -> {
                     entry.setStatus(WriteConfirmationStatus.CONSUMED);
@@ -113,5 +114,14 @@ public class WriteConfirmationStore {
                             userId, conversationId, connectionId, databaseName, schemaName);
                     return false;
                 });
+    }
+
+    /**
+     * Normalize SQL for comparison: trim, collapse whitespace, strip trailing semicolons.
+     * This prevents mismatches caused by the model reformatting SQL between tool calls.
+     */
+    private static String normalizeSql(String sql) {
+        if (sql == null) return "";
+        return sql.strip().replaceAll("\\s+", " ").replaceAll(";+$", "");
     }
 }

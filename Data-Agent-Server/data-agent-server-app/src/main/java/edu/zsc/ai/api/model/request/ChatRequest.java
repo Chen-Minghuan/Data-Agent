@@ -25,4 +25,10 @@ public class ChatRequest extends BaseRequest {
      * Optional; server defaults to English prompt when blank/unknown.
      */
     private String language;
+
+    /**
+     * Agent mode, e.g. "Agent" or "Plan".
+     * Optional; server defaults to Agent mode when blank/unknown.
+     */
+    private String agentType;
 }

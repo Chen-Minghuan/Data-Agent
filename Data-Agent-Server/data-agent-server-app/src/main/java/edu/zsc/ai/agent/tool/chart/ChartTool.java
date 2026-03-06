@@ -10,6 +10,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.guard.AgentModeGuard;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.common.enums.ai.ChartTypeEnum;
@@ -26,7 +27,7 @@ public class ChartTool {
     @Tool({
             "[GOAL] Produce frontend-renderable chart payload from query results.",
             "[WHEN] Use after executeSelectSql result is ready and user explicitly requests visualization or data clearly benefits from it.",
-            "[WHEN_NOT] Do not use when user has not requested visualization and data is simple. Do not call before query data is available.",
+            "[WHEN_NOT] Do not use when user has not requested visualization and data is simple. Do not call before query data is available. DISABLED in Plan mode — no query data available to visualize.",
             "[INPUT] chartType + optionJson (valid ECharts JSON) + optional description explaining chart meaning and key insights."
     })
     public AgentToolResult renderChart(
@@ -37,6 +38,7 @@ public class ChartTool {
             InvocationParameters parameters) {
         log.info("[Tool] renderChart, chartType={}", chartType);
         try {
+            AgentModeGuard.assertNotPlanMode(parameters, "renderChart");
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             if (Objects.isNull(userId)) {
                 return AgentToolResult.noContext();

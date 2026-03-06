@@ -217,7 +217,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
   /** Shared core: append user message and start stream. Does not touch input state. */
   const submitCore = useCallback(
-    async (text: string) => {
+    async (text: string, bodyOverrides?: Partial<ChatRequest>) => {
       const trimmed = (text ?? '').trim();
       if (submittingRef.current || !trimmed) return;
       submittingRef.current = true;
@@ -234,6 +234,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       const request: ChatRequest = {
         message: trimmed,
         ...(options.body as Partial<ChatRequest>),
+        ...bodyOverrides,
       };
       await processStream(request);
     },
@@ -251,10 +252,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     [input, isLoading, setInput, submitCore]
   );
 
-  /** Send a specific message (e.g. next from queue) without using input. */
+  /** Send a specific message (e.g. next from queue) without using input.
+   *  Optional bodyOverrides lets callers override body fields (e.g. agentType) for this request only. */
   const submitMessage = useCallback(
-    async (message: string) => {
-      await submitCore(message ?? '');
+    async (message: string, bodyOverrides?: Partial<ChatRequest>) => {
+      await submitCore(message ?? '', bodyOverrides);
     },
     [submitCore]
   );

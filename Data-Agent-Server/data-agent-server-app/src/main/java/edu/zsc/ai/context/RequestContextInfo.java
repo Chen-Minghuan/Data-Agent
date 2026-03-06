@@ -39,4 +39,9 @@ public class RequestContextInfo {
      * Schema Name
      */
     private String schemaName;
+
+    /**
+     * Agent mode (agent / plan)
+     */
+    private String agentMode;
 }

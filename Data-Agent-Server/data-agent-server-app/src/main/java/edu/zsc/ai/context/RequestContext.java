@@ -78,6 +78,14 @@ public class RequestContext {
         RequestContextInfo context = get();
         return context != null ? context.getSchemaName() : null;
     }
+
+    /**
+     * Get agent mode from current context
+     */
+    public static String getAgentMode() {
+        RequestContextInfo context = get();
+        return context != null ? context.getAgentMode() : null;
+    }
     
     /**
      * Clear context from current thread
@@ -118,6 +126,7 @@ public class RequestContext {
         putIfNotNull(map, RequestContextConstant.CONNECTION_ID, getConnectionId());
         putIfNotNull(map, RequestContextConstant.DATABASE_NAME, getDatabaseName());
         putIfNotNull(map, RequestContextConstant.SCHEMA_NAME, getSchemaName());
+        putIfNotNull(map, RequestContextConstant.AGENT_MODE, getAgentMode());
         return map;
     }
 

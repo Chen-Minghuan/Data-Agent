@@ -71,13 +71,9 @@ export function WriteConfirmCard({ payload, submittedAnswer }: WriteConfirmCardP
             }
 
             await confirmWriteOperation(payload.confirmationToken, supplementaryInput);
-            let msg = supplementaryInput.trim()
+            const msg = supplementaryInput.trim()
                 ? t(I18N_KEYS.AI.WRITE_CONFIRM.CONFIRM_WITH_INPUT_MESSAGE, { info: supplementaryInput })
                 : t(I18N_KEYS.AI.WRITE_CONFIRM.CONFIRM_MESSAGE);
-
-            if (payload.sqlPreview) {
-                msg += `\n\n${t(I18N_KEYS.AI.WRITE_CONFIRM.EXECUTE_SQL_PREFIX)}\n\`\`\`sql\n${payload.sqlPreview}\n\`\`\``;
-            }
 
             submitMessage(msg);
             setIsSubmitted(true);
@@ -96,13 +92,9 @@ export function WriteConfirmCard({ payload, submittedAnswer }: WriteConfirmCardP
         } catch {
             // Ignore token expiry / cancellation errors
         } finally {
-            let msg = supplementaryInput.trim()
+            const msg = supplementaryInput.trim()
                 ? t(I18N_KEYS.AI.WRITE_CONFIRM.CANCEL_WITH_INPUT_MESSAGE, { info: supplementaryInput })
                 : t(I18N_KEYS.AI.WRITE_CONFIRM.CANCEL_MESSAGE);
-
-            if (payload.sqlPreview) {
-                msg += `\n\n${t(I18N_KEYS.AI.WRITE_CONFIRM.CANCEL_SQL_PREFIX)}\n\`\`\`sql\n${payload.sqlPreview}\n\`\`\``;
-            }
 
             submitMessage(msg);
             setIsSubmitted(true);
