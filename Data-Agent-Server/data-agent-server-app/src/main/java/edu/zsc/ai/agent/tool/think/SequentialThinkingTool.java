@@ -4,91 +4,100 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
-import edu.zsc.ai.agent.tool.think.model.enums.ThinkingStage;
-import edu.zsc.ai.agent.tool.think.model.input.FeedbackInput;
-import edu.zsc.ai.agent.tool.think.model.input.ReasoningInput;
 import edu.zsc.ai.agent.tool.think.model.input.ThinkingRequest;
-import edu.zsc.ai.agent.tool.think.model.output.StructuredReasoning;
-import edu.zsc.ai.agent.tool.think.model.output.ThinkingDecision;
 import edu.zsc.ai.agent.tool.think.model.output.ThinkingOutput;
-import edu.zsc.ai.agent.tool.think.processor.StatePreparation;
-import edu.zsc.ai.agent.tool.think.processor.StateSummaryProcessor;
-import edu.zsc.ai.agent.tool.think.processor.StructuredReasoningBuilder;
-import edu.zsc.ai.agent.tool.think.processor.ThinkingDecisionEngine;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @AgentTool
 @Slf4j
 public class SequentialThinkingTool {
 
-    private final StateSummaryProcessor stateSummaryProcessor = new StateSummaryProcessor();
-    private final StructuredReasoningBuilder structuredReasoningBuilder = new StructuredReasoningBuilder();
-    private final ThinkingDecisionEngine thinkingDecisionEngine = new ThinkingDecisionEngine();
+    private static final Pattern RISK_PATTERN = Pattern.compile(
+            "(?i)(risk|danger|caution|warning|careful|unsafe|sensitive|pii|large table|no index|missing|ambiguous|conflict)",
+            Pattern.CASE_INSENSITIVE);
 
     @Tool({
-            "[GOAL] Produce explicit structured reasoning blocks and next action.",
-            "[INPUT] Use Java object ThinkingRequest: {reasoning, feedback, nextThoughtNeeded}.",
-            "[OUTPUT] Returns structuredReasoning and decision blocks for rendering and orchestration.",
-            "[WRITE-SAFETY] Write workflows should go through SAFETY then askUserConfirm before executeNonSelectSql."
+            "[GOAL] Structure your reasoning before acting. Helps prevent hallucination and missed risks.",
+            "[WHEN] Call at the start of each new request, or when encountering ambiguity/write operations.",
+            "[WHEN_NOT] Do not call for follow-up questions in an already-analyzed conversation. Do not call multiple times in a row without acting between calls.",
+            "[INPUT] goal=what you want to achieve; analysis=your reasoning about state, gaps, risks, and plan; isWrite=true for INSERT/UPDATE/DELETE/DDL."
     })
     public AgentToolResult sequentialThinking(
-            @P("Thinking request object: reasoning + optional feedback + optional nextThoughtNeeded")
+            @P("Thinking request: goal + analysis + isWrite flag")
             ThinkingRequest request) {
-        ReasoningInput reasoning = request != null ? request.getReasoning() : null;
-        FeedbackInput feedback = request != null ? request.getFeedback() : null;
-        Boolean nextThoughtNeeded = request != null ? request.getNextThoughtNeeded() : null;
-        log.info("[Tool] sequentialThinking, stage={}",
-                reasoning != null && reasoning.getMeta() != null ? reasoning.getMeta().getStage() : null);
+        log.info("[Tool] sequentialThinking, goal={}, isWrite={}",
+                request != null ? request.getGoal() : null,
+                request != null && request.isWrite());
         try {
-            validateReasoning(reasoning);
+            validate(request);
 
-            ThinkingStage currentStage = reasoning.getMeta().getStage() != null
-                    ? reasoning.getMeta().getStage()
-                    : ThinkingStage.INTENT;
-            boolean continueReasoning = !Boolean.FALSE.equals(nextThoughtNeeded);
+            ThinkingOutput output = new ThinkingOutput();
+            output.setSummary(buildSummary(request));
+            output.setNextAction(suggestNextAction(request));
+            output.setRisks(extractRisks(request));
 
-            StatePreparation statePreparation = stateSummaryProcessor.prepare(reasoning);
-            StructuredReasoning structuredReasoning = structuredReasoningBuilder.build(
-                    reasoning,
-                    feedback,
-                    statePreparation.state(),
-                    statePreparation.stateEntries()
-            );
-            ThinkingDecision decision = thinkingDecisionEngine.buildDecision(
-                    currentStage,
-                    statePreparation.state(),
-                    feedback,
-                    continueReasoning
-            );
-
-            ThinkingOutput out = new ThinkingOutput();
-            out.setStructuredReasoning(structuredReasoning);
-            out.setNextStage(decision.getNextStage() != null ? decision.getNextStage().name() : null);
-            out.setNextAction(decision.getNextAction());
-            out.setActionPayload(decision.getActionPayload());
-            out.setCandidatePolicy(decision.getCandidatePolicy());
-            out.setSelfCorrection(decision.getSelfCorrection());
-            out.setFallbackPolicy(decision.getFallbackPolicy());
-            out.setMemoryUpdates(decision.getMemoryUpdates());
-            out.setDecisionTrace(decision.getDecisionTrace());
-            out.setDecision(decision);
-            return AgentToolResult.success(out);
+            return AgentToolResult.success(output);
         } catch (Exception e) {
             log.error("[Tool error] sequentialThinking", e);
             return AgentToolResult.fail(e);
         }
     }
 
-    private void validateReasoning(ReasoningInput reasoning) {
-        if (reasoning == null) {
-            throw new IllegalArgumentException("reasoning must not be null");
+    private void validate(ThinkingRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("ThinkingRequest must not be null");
         }
-        if (reasoning.getMeta() == null) {
-            throw new IllegalArgumentException("reasoning.meta must not be null");
+        if (StringUtils.isBlank(request.getGoal())) {
+            throw new IllegalArgumentException("goal must not be blank");
         }
-        if (StringUtils.isBlank(reasoning.getMeta().getGoal())) {
-            throw new IllegalArgumentException("reasoning.meta.goal must not be blank");
+        if (StringUtils.isBlank(request.getAnalysis())) {
+            throw new IllegalArgumentException("analysis must not be blank");
         }
+    }
+
+    private String buildSummary(ThinkingRequest request) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Goal: ").append(request.getGoal()).append("\n");
+        sb.append("Analysis: ").append(request.getAnalysis());
+        if (request.isWrite()) {
+            sb.append("\n[WRITE OPERATION] This task involves data modification. " +
+                    "Ensure askUserConfirm is called before executeNonSelectSql.");
+        }
+        return sb.toString();
+    }
+
+    private String suggestNextAction(ThinkingRequest request) {
+        if (request.isWrite()) {
+            return "Assess impact, then call askUserConfirm before executing write SQL.";
+        }
+        return "Proceed with exploration or SQL execution as planned.";
+    }
+
+    private List<String> extractRisks(ThinkingRequest request) {
+        List<String> risks = new ArrayList<>();
+        String analysis = request.getAnalysis().toLowerCase();
+
+        if (request.isWrite()) {
+            risks.add("Write operation detected — must call askUserConfirm before executeNonSelectSql.");
+        }
+
+        Matcher matcher = RISK_PATTERN.matcher(analysis);
+        while (matcher.find()) {
+            String keyword = matcher.group(1).toLowerCase();
+            switch (keyword) {
+                case "large table" -> risks.add("Large table detected — consider adding WHERE/LIMIT.");
+                case "pii", "sensitive" -> risks.add("Sensitive data — apply minimal disclosure.");
+                case "ambiguous", "conflict" -> risks.add("Ambiguity detected — consider askUserQuestion to clarify.");
+                case "no index", "missing" -> risks.add("Potential performance issue — verify indexes.");
+            }
+        }
+
+        return risks;
     }
 }

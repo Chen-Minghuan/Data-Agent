@@ -20,10 +20,10 @@ import java.util.Map;
 public class TodoTool {
 
     @Tool({
-        "[GOAL] Maintain one user-visible todo list for complex workflows.",
-        "[WHEN] Use for CREATE (initialize), UPDATE (milestone sync), DELETE (clear after completion).",
-        "[INPUT] action must be CREATE/UPDATE/DELETE. todoId is required for all actions. items are required for CREATE/UPDATE and ignored for DELETE.",
-        "[AFTER] Keep statuses aligned with real execution progress before user-facing summaries."
+        "[GOAL] Maintain a user-visible todo list for complex multi-step workflows.",
+        "[WHEN] Use for tasks with 3+ steps to show progress. action: CREATE (initialize), UPDATE (milestone sync), DELETE (clear after completion).",
+        "[WHEN_NOT] Do not use for single-step or simple tasks. Do not UPDATE after every tool call — batch updates at milestones.",
+        "[INPUT] action=CREATE/UPDATE/DELETE. todoId required for all. items required for CREATE/UPDATE, ignored for DELETE."
     })
     public AgentToolResult todoWrite(
             @P("Action type: CREATE, UPDATE, DELETE.")

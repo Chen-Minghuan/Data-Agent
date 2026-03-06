@@ -8,33 +8,12 @@ import java.util.List;
 @Data
 public class ThinkingOutput {
 
-    @JsonPropertyDescription("Structured reasoning block for current iteration.")
-    private StructuredReasoning structuredReasoning;
+    @JsonPropertyDescription("Structured reasoning summary extracted from analysis.")
+    private String summary;
 
-    @JsonPropertyDescription("Next stage name for frontend rendering convenience.")
-    private String nextStage;
-
-    @JsonPropertyDescription("Next action identifier for frontend/orchestrator.")
+    @JsonPropertyDescription("Suggested next action to take.")
     private String nextAction;
 
-    @JsonPropertyDescription("Action payload generated for next action.")
-    private ActionPayload actionPayload;
-
-    @JsonPropertyDescription("Candidate policy for generation/selection.")
-    private CandidatePolicy candidatePolicy;
-
-    @JsonPropertyDescription("Self-correction policy details.")
-    private SelfCorrectionPolicy selfCorrection;
-
-    @JsonPropertyDescription("Fallback policy details.")
-    private FallbackPolicy fallbackPolicy;
-
-    @JsonPropertyDescription("Memory updates produced by this decision.")
-    private List<MemoryUpdate> memoryUpdates;
-
-    @JsonPropertyDescription("Decision trace for debugging and display.")
-    private List<String> decisionTrace;
-
-    @JsonPropertyDescription("Full typed decision object.")
-    private ThinkingDecision decision;
+    @JsonPropertyDescription("Identified risks or concerns.")
+    private List<String> risks;
 }

@@ -23,10 +23,9 @@ public class ConnectionTool {
     private final DbConnectionService dbConnectionService;
 
     @Tool({
-        "[GOAL] Start source resolution by discovering which connections the user can operate on.",
-        "[PRECHECK] Call this before assuming any connection when current context is missing or ambiguous.",
+        "[GOAL] Discover which database connections the user can operate on.",
         "[WHEN] Use when connectionId is unknown, multiple data sources may match, or user asks to switch source.",
-        "[AFTER] Use result to narrow candidate sources, then continue with getCatalogNames/searchObjects."
+        "[WHEN_NOT] Do not call if connectionId is already known from session context. Do not use to list databases — use getCatalogNames."
     })
     public AgentToolResult getConnections(InvocationParameters parameters) {
         log.info("{} getConnections", "[Tool]");
@@ -49,10 +48,9 @@ public class ConnectionTool {
     }
 
     @Tool({
-        "[GOAL] Inspect one selected connection in detail to validate target source context.",
-        "[PRECHECK] connectionId should come from session context or getConnections.",
-        "[WHEN] Use when host/port/default-database details are needed for planning or disambiguation.",
-        "[AFTER] If multiple candidates remain, askUserQuestion before proceeding to SQL."
+        "[GOAL] Get detailed info about a specific connection (host, port, default database).",
+        "[WHEN] Use when connection details are needed for planning or disambiguation.",
+        "[WHEN_NOT] Do not use to list all connections — use getConnections. Do not use to list databases — use getCatalogNames."
     })
     public AgentToolResult getConnectionById(
             @P("The connection id (from session context or getConnections result)") Long connectionId,

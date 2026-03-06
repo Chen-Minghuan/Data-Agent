@@ -28,12 +28,10 @@ public class AskUserTool {
 
     @Tool(
             value = {
-                    "[GOAL] Resolve business ambiguity before SQL generation/execution (intent, metric definition, time range, filters, target source).",
-                    "[PRECHECK] Use this only for user-owned decisions that cannot be inferred from tools; tool-discoverable facts should be fetched via exploration tools first.",
-                    "[WHEN] Call when intent is ambiguous, multiple same-name candidates exist, filter values are uncertain, or critical constraints are missing.",
-                    "[INPUT] Each question should have 2-3 options (max 3), plus optional free text. Prefer concrete options over open-ended prompts.",
-                    "[BOUNDARY] NEVER use askUserQuestion for write confirmation; write operations must use askUserConfirm.",
-                    "[AFTER] Interpret answers, lock selected scope/constraints, then continue with exploration or SQL execution."
+                    "[GOAL] Ask the user structured clarification/selection questions to resolve ambiguity.",
+                    "[WHEN] Call when intent is ambiguous, multiple candidates exist, or critical constraints are missing.",
+                    "[WHEN_NOT] Do not use for write operation confirmation — use askUserConfirm. Do not ask questions that tools can answer (e.g., table existence, schema info).",
+                    "[INPUT] Each question should have 2-3 options (max 3). Prefer concrete options over open-ended prompts."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )
@@ -47,12 +45,10 @@ public class AskUserTool {
 
     @Tool(
             value = {
-                    "[GOAL] Enforce explicit user approval before any write SQL (INSERT/UPDATE/DELETE/DDL).",
-                    "[PRECHECK] SQL must already be concrete and impact-explained; do not call this for unresolved intent.",
-                    "[WHEN] MUST be called before every write operation. Without it, executeNonSelectSql should be rejected.",
-                    "[INPUT] Pass exact SQL, connectionId, and clear impact explanation; include database/schema only when applicable.",
-                    "[AFTER] Only after user confirmation, call executeNonSelectSql with the same SQL and user-confirmed tableName context.",
-                    "[FAILSAFE] If user rejects/cancels or context is missing, stop write execution and return to clarification/planning."
+                    "[GOAL] Request explicit user approval before any write SQL (INSERT/UPDATE/DELETE/DDL).",
+                    "[WHEN] MUST be called before every write operation. Without it, executeNonSelectSql will be rejected.",
+                    "[WHEN_NOT] Do not use for clarification questions — use askUserQuestion. Do not call before SQL is finalized.",
+                    "[INPUT] Pass exact SQL, connectionId, and clear impact explanation."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )
