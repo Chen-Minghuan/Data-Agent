@@ -30,7 +30,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/
 interface SortableTabProps {
   tabId: string;
   name: string;
-  type: 'file' | 'table' | 'tableData';
+  type: 'file' | 'table';
   connectionName?: string;
   databaseName?: string | null;
   isActive: boolean;
@@ -66,9 +66,12 @@ function SortableTab({
     isDragging,
   } = useSortable({ id: tabId });
 
-  const tabLabel = type === 'tableData'
-    ? name
-    : (connectionName ? `${connectionName}${databaseName ? '_' + databaseName : ''}` : name);
+  const tabLabel =
+    type === 'table'
+      ? name
+      : connectionName
+        ? `${connectionName}${databaseName ? '_' + databaseName : ''}`
+        : name;
 
   const style = {
     transform: CSS.Transform.toString(transform),

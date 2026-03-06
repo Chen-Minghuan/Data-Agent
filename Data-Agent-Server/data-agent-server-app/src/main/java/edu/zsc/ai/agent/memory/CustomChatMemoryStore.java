@@ -71,15 +71,16 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
             if (message.type() == ChatMessageType.SYSTEM) {
                 continue;
             }
+            ChatMessage normalizedMessage = MemoryUtil.normalizeUserMessage(message);
 
             // Add microsecond offset for each message to ensure unique timestamps
             LocalDateTime timestamp = baseTime.plusNanos(index * 1000L);
 
             StoredChatMessage stored = StoredChatMessage.builder()
                     .conversationId(idInfo.conversationId())
-                    .role(message.type().name())
+                    .role(normalizedMessage.type().name())
                     .tokenCount(0)
-                    .data(ChatMessageSerializer.messageToJson(message))
+                    .data(ChatMessageSerializer.messageToJson(normalizedMessage))
                     .createdAt(timestamp)
                     .updatedAt(baseTime)
                     .build();

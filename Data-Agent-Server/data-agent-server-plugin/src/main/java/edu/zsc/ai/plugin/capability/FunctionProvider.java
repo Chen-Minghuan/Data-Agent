@@ -18,9 +18,14 @@ import java.util.List;
 public interface FunctionProvider {
 
     default List<FunctionMetadata> getFunctions(Connection connection, String catalog, String schema) {
+        return searchFunctions(connection, catalog, schema, null);
+    }
+
+    default List<FunctionMetadata> searchFunctions(Connection connection, String catalog, String schema, String functionNamePattern) {
         try {
             List<FunctionMetadata> list = new ArrayList<>();
-            try (ResultSet rs = connection.getMetaData().getFunctions(catalog, schema, null)) {
+            String pattern = StringUtils.isBlank(functionNamePattern) ? null : functionNamePattern;
+            try (ResultSet rs = connection.getMetaData().getFunctions(catalog, schema, pattern)) {
                 while (rs.next()) {
                     String name = rs.getString(JdbcMetaDataConstants.FUNCTION_NAME);
                     if (StringUtils.isNotBlank(name)) {
@@ -32,6 +37,10 @@ public interface FunctionProvider {
         } catch (SQLException e) {
             throw new RuntimeException("Failed to list functions: " + e.getMessage(), e);
         }
+    }
+
+    default long countFunctions(Connection connection, String catalog, String schema, String functionNamePattern) {
+        return searchFunctions(connection, catalog, schema, functionNamePattern).size();
     }
 
     default String getFunctionDdl(Connection connection, String catalog, String schema, String functionName) {

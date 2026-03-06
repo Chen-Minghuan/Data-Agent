@@ -56,6 +56,26 @@ public final class MysqlSqlConstants {
                     + " WHERE " + ROUTINE_SCHEMA + " = '%s'"
                     + " AND " + ROUTINE_TYPE + " = '" + ROUTINE_TYPE_PROCEDURE + "'";
 
+    // --- information_schema object count ---
+    public static final String SQL_COUNT_TABLES =
+            "SELECT COUNT(*) AS total FROM information_schema.TABLES"
+                    + " WHERE TABLE_SCHEMA = ?"
+                    + " AND TABLE_TYPE = 'BASE TABLE'";
+    public static final String SQL_COUNT_VIEWS =
+            "SELECT COUNT(*) AS total FROM information_schema.TABLES"
+                    + " WHERE TABLE_SCHEMA = ?"
+                    + " AND TABLE_TYPE = 'VIEW'";
+    public static final String SQL_COUNT_FUNCTIONS =
+            "SELECT COUNT(*) AS total FROM information_schema.ROUTINES"
+                    + " WHERE ROUTINE_SCHEMA = ?"
+                    + " AND ROUTINE_TYPE = '" + ROUTINE_TYPE_FUNCTION + "'";
+    public static final String SQL_COUNT_PROCEDURES =
+            "SELECT COUNT(*) AS total FROM information_schema.ROUTINES"
+                    + " WHERE ROUTINE_SCHEMA = ?"
+                    + " AND ROUTINE_TYPE = '" + ROUTINE_TYPE_PROCEDURE + "'";
+    public static final String SQL_COUNT_TABLES_NAME_CLAUSE = " AND TABLE_NAME LIKE ?";
+    public static final String SQL_COUNT_ROUTINES_NAME_CLAUSE = " AND ROUTINE_NAME LIKE ?";
+
     // --- information_schema.COLUMNS ---
     /** %s = TABLE_SCHEMA, %s = TABLE_NAME. For tables and views. */
     public static final String SQL_LIST_COLUMNS =

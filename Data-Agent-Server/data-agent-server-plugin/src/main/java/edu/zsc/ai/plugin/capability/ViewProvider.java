@@ -13,10 +13,15 @@ import java.util.List;
 public interface ViewProvider {
 
     default List<String> getViews(Connection connection, String catalog, String schema) {
+        return searchViews(connection, catalog, schema, null);
+    }
+
+    default List<String> searchViews(Connection connection, String catalog, String schema, String viewNamePattern) {
         try {
             List<String> list = new ArrayList<>();
+            String pattern = StringUtils.isBlank(viewNamePattern) ? null : viewNamePattern;
             try (ResultSet rs = connection.getMetaData().getTables(
-                    catalog, schema, null, new String[] { JdbcMetaDataConstants.TABLE_TYPE_VIEW })) {
+                    catalog, schema, pattern, new String[] { JdbcMetaDataConstants.TABLE_TYPE_VIEW })) {
                 while (rs.next()) {
                     String name = rs.getString(JdbcMetaDataConstants.TABLE_NAME);
                     if (StringUtils.isNotBlank(name)) {
@@ -28,6 +33,10 @@ public interface ViewProvider {
         } catch (SQLException e) {
             throw new RuntimeException("Failed to list views: " + e.getMessage(), e);
         }
+    }
+
+    default long countViews(Connection connection, String catalog, String schema, String viewNamePattern) {
+        return searchViews(connection, catalog, schema, viewNamePattern).size();
     }
 
     default String getViewDdl(Connection connection, String catalog, String schema, String viewName) {
@@ -46,13 +55,21 @@ public interface ViewProvider {
         throw new UnsupportedOperationException("Plugin does not support getting view data count");
     }
 
+    /**
+     * Get view data with optional WHERE clause and single-column ORDER BY.
+     */
     default SqlCommandResult getViewData(Connection connection, String catalog, String schema, String viewName,
-                                         int offset, int pageSize, String whereClause, String orderBy) {
-        return getViewData(connection, catalog, schema, viewName, offset, pageSize);
+            int offset, int pageSize, String whereClause, String orderByColumn, String orderByDirection) {
+        if (StringUtils.isBlank(whereClause) && StringUtils.isBlank(orderByColumn)) {
+            return getViewData(connection, catalog, schema, viewName, offset, pageSize);
+        }
+        throw new UnsupportedOperationException("Plugin does not support filtered view data");
     }
 
-    default long getViewDataCount(Connection connection, String catalog, String schema, String viewName,
-                                  String whereClause) {
-        return getViewDataCount(connection, catalog, schema, viewName);
+    default long getViewDataCount(Connection connection, String catalog, String schema, String viewName, String whereClause) {
+        if (StringUtils.isBlank(whereClause)) {
+            return getViewDataCount(connection, catalog, schema, viewName);
+        }
+        throw new UnsupportedOperationException("Plugin does not support filtered view count");
     }
 }

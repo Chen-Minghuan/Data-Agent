@@ -11,6 +11,9 @@ import type { ExplorerNode } from '../types/explorer';
 interface DataViewActionsProps {
   setSelectedDdlNode: (node: ExplorerNode | null) => void;
   setDdlDialogOpen: (open: boolean) => void;
+  setTableDataDialogOpen: (open: boolean) => void;
+  setSelectedTableDataNode: (node: ExplorerNode | null) => void;
+  setHighlightColumn: (col: string | undefined) => void;
   openTab: (tab: any) => void;
   selectedDdlNode: ExplorerNode | null;
 }
@@ -18,6 +21,9 @@ interface DataViewActionsProps {
 export function useDataViewActions({
   setSelectedDdlNode,
   setDdlDialogOpen,
+  setTableDataDialogOpen,
+  setSelectedTableDataNode,
+  setHighlightColumn,
   openTab,
   selectedDdlNode,
 }: DataViewActionsProps) {
@@ -28,36 +34,54 @@ export function useDataViewActions({
     setDdlDialogOpen(true);
   }, [setSelectedDdlNode, setDdlDialogOpen]);
 
-  const handleViewData = useCallback((node: ExplorerNode, highlightCol?: string) => {
-    if (!node.connectionId) return;
-    const connectionId = Number(node.connectionId);
-    const connectionName = node.dbConnection?.name || 'Unknown';
-    const databaseName = node.catalog || null;
-    const schemaName = node.schema || null;
-    const objectName = node.tableName || node.objectName || node.name;
-    const objectType = node.type === ExplorerNodeType.VIEW ? 'view' : 'table';
-    const tabId = `table-data-${connectionId}-${databaseName ?? 'db'}-${schemaName ?? 'schema'}-${objectName}`;
+  const handleViewData = useCallback(
+    (node: ExplorerNode, highlightCol?: string) => {
+      if (!node.connectionId) return;
 
-    openTab({
-      id: tabId,
-      name: objectName,
-      type: 'tableData',
-      metadata: {
-        connectionId,
-        connectionName,
-        databaseName,
-        schemaName,
-        objectName,
-        objectType,
-        catalog: node.catalog,
-        highlightColumn: highlightCol,
-        currentPage: 1,
-        pageSize: 100,
-        whereClause: '',
-        orderBy: '',
-      },
-    });
-  }, [openTab]);
+      const isTableOrView = node.type === ExplorerNodeType.TABLE || node.type === ExplorerNodeType.VIEW;
+      const isColumnIndexKey = node.type === ExplorerNodeType.COLUMN || node.type === ExplorerNodeType.INDEX || node.type === ExplorerNodeType.KEY;
+
+      let objectName: string;
+      let objectType: 'table' | 'view';
+      let connId = node.connectionId;
+      let connectionName = node.dbConnection?.name || 'Unknown';
+      let databaseName = node.catalog || node.schema || null;
+      let schemaName = node.schema || null;
+
+      if (isTableOrView) {
+        objectName = node.tableName || node.objectName || node.name;
+        objectType = node.type === ExplorerNodeType.TABLE ? 'table' : 'view';
+      } else if (isColumnIndexKey && node.tableName) {
+        objectName = node.tableName;
+        objectType = node.id?.includes('folder-views') ? 'view' : 'table';
+      } else {
+        setHighlightColumn(highlightCol);
+        setSelectedTableDataNode(node);
+        setTableDataDialogOpen(true);
+        return;
+      }
+
+      const tabId = `table-${connId}-${objectName}-${Date.now()}`;
+
+      openTab({
+        id: tabId,
+        name: objectName,
+        type: 'table',
+        content: '',
+        metadata: {
+          connectionId: Number(connId),
+          connectionName,
+          databaseName,
+          schemaName,
+          objectName,
+          objectType,
+          catalog: node.catalog,
+          schema: node.schema,
+        },
+      });
+    },
+    [openTab, setHighlightColumn, setSelectedTableDataNode, setTableDataDialogOpen]
+  );
 
   const handleOpenQueryConsole = useCallback((node: ExplorerNode) => {
     // For ROOT nodes (connections), get connectionId from dbConnection.id

@@ -10,12 +10,16 @@ public interface TableService {
 
     List<String> searchTables(Long connectionId, String catalog, String schema, String tableNamePattern, Long userId);
 
+    long countTables(Long connectionId, String catalog, String schema, String tableNamePattern, Long userId);
+
     long countTableRows(Long connectionId, String catalog, String schema, String tableName, Long userId);
 
     String getTableDdl(Long connectionId, String catalog, String schema, String tableName, Long userId);
 
     void deleteTable(Long connectionId, String catalog, String schema, String tableName, Long userId);
 
+    TableDataResponse getTableData(Long connectionId, String catalog, String schema, String tableName, Long userId, Integer currentPage, Integer pageSize);
+
     TableDataResponse getTableData(Long connectionId, String catalog, String schema, String tableName, Long userId,
-                                   Integer currentPage, Integer pageSize, String whereClause, String orderBy);
+            Integer currentPage, Integer pageSize, String whereClause, String orderByColumn, String orderByDirection);
 }

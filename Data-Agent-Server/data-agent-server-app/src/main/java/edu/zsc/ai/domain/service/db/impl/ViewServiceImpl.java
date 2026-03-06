@@ -30,6 +30,36 @@ public class ViewServiceImpl implements ViewService {
     }
 
     @Override
+    public List<String> searchViews(Long connectionId, String catalog, String schema, String viewNamePattern, Long userId) {
+        connectionService.openConnection(connectionId, catalog, schema, userId);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
+
+        ViewProvider provider = DefaultPluginManager.getInstance().getViewProviderByPluginId(active.pluginId());
+        return provider.searchViews(active.connection(), catalog, schema, viewNamePattern);
+    }
+
+    @Override
+    public long countViews(Long connectionId, String catalog, String schema, String viewNamePattern, Long userId) {
+        connectionService.openConnection(connectionId, catalog, schema, userId);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
+
+        ViewProvider provider = DefaultPluginManager.getInstance().getViewProviderByPluginId(active.pluginId());
+        return provider.countViews(active.connection(), catalog, schema, viewNamePattern);
+    }
+
+    @Override
+    public long countViewRows(Long connectionId, String catalog, String schema, String viewName, Long userId) {
+        connectionService.openConnection(connectionId, catalog, schema, userId);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
+
+        ViewProvider provider = DefaultPluginManager.getInstance().getViewProviderByPluginId(active.pluginId());
+        return provider.getViewDataCount(active.connection(), catalog, schema, viewName);
+    }
+
+    @Override
     public String getViewDdl(Long connectionId, String catalog, String schema, String viewName, Long userId) {
         connectionService.openConnection(connectionId, catalog, schema, userId);
 
@@ -67,6 +97,34 @@ public class ViewServiceImpl implements ViewService {
 
         SqlCommandResult result = provider.getViewData(active.connection(), catalog, schema, viewName, offset, pageSize,
                 whereClause, orderBy);
+
+        long totalPages = (totalCount + pageSize - 1) / pageSize;
+
+        return TableDataResponse.builder()
+                .headers(result.getHeaders())
+                .rows(result.getRows())
+                .totalCount(totalCount)
+                .currentPage(currentPage)
+                .pageSize(pageSize)
+                .totalPages(totalPages)
+                .build();
+    }
+
+    @Override
+    public TableDataResponse getViewData(Long connectionId, String catalog, String schema, String viewName, Long userId,
+            Integer currentPage, Integer pageSize, String whereClause, String orderByColumn, String orderByDirection) {
+        connectionService.openConnection(connectionId, catalog, schema, userId);
+
+        ConnectionManager.ActiveConnection active = ConnectionManager.getOwnedConnection(connectionId, catalog, schema, userId);
+
+        ViewProvider provider = DefaultPluginManager.getInstance().getViewProviderByPluginId(active.pluginId());
+
+        int offset = (currentPage - 1) * pageSize;
+
+        long totalCount = provider.getViewDataCount(active.connection(), catalog, schema, viewName, whereClause);
+
+        SqlCommandResult result = provider.getViewData(active.connection(), catalog, schema, viewName, offset, pageSize,
+                whereClause, orderByColumn, orderByDirection);
 
         long totalPages = (totalCount + pageSize - 1) / pageSize;
 

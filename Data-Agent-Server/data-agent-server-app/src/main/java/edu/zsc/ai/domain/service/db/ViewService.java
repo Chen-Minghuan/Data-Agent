@@ -8,10 +8,18 @@ public interface ViewService {
 
     List<String> getViews(Long connectionId, String catalog, String schema, Long userId);
 
+    List<String> searchViews(Long connectionId, String catalog, String schema, String viewNamePattern, Long userId);
+
+    long countViews(Long connectionId, String catalog, String schema, String viewNamePattern, Long userId);
+
+    long countViewRows(Long connectionId, String catalog, String schema, String viewName, Long userId);
+
     String getViewDdl(Long connectionId, String catalog, String schema, String viewName, Long userId);
 
     void deleteView(Long connectionId, String catalog, String schema, String viewName, Long userId);
 
+    TableDataResponse getViewData(Long connectionId, String catalog, String schema, String viewName, Long userId, Integer currentPage, Integer pageSize);
+
     TableDataResponse getViewData(Long connectionId, String catalog, String schema, String viewName, Long userId,
-                                  Integer currentPage, Integer pageSize, String whereClause, String orderBy);
+            Integer currentPage, Integer pageSize, String whereClause, String orderByColumn, String orderByDirection);
 }

@@ -68,15 +68,20 @@ public class ViewController {
             @RequestParam @NotNull(message = "viewName is required") String viewName,
             @RequestParam(required = false) String catalog,
             @RequestParam(required = false) String schema,
-            @RequestParam(required = false) String where,
-            @RequestParam(required = false) String orderBy,
             @RequestParam(defaultValue = "1") Integer currentPage,
-            @RequestParam(defaultValue = "100") Integer pageSize) {
-        log.info("Getting view data: connectionId={}, viewName={}, catalog={}, schema={}, where={}, orderBy={}, currentPage={}, pageSize={}",
-                connectionId, viewName, catalog, schema, where, orderBy, currentPage, pageSize);
+            @RequestParam(defaultValue = "100") Integer pageSize,
+            @RequestParam(required = false) String whereClause,
+            @RequestParam(required = false) String orderByColumn,
+            @RequestParam(required = false) String orderByDirection) {
+        log.info("Getting view data: connectionId={}, viewName={}, catalog={}, schema={}, currentPage={}, pageSize={}",
+                connectionId, viewName, catalog, schema, currentPage, pageSize);
         long userId = StpUtil.getLoginIdAsLong();
-        TableDataResponse response = viewService.getViewData(connectionId, catalog, schema, viewName, userId,
-                currentPage, pageSize, where, orderBy);
+        boolean hasFilter = (whereClause != null && !whereClause.isBlank())
+                || (orderByColumn != null && !orderByColumn.isBlank());
+        TableDataResponse response = hasFilter
+                ? viewService.getViewData(connectionId, catalog, schema, viewName, userId, currentPage, pageSize,
+                        whereClause, orderByColumn, orderByDirection)
+                : viewService.getViewData(connectionId, catalog, schema, viewName, userId, currentPage, pageSize);
         return ApiResponse.success(response);
     }
 }

@@ -268,18 +268,12 @@ public abstract class DefaultMysqlPlugin extends AbstractDatabasePlugin
 
     @Override
     public SqlCommandResult getTableData(Connection connection, String catalog, String schema, String tableName, int offset, int pageSize) {
-        return getTableData(connection, catalog, schema, tableName, offset, pageSize, null, null);
-    }
-
-    @Override
-    public SqlCommandResult getTableData(Connection connection, String catalog, String schema, String tableName,
-                                         int offset, int pageSize, String whereClause, String orderBy) {
         if (connection == null || StringUtils.isBlank(tableName)) {
             throw new IllegalArgumentException("Connection and table name must not be null or empty");
         }
 
         String fullTableName = MysqlIdentifierBuilder.buildFullIdentifier(catalog, tableName);
-        String sql = buildSelectSql(fullTableName, whereClause, orderBy, pageSize, offset);
+        String sql = String.format(MysqlSqlConstants.SQL_SELECT_TABLE_DATA, fullTableName, pageSize, offset);
 
         SqlCommandResult result = sqlExecutor.executeCommand(
                 SqlCommandRequest.ofWithoutTransaction(connection, sql, sql, catalog, null));
@@ -295,18 +289,12 @@ public abstract class DefaultMysqlPlugin extends AbstractDatabasePlugin
 
     @Override
     public long getTableDataCount(Connection connection, String catalog, String schema, String tableName) {
-        return getTableDataCount(connection, catalog, schema, tableName, null);
-    }
-
-    @Override
-    public long getTableDataCount(Connection connection, String catalog, String schema, String tableName,
-                                  String whereClause) {
         if (connection == null || StringUtils.isBlank(tableName)) {
             throw new IllegalArgumentException("Connection and table name must not be null or empty");
         }
 
         String fullTableName = MysqlIdentifierBuilder.buildFullIdentifier(catalog, tableName);
-        String sql = buildCountSql(fullTableName, whereClause);
+        String sql = String.format(MysqlSqlConstants.SQL_COUNT_TABLE_DATA, fullTableName);
 
         try (PreparedStatement stmt = connection.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -325,42 +313,116 @@ public abstract class DefaultMysqlPlugin extends AbstractDatabasePlugin
     }
 
     @Override
-    public SqlCommandResult getViewData(Connection connection, String catalog, String schema, String viewName,
-                                        int offset, int pageSize, String whereClause, String orderBy) {
-        return getTableData(connection, catalog, schema, viewName, offset, pageSize, whereClause, orderBy);
-    }
-
-    @Override
     public long getViewDataCount(Connection connection, String catalog, String schema, String viewName) {
         return getTableDataCount(connection, catalog, schema, viewName);
     }
 
     @Override
-    public long getViewDataCount(Connection connection, String catalog, String schema, String viewName,
-                                 String whereClause) {
+    public long countTables(Connection connection, String catalog, String schema, String tableNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_TABLES,
+                tableNamePattern,
+                MysqlSqlConstants.SQL_COUNT_TABLES_NAME_CLAUSE);
+    }
+
+    @Override
+    public long countViews(Connection connection, String catalog, String schema, String viewNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_VIEWS,
+                viewNamePattern,
+                MysqlSqlConstants.SQL_COUNT_TABLES_NAME_CLAUSE);
+    }
+
+    @Override
+    public long countFunctions(Connection connection, String catalog, String schema, String functionNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_FUNCTIONS,
+                functionNamePattern,
+                MysqlSqlConstants.SQL_COUNT_ROUTINES_NAME_CLAUSE);
+    }
+
+    @Override
+    public long countProcedures(Connection connection, String catalog, String schema, String procedureNamePattern) {
+        String db = StringUtils.isNotBlank(catalog) ? catalog : schema;
+        return countObjectsByName(
+                connection,
+                db,
+                MysqlSqlConstants.SQL_COUNT_PROCEDURES,
+                procedureNamePattern,
+                MysqlSqlConstants.SQL_COUNT_ROUTINES_NAME_CLAUSE);
+    }
+
+    @Override
+    public SqlCommandResult getTableData(Connection connection, String catalog, String schema, String tableName,
+            int offset, int pageSize, String whereClause, String orderByColumn, String orderByDirection) {
+        if (connection == null || StringUtils.isBlank(tableName)) {
+            throw new IllegalArgumentException("Connection and table name must not be null or empty");
+        }
+
+        String fullTableName = MysqlIdentifierBuilder.buildFullIdentifier(catalog, tableName);
+        StringBuilder sql = new StringBuilder("SELECT * FROM ").append(fullTableName);
+
+        if (StringUtils.isNotBlank(whereClause)) {
+            sql.append(" WHERE ").append(whereClause);
+        }
+        if (StringUtils.isNotBlank(orderByColumn)) {
+            String dir = "desc".equalsIgnoreCase(orderByDirection) ? "DESC" : "ASC";
+            String quotedCol = MysqlIdentifierEscaper.getInstance().quoteIdentifier(orderByColumn.trim());
+            sql.append(" ORDER BY ").append(quotedCol).append(" ").append(dir);
+        }
+        sql.append(" LIMIT ").append(pageSize).append(" OFFSET ").append(offset);
+
+        String sqlStr = sql.toString();
+        SqlCommandResult result = sqlExecutor.executeCommand(
+                SqlCommandRequest.ofWithoutTransaction(connection, sqlStr, sqlStr, catalog, null));
+
+        if (!result.isSuccess()) {
+            logger.severe(String.format("Failed to get table data for %s: %s", fullTableName, result.getErrorMessage()));
+            throw new RuntimeException("Failed to get table data: " + result.getErrorMessage());
+        }
+        return result;
+    }
+
+    @Override
+    public long getTableDataCount(Connection connection, String catalog, String schema, String tableName, String whereClause) {
+        if (connection == null || StringUtils.isBlank(tableName)) {
+            throw new IllegalArgumentException("Connection and table name must not be null or empty");
+        }
+
+        String fullTableName = MysqlIdentifierBuilder.buildFullIdentifier(catalog, tableName);
+        String sql = StringUtils.isNotBlank(whereClause)
+                ? "SELECT COUNT(*) AS total FROM " + fullTableName + " WHERE " + whereClause
+                : String.format(MysqlSqlConstants.SQL_COUNT_TABLE_DATA, fullTableName);
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong("total");
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get table data count: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public SqlCommandResult getViewData(Connection connection, String catalog, String schema, String viewName,
+            int offset, int pageSize, String whereClause, String orderByColumn, String orderByDirection) {
+        return getTableData(connection, catalog, schema, viewName, offset, pageSize, whereClause, orderByColumn, orderByDirection);
+    }
+
+    @Override
+    public long getViewDataCount(Connection connection, String catalog, String schema, String viewName, String whereClause) {
         return getTableDataCount(connection, catalog, schema, viewName, whereClause);
-    }
-
-    private String buildSelectSql(String fullTableName, String whereClause, String orderBy, int pageSize, int offset) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("SELECT * FROM ").append(fullTableName);
-        if (StringUtils.isNotBlank(whereClause)) {
-            sb.append(" WHERE ").append(whereClause);
-        }
-        if (StringUtils.isNotBlank(orderBy)) {
-            sb.append(" ORDER BY ").append(orderBy);
-        }
-        sb.append(" LIMIT ").append(pageSize).append(" OFFSET ").append(offset);
-        return sb.toString();
-    }
-
-    private String buildCountSql(String fullTableName, String whereClause) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("SELECT COUNT(*) AS total FROM ").append(fullTableName);
-        if (StringUtils.isNotBlank(whereClause)) {
-            sb.append(" WHERE ").append(whereClause);
-        }
-        return sb.toString();
     }
 
     @Override
@@ -551,6 +613,32 @@ public abstract class DefaultMysqlPlugin extends AbstractDatabasePlugin
             result.put(e.getKey(), params);
         }
         return result;
+    }
+
+    private long countObjectsByName(Connection connection, String db, String baseSql, String namePattern, String nameClause) {
+        if (connection == null || StringUtils.isBlank(db)) {
+            return 0;
+        }
+
+        boolean hasNameFilter = StringUtils.isNotBlank(namePattern) && !"%".equals(namePattern);
+        String sql = hasNameFilter ? baseSql + nameClause : baseSql;
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            int parameterIndex = 1;
+            stmt.setString(parameterIndex++, db);
+            if (hasNameFilter) {
+                stmt.setString(parameterIndex, namePattern);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong("total");
+                }
+                return 0;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count MySQL objects: " + e.getMessage(), e);
+        }
     }
 
     private String getObjectDdl(Connection connection, String catalog, String objectName,

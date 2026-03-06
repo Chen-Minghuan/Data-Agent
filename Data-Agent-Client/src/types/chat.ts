@@ -8,6 +8,8 @@ export interface ChatRequest {
   message: string;
   /** Model name for chat (e.g. qwen3-max, qwen3-max-thinking). */
   model?: string;
+  /** Prompt language for backend system prompt routing (e.g. en, zh). */
+  language?: string;
   conversationId?: number;
   connectionId?: number;
   databaseName?: string;
@@ -34,8 +36,6 @@ export interface ToolCallData {
   id?: string;
   toolName: string;
   arguments: string;
-  /** MCP server name (e.g., "chart-server") for external MCP tools. Undefined for built-in tools. */
-  serverName?: string;
   /** True when arguments are still streaming (partial), false when complete, undefined for stored messages. */
   streaming?: boolean;
 }
@@ -47,8 +47,6 @@ export interface ToolResultData {
   result: string;
   /** True when tool execution failed (backend ToolExecution.hasFailed()). */
   error?: boolean;
-  /** MCP server name (e.g., "chart-server") for external MCP tools. Undefined for built-in tools. */
-  serverName?: string;
 }
 
 export interface ChatResponseBlock {

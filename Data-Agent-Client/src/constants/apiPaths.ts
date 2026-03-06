@@ -32,6 +32,13 @@ export const ChatPaths = {
   STREAM: '/api/chat/stream',
 } as const;
 
+/** Memory candidate endpoints */
+export const MemoryPaths = {
+  CANDIDATES_CURRENT_CONVERSATION: '/memories/candidates/current-conversation',
+  CANDIDATES: '/memories/candidates',
+  CANDIDATES_COMMIT: '/memories/candidates/commit',
+} as const;
+
 /** Connection management endpoints */
 export const ConnectionPaths = {
   LIST: '/connections',

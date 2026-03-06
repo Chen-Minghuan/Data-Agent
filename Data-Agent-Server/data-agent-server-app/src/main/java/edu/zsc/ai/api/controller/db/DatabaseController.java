@@ -31,7 +31,7 @@ public class DatabaseController {
     public ApiResponse<List<String>> listDatabases(
             @RequestParam @NotNull(message = "connectionId is required") Long connectionId) {
         log.info("Listing databases: connectionId={}", connectionId);
-        List<String> databases = databaseService.listDatabases(connectionId);
+        List<String> databases = databaseService.getDatabases(connectionId);
         return ApiResponse.success(databases);
     }
 

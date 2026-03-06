@@ -19,4 +19,10 @@ public class ChatRequest extends BaseRequest {
      * Optional; server defaults to qwen3-max when blank.
      */
     private String model;
+
+    /**
+     * Preferred prompt language, e.g. "en" or "zh".
+     * Optional; server defaults to English prompt when blank/unknown.
+     */
+    private String language;
 }

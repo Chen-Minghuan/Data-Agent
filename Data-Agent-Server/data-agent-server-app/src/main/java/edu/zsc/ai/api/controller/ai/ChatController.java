@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,8 +30,8 @@ public class ChatController {
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ChatResponseBlock> chat(@Valid @RequestBody ChatRequest request) {
-        log.info("Chat request received: model={}, message={}, conversationId={}, connectionId={}",
-                request.getModel(), request.getMessage(), request.getConversationId(), request.getConnectionId());
+        log.info("Chat request received: model={}, language={}, message={}, conversationId={}, connectionId={}",
+                request.getModel(), request.getLanguage(), request.getMessage(), request.getConversationId(), request.getConnectionId());
         return chatService.chat(request);
     }
 }

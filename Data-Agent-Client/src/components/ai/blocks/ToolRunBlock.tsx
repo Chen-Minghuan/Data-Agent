@@ -1,8 +1,8 @@
 import { TodoListBlock } from './TodoListBlock';
-import { McpToolBlock } from './McpToolBlock';
 import { ToolRunStreaming } from './ToolRunStreaming';
 import { ToolRunExecuting } from './ToolRunExecuting';
 import { GenericToolRun } from './GenericToolRun';
+import { ChartToolBlock } from './ChartToolBlock';
 import { parseTodoListResponse } from './todoTypes';
 import {
   parseAskUserQuestionParameters,
@@ -25,8 +25,10 @@ export interface ToolRunBlockProps {
   pending?: boolean;
   /** Execution state: streaming arguments, executing, or complete. */
   executionState?: ToolExecutionState;
-  /** MCP server name (e.g., "chart-server") for server-specific rendering */
-  serverName?: string;
+  /** Tool call id from TOOL_CALL block; used for pairing and retry dedupe. */
+  toolCallId?: string;
+  /** Whether this tool run belongs to current streaming turn and can auto retry. */
+  allowAutoRetry?: boolean;
 }
 
 /**
@@ -36,7 +38,6 @@ export interface ToolRunBlockProps {
  * - TODO: TodoWrite → TodoListBlock
  * - ASK_USER: AskUserQuestion → AskUserQuestionCard (Inline)
  * - WRITE_CONFIRM: AskUserConfirm → WriteConfirmCard (Inline)
- * - MCP: External tools (charts, etc.) → McpToolBlock
  * - GENERIC: All other tools (database, etc.) → ToolRunDetail
  */
 export function ToolRunBlock({
@@ -46,9 +47,10 @@ export function ToolRunBlock({
   responseError = false,
   pending = false,
   executionState,
-  serverName,
+  toolCallId,
+  allowAutoRetry = false,
 }: ToolRunBlockProps) {
-  const toolType = getToolType(toolName, serverName);
+  const toolType = getToolType(toolName);
   const formattedParameters = formatParameters(parametersData);
   const isInteractive = toolType === ToolType.ASK_USER || toolType === ToolType.WRITE_CONFIRM;
 
@@ -63,8 +65,9 @@ export function ToolRunBlock({
     return <ToolRunExecuting toolName={toolName} parametersData={parametersData} />;
   }
 
-  // 2. Error Fallback (Always generic)
-  if (responseError) {
+  // 2. Error fallback for non-chart tools.
+  // Chart errors should still go through ChartToolBlock to trigger auto-feedback.
+  if (responseError && toolType !== ToolType.CHART) {
     return (
       <GenericToolRun
         toolName={toolName}
@@ -129,14 +132,15 @@ export function ToolRunBlock({
       );
     }
 
-    case ToolType.MCP:
+    case ToolType.CHART:
       return (
-        <McpToolBlock
+        <ChartToolBlock
           toolName={toolName}
           parametersData={parametersData}
           responseData={responseData}
           responseError={responseError}
-          serverName={serverName}
+          toolCallId={toolCallId}
+          allowAutoRetry={allowAutoRetry}
         />
       );
 

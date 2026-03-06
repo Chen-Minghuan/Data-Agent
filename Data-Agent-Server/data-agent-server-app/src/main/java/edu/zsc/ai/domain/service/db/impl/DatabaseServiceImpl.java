@@ -19,12 +19,12 @@ public class DatabaseServiceImpl implements DatabaseService {
     private final ConnectionService connectionService;
 
     @Override
-    public List<String> listDatabases(Long connectionId) {
-        return listDatabases(connectionId, null);
+    public List<String> getDatabases(Long connectionId) {
+        return getDatabases(connectionId, null);
     }
 
     @Override
-    public List<String> listDatabases(Long connectionId, Long userId) {
+    public List<String> getDatabases(Long connectionId, Long userId) {
         long uid = userId != null ? userId : StpUtil.getLoginIdAsLong();
         connectionService.openConnection(connectionId, null, null, uid);
 

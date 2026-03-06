@@ -68,15 +68,20 @@ public class TableController {
             @RequestParam @NotNull(message = "tableName is required") String tableName,
             @RequestParam(required = false) String catalog,
             @RequestParam(required = false) String schema,
-            @RequestParam(required = false) String where,
-            @RequestParam(required = false) String orderBy,
             @RequestParam(defaultValue = "1") Integer currentPage,
-            @RequestParam(defaultValue = "100") Integer pageSize) {
-        log.info("Getting table data: connectionId={}, tableName={}, catalog={}, schema={}, where={}, orderBy={}, currentPage={}, pageSize={}",
-                connectionId, tableName, catalog, schema, where, orderBy, currentPage, pageSize);
+            @RequestParam(defaultValue = "100") Integer pageSize,
+            @RequestParam(required = false) String whereClause,
+            @RequestParam(required = false) String orderByColumn,
+            @RequestParam(required = false) String orderByDirection) {
+        log.info("Getting table data: connectionId={}, tableName={}, catalog={}, schema={}, currentPage={}, pageSize={}",
+                connectionId, tableName, catalog, schema, currentPage, pageSize);
         long userId = StpUtil.getLoginIdAsLong();
-        TableDataResponse response = tableService.getTableData(connectionId, catalog, schema, tableName, userId,
-                currentPage, pageSize, where, orderBy);
+        boolean hasFilter = (whereClause != null && !whereClause.isBlank())
+                || (orderByColumn != null && !orderByColumn.isBlank());
+        TableDataResponse response = hasFilter
+                ? tableService.getTableData(connectionId, catalog, schema, tableName, userId, currentPage, pageSize,
+                        whereClause, orderByColumn, orderByDirection)
+                : tableService.getTableData(connectionId, catalog, schema, tableName, userId, currentPage, pageSize);
         return ApiResponse.success(response);
     }
 }
