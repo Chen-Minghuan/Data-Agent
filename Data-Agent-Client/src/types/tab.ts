@@ -21,3 +21,11 @@ export interface TableTabMetadata extends ConsoleTabMetadata {
   catalog?: string;
   schema?: string;
 }
+
+/**
+ * Plan Tab Metadata
+ * Stored in Tab.metadata for plan tabs opened from AI ExitPlanMode
+ */
+export interface PlanTabMetadata {
+  planPayload: import('../components/ai/blocks/exitPlanModeTypes').ExitPlanPayload;
+}
