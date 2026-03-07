@@ -54,7 +54,8 @@ public class AskUserConfirmTool {
 
         if (userId == null || conversationId == null) {
             log.error("[Tool] askUserConfirm: missing context userId={} conversationId={}", userId, conversationId);
-            return WriteConfirmationResult.error("User or conversation context is missing.");
+            return WriteConfirmationResult.error("Internal error: user or conversation session context is not available. "
+                    + "This is a system issue — do not retry. Report the problem to the user.");
         }
 
         WriteConfirmationEntry entry = confirmationStore.create(

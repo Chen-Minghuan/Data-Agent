@@ -45,7 +45,8 @@ public class SequentialThinkingTool {
             return AgentToolResult.success(output);
         } catch (Exception e) {
             log.error("[Tool error] sequentialThinking", e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("sequentialThinking failed: " + e.getMessage()
+                    + ". Ensure goal and analysis fields are provided and not blank.");
         }
     }
 

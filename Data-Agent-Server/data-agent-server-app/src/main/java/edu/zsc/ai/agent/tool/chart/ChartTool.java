@@ -59,10 +59,12 @@ public class ChartTool {
             return AgentToolResult.success(result);
         } catch (IllegalArgumentException e) {
             log.warn("[Tool invalid] renderChart, chartType={}, reason={}", chartType, e.getMessage());
-            return AgentToolResult.fail(e.getMessage());
+            return AgentToolResult.fail("Invalid renderChart input: " + e.getMessage()
+                    + ". chartType must be one of LINE/BAR/PIE/SCATTER/AREA, and optionJson must be valid ECharts JSON.");
         } catch (Exception e) {
             log.error("[Tool error] renderChart, chartType={}", chartType, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to render chart (chartType=" + chartType + "): " + e.getMessage()
+                    + ". Verify chartType is one of LINE/BAR/PIE/SCATTER/AREA and optionJson is valid ECharts JSON.");
         }
     }
 }

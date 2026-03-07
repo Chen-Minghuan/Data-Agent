@@ -63,7 +63,7 @@ public class MemoryTool {
             return AgentToolResult.success(AgentMemoryView.fromList(results));
         } catch (Exception e) {
             log.error("[Tool error] searchMemories", e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to search memories with query '" + queryText + "': " + e.getMessage());
         }
     }
 
@@ -101,7 +101,7 @@ public class MemoryTool {
             return AgentToolResult.success(AgentMemoryCandidateView.fromList(response));
         } catch (Exception e) {
             log.error("[Tool error] listCandidateMemories", e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to list candidate memories: " + e.getMessage());
         }
     }
 
@@ -138,7 +138,8 @@ public class MemoryTool {
             return AgentToolResult.success(AgentMemoryCandidateView.from(MemoryConverter.toCandidateResponse(candidate)));
         } catch (Exception e) {
             log.error("[Tool error] createCandidateMemory", e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to create candidate memory (type=" + candidateType + "): " + e.getMessage()
+                    + ". Verify candidateType is one of PREFERENCE/BUSINESS_RULE/KNOWLEDGE_POINT/GOLDEN_SQL_CASE/WORKFLOW_CONSTRAINT.");
         }
     }
 
@@ -158,7 +159,8 @@ public class MemoryTool {
 
             boolean deleted = memoryCandidateService.deleteCandidate(userId, candidateId);
             if (!deleted) {
-                return AgentToolResult.empty();
+                return AgentToolResult.fail("Candidate memory with id=" + candidateId
+                        + " not found or not owned by current user. Use listCandidateMemories to verify the candidateId.");
             }
 
             Map<String, Object> result = new HashMap<>();
@@ -166,8 +168,8 @@ public class MemoryTool {
             result.put("deleted", true);
             return AgentToolResult.success(result);
         } catch (Exception e) {
-            log.error("[Tool error] deleteCandidateMemory", e);
-            return AgentToolResult.fail(e);
+            log.error("[Tool error] deleteCandidateMemory, candidateId={}", candidateId, e);
+            return AgentToolResult.fail("Failed to delete candidate memory with id=" + candidateId + ": " + e.getMessage());
         }
     }
 }

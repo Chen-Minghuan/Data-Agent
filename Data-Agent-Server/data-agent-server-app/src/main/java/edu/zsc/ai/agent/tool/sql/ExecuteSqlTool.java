@@ -3,6 +3,7 @@ package edu.zsc.ai.agent.tool.sql;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
+import edu.zsc.ai.agent.confirm.WriteConsumeResult;
 import edu.zsc.ai.agent.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.guard.AgentModeGuard;
@@ -45,11 +46,13 @@ public class ExecuteSqlTool {
         try {
             AgentModeGuard.assertNotPlanMode(parameters, "executeSelectSql");
             if (!isReadOnlySql(sql, connectionId)) {
-                return AgentSqlResult.fail("Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed.");
+                return AgentSqlResult.fail("Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed in executeSelectSql. "
+                        + "For INSERT/UPDATE/DELETE/DDL, use executeNonSelectSql instead (requires askUserConfirm first).");
             }
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             if (userId == null) {
-                return AgentSqlResult.fail("User context is missing.");
+                return AgentSqlResult.fail("Internal error: user session context is not available. "
+                        + "This is a system issue — do not retry. Report the problem to the user.");
             }
             AgentExecuteSqlRequest request = AgentExecuteSqlRequest.builder()
                     .connectionId(connectionId)
@@ -63,7 +66,8 @@ public class ExecuteSqlTool {
             return AgentSqlResult.from(response);
         } catch (Exception e) {
             log.error("{} executeSelectSql", "[Tool error]", e);
-            return AgentSqlResult.fail(e.getMessage());
+            return AgentSqlResult.fail("executeSelectSql failed for connectionId=" + connectionId
+                    + ", database='" + databaseName + "', schema='" + schemaName + "': " + e.getMessage());
         }
     }
 
@@ -88,16 +92,16 @@ public class ExecuteSqlTool {
             Long userId = parameters.get(RequestContextConstant.USER_ID);
             Long conversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
             if (userId == null || conversationId == null) {
-                return AgentSqlResult.fail("User or conversation context is missing.");
+                return AgentSqlResult.fail("Internal error: user or conversation session context is not available. "
+                        + "This is a system issue — do not retry. Report the problem to the user.");
             }
 
-            boolean consumed = writeConfirmationStore.consumeConfirmedBySql(
+            WriteConsumeResult consumeResult = writeConfirmationStore.consumeConfirmedBySql(
                     userId, conversationId, connectionId, databaseName, schemaName, sql);
-            if (!consumed) {
-                log.warn("[Tool] executeNonSelectSql rejected: no CONFIRMED token for userId={} conversationId={}",
-                        userId, conversationId);
-                return AgentSqlResult.fail("Write operation rejected: no valid user confirmation found. "
-                        + "You must call askUserConfirm first and wait for the user to confirm.");
+            if (!consumeResult.success()) {
+                log.warn("[Tool] executeNonSelectSql rejected: reason={} for userId={} conversationId={}",
+                        consumeResult.reason(), userId, conversationId);
+                return AgentSqlResult.fail(consumeResult.detail());
             }
 
             AgentExecuteSqlRequest request = AgentExecuteSqlRequest.builder()
@@ -112,7 +116,8 @@ public class ExecuteSqlTool {
             return AgentSqlResult.from(response);
         } catch (Exception e) {
             log.error("{} executeNonSelectSql", "[Tool error]", e);
-            return AgentSqlResult.fail(e.getMessage());
+            return AgentSqlResult.fail("executeNonSelectSql failed for connectionId=" + connectionId
+                    + ", database='" + databaseName + "', schema='" + schemaName + "': " + e.getMessage());
         }
     }
 

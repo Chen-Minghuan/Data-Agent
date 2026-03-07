@@ -46,12 +46,13 @@ public class TodoTool {
                     log.info("[Tool done] todo_write, action={}, todoId={}", normalizedAction, todoId);
                     yield AgentToolResult.success(buildTodoPayload(todoId, List.of()));
                 }
-                default -> AgentToolResult.fail(new IllegalArgumentException(
-                        "Unsupported action for todo_write: " + action + ". Allowed values: CREATE, UPDATE, DELETE"));
+                default -> AgentToolResult.fail("Unsupported action '" + action
+                        + "' for todoWrite. Allowed values: CREATE, UPDATE, DELETE.");
             };
         } catch (Exception e) {
             log.error("[Tool error] todo_write, action={}, todoId={}", normalizedAction, todoId, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to execute todoWrite (action=" + normalizedAction
+                    + ", todoId='" + todoId + "'): " + e.getMessage());
         }
     }
 

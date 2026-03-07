@@ -68,7 +68,8 @@ public class DatabaseObjectTool {
             return AgentToolResult.success(databases);
         } catch (Exception e) {
             log.error("[Tool error] getCatalogNames, connectionId={}", connectionId, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to list catalogs for connectionId=" + connectionId + ": " + e.getMessage()
+                    + ". Verify the connectionId by calling getConnections.");
         }
     }
 
@@ -117,7 +118,8 @@ public class DatabaseObjectTool {
             return AgentToolResult.success(result);
         } catch (Exception e) {
             log.error("[Tool error] getObjectNames, objectType={}", objectType, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to list " + objectType + " names for connectionId=" + connectionId
+                    + ", database='" + databaseName + "', schema='" + schemaName + "': " + e.getMessage());
         }
     }
 
@@ -149,7 +151,9 @@ public class DatabaseObjectTool {
             return AgentToolResult.success(count);
         } catch (Exception e) {
             log.error("[Tool error] countObjectRows, objectType={}, objectName={}", objectType, objectName, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to count rows for " + objectType + " '" + objectName
+                    + "' in connectionId=" + connectionId + ", database='" + databaseName + "', schema='" + schemaName
+                    + "': " + e.getMessage());
         }
     }
 
@@ -185,7 +189,9 @@ public class DatabaseObjectTool {
             return AgentToolResult.success(ddl);
         } catch (Exception e) {
             log.error("[Tool error] getObjectDdl, objectType={}, objectName={}", objectType, objectName, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to get DDL for " + objectType + " '" + objectName
+                    + "' in connectionId=" + connectionId + ", database='" + databaseName + "', schema='" + schemaName
+                    + "': " + e.getMessage() + ". Verify the object exists by calling getObjectNames.");
         }
     }
 
@@ -216,8 +222,10 @@ public class DatabaseObjectTool {
             log.info("[Tool done] getIndexes, result size={}", indexes.size());
             return AgentToolResult.success(indexes);
         } catch (Exception e) {
-            log.error("[Tool error] getIndexes", e);
-            return AgentToolResult.fail(e);
+            log.error("[Tool error] getIndexes, tableName={}, connectionId={}", tableName, connectionId, e);
+            return AgentToolResult.fail("Failed to get indexes for table '" + tableName
+                    + "' in connectionId=" + connectionId + ", database='" + databaseName + "', schema='" + schemaName
+                    + "': " + e.getMessage() + ". Verify the table exists by calling getObjectNames.");
         }
     }
 

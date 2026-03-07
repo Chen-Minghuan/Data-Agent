@@ -20,8 +20,8 @@ public final class AgentModeGuard {
         String mode = parameters.get(RequestContextConstant.AGENT_MODE);
         if (AgentModeEnum.PLAN.getCode().equalsIgnoreCase(mode)) {
             throw new IllegalStateException(
-                    toolName + " is not available in Plan mode. "
-                            + "Include the SQL in your plan via exitPlanMode instead.");
+                    toolName + " is disabled in Plan mode — execution tools cannot run during planning. "
+                            + "Include your SQL in the plan steps and call exitPlanMode to present the plan to the user.");
         }
     }
 }

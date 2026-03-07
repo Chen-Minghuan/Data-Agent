@@ -43,7 +43,7 @@ public class ConnectionTool {
             return AgentToolResult.success(AgentConnectionView.fromList(connections));
         } catch (Exception e) {
             log.error("{} getConnections", "[Tool error]", e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to list connections: " + e.getMessage());
         }
     }
 
@@ -66,7 +66,8 @@ public class ConnectionTool {
             return AgentToolResult.success(AgentConnectionView.from(connection));
         } catch (Exception e) {
             log.error("[Tool error] getConnectionById, connectionId={}", connectionId, e);
-            return AgentToolResult.fail(e);
+            return AgentToolResult.fail("Failed to get connection with connectionId=" + connectionId + ": " + e.getMessage()
+                    + ". Verify the connectionId by calling getConnections.");
         }
     }
 }
