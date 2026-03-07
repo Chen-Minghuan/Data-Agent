@@ -11,6 +11,9 @@ import edu.zsc.ai.agent.tool.model.AgentSqlResult;
 import edu.zsc.ai.domain.model.dto.request.db.AgentExecuteSqlRequest;
 import edu.zsc.ai.domain.model.dto.response.db.ExecuteSqlResponse;
 import edu.zsc.ai.domain.service.db.SqlExecutionService;
+import edu.zsc.ai.domain.service.db.impl.ConnectionManager;
+import edu.zsc.ai.plugin.capability.SqlValidator;
+import edu.zsc.ai.plugin.manager.DefaultPluginManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,7 +44,7 @@ public class ExecuteSqlTool {
                 sql != null ? sql.length() : 0);
         try {
             AgentModeGuard.assertNotPlanMode(parameters, "executeSelectSql");
-            if (!isReadOnlySql(sql)) {
+            if (!isReadOnlySql(sql, connectionId)) {
                 return AgentSqlResult.fail("Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed.");
             }
             Long userId = parameters.get(RequestContextConstant.USER_ID);
@@ -113,13 +116,13 @@ public class ExecuteSqlTool {
         }
     }
 
-    private boolean isReadOnlySql(String sql) {
+    private boolean isReadOnlySql(String sql, Long connectionId) {
         if (sql == null || sql.isBlank()) return false;
-        String stripped = sql.stripLeading().replaceAll("(?s)/\\*.*?\\*/", "").stripLeading();
-        String firstWord = stripped.split("\\s+")[0].toUpperCase();
-        return switch (firstWord) {
-            case "SELECT", "WITH", "SHOW", "EXPLAIN" -> true;
-            default -> false;
-        };
+        String pluginId = ConnectionManager.getAnyActiveConnection(connectionId)
+                .map(ConnectionManager.ActiveConnection::pluginId)
+                .orElse(null);
+        SqlValidator validator = DefaultPluginManager.getInstance()
+                .getSqlValidatorByPluginId(pluginId != null ? pluginId : "");
+        return validator.classifySql(sql).isReadOnly();
     }
 }
