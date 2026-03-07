@@ -14,6 +14,8 @@ interface DataViewActionsProps {
   setTableDataDialogOpen: (open: boolean) => void;
   setSelectedTableDataNode: (node: ExplorerNode | null) => void;
   setHighlightColumn: (col: string | undefined) => void;
+  setCreateTableDialogOpen: (open: boolean) => void;
+  setSelectedCreateTableNode: (node: ExplorerNode | null) => void;
   openTab: (tab: any) => void;
   selectedDdlNode: ExplorerNode | null;
 }
@@ -24,6 +26,8 @@ export function useDataViewActions({
   setTableDataDialogOpen,
   setSelectedTableDataNode,
   setHighlightColumn,
+  setCreateTableDialogOpen,
+  setSelectedCreateTableNode,
   openTab,
   selectedDdlNode,
 }: DataViewActionsProps) {
@@ -182,5 +186,10 @@ export function useDataViewActions({
     }
   }, [t, selectedDdlNode]);
 
-  return { handleViewDdl, handleViewData, handleOpenQueryConsole, getDdlConfig };
+  const handleCreateTable = useCallback((node: ExplorerNode) => {
+    setSelectedCreateTableNode(node);
+    setCreateTableDialogOpen(true);
+  }, [setSelectedCreateTableNode, setCreateTableDialogOpen]);
+
+  return { handleViewDdl, handleViewData, handleOpenQueryConsole, handleCreateTable, getDdlConfig };
 }

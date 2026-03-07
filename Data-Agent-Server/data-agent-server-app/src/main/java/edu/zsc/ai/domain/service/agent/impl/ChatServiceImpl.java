@@ -7,6 +7,7 @@ import edu.zsc.ai.agent.ReActAgent;
 import edu.zsc.ai.agent.ReActAgentProvider;
 import edu.zsc.ai.agent.memory.MemoryUtil;
 import edu.zsc.ai.common.constant.ChatErrorConstants;
+import edu.zsc.ai.common.enums.ai.AgentModeEnum;
 import edu.zsc.ai.common.enums.ai.ModelEnum;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
@@ -66,7 +67,13 @@ public class ChatServiceImpl implements ChatService {
     public Flux<ChatResponseBlock> chat(ChatRequest request) {
         String modelName = validateAndResolveModel(request.getModel());
 
-        ReActAgent agent = reActAgentProvider.getAgent(modelName, request.getLanguage());
+        AgentModeEnum agentMode = AgentModeEnum.fromRequest(request.getAgentType());
+        // Set agentMode in RequestContext so it flows into InvocationParameters
+        if (RequestContext.hasContext()) {
+            RequestContext.get().setAgentMode(agentMode.getCode());
+        }
+
+        ReActAgent agent = reActAgentProvider.getAgent(modelName, request.getLanguage(), agentMode.getCode());
 
         if (request.getConversationId() == null) {
             Long userId = RequestContext.getUserId();

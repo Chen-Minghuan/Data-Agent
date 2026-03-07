@@ -10,8 +10,8 @@ import java.util.Locale;
 @Getter
 public enum PromptLanguageEnum {
 
-    EN("en", "prompt/system_en.xml"),
-    ZH("zh", "prompt/system_zh.xml");
+    EN("en", "prompt/system_agent_en.xml"),
+    ZH("zh", "prompt/system_agent_zh.xml");
 
     private final String code;
     private final String systemPromptResource;
@@ -19,6 +19,18 @@ public enum PromptLanguageEnum {
     PromptLanguageEnum(String code, String systemPromptResource) {
         this.code = code;
         this.systemPromptResource = systemPromptResource;
+    }
+
+    /**
+     * Get the system prompt resource path for the given agent mode.
+     * AGENT mode uses the default resource; PLAN mode uses the plan-specific resource.
+     */
+    public String getSystemPromptResource(AgentModeEnum mode) {
+        if (mode == AgentModeEnum.PLAN) {
+            // prompt/system_agent_en.xml → prompt/system_plan_en.xml
+            return systemPromptResource.replace("system_agent_", "system_plan_");
+        }
+        return systemPromptResource;
     }
 
     /**

@@ -1,9 +1,15 @@
+import { useTranslation } from 'react-i18next';
 import { ConnectionFormModal, type ConnectionFormMode } from '../common/ConnectionFormModal';
 import { DriverManageModal } from '../common/DriverManageModal';
 import { DeleteConnectionDialog } from './DeleteConnectionDialog';
 import { DeleteEntityDialog } from './DeleteEntityDialog';
 import { DdlViewerDialog } from './DdlViewerDialog';
+import { TableDataDialog } from './TableDataDialog';
+import { CreateTableDialog } from './CreateTableDialog';
 import { ExplorerNodeType } from '../../constants/explorer';
+import { I18N_KEYS } from '../../constants/i18nKeys';
+import type { ExplorerNode } from '../../types/explorer';
+import type { DbConnection } from '../../types/connection';
 
 interface ExplorerDialogsProps {
   // Connection modal
@@ -29,10 +35,24 @@ interface ExplorerDialogsProps {
   onDdlDialogOpenChange: (open: boolean) => void;
   ddlConfig: any;
 
+  // Table data viewer
+  tableDataDialogOpen: boolean;
+  onTableDataDialogOpenChange: (open: boolean) => void;
+  selectedTableDataNode: ExplorerNode | null;
+  highlightColumn: string | undefined;
+
   // Entity delete dialog
   deleteState: any;
   onDeleteStateChange: (state: any) => void;
   onConfirmDelete: () => void;
+
+  // Create table dialog
+  createTableDialogOpen: boolean;
+  onCreateTableDialogOpenChange: (open: boolean) => void;
+  setSelectedCreateTableNode: (node: ExplorerNode | null) => void;
+  selectedCreateTableNode: ExplorerNode | null;
+  connections?: DbConnection[];
+  onCreateTableSuccess?: (node: ExplorerNode) => void;
 
   // Callbacks
   onConnectionSuccess: () => void;
@@ -58,12 +78,26 @@ export function ExplorerDialogs({
   onDdlDialogOpenChange,
   ddlConfig,
 
+  tableDataDialogOpen,
+  onTableDataDialogOpenChange,
+  selectedTableDataNode,
+  highlightColumn,
+
   deleteState,
   onDeleteStateChange,
   onConfirmDelete,
 
+  createTableDialogOpen,
+  onCreateTableDialogOpenChange,
+  setSelectedCreateTableNode,
+  selectedCreateTableNode,
+  connections,
+  onCreateTableSuccess,
+
   onConnectionSuccess,
 }: ExplorerDialogsProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <ConnectionFormModal
@@ -105,6 +139,39 @@ export function ExplorerDialogs({
           title={ddlConfig.title}
           displayName={ddlConfig.displayName}
           loadDdl={ddlConfig.loadDdl}
+        />
+      )}
+
+      {selectedTableDataNode && (
+        <TableDataDialog
+          open={tableDataDialogOpen}
+          onOpenChange={(open) => {
+            onTableDataDialogOpenChange(open);
+            if (!open) {
+              onDeleteStateChange({ ...deleteState, selectedTableDataNode: null, highlightColumn: undefined });
+            }
+          }}
+          title={selectedTableDataNode.type === ExplorerNodeType.TABLE ? t(I18N_KEYS.EXPLORER.TABLE_DATA) : t(I18N_KEYS.EXPLORER.VIEW_DATA_TITLE)}
+          displayName={[selectedTableDataNode.catalog, selectedTableDataNode.schema, selectedTableDataNode.tableName || selectedTableDataNode.name].filter(Boolean).join('.')}
+          connectionId={Number(selectedTableDataNode.connectionId!)}
+          objectName={selectedTableDataNode.tableName || selectedTableDataNode.objectName || selectedTableDataNode.name}
+          objectType={selectedTableDataNode.type === ExplorerNodeType.TABLE ? 'table' : selectedTableDataNode.type === ExplorerNodeType.VIEW ? 'view' : 'table'}
+          catalog={selectedTableDataNode.catalog}
+          schema={selectedTableDataNode.schema}
+          highlightColumn={highlightColumn}
+        />
+      )}
+
+      {selectedCreateTableNode && (
+        <CreateTableDialog
+          open={createTableDialogOpen}
+          onOpenChange={(open) => {
+            onCreateTableDialogOpenChange(open);
+            if (!open) setSelectedCreateTableNode(null);
+          }}
+          node={selectedCreateTableNode}
+          connections={connections}
+          onSuccess={onCreateTableSuccess}
         />
       )}
 

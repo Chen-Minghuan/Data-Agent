@@ -13,4 +13,5 @@ public final class RequestContextConstant {
     public static final String CONNECTION_ID = "connectionId";
     public static final String DATABASE_NAME = "databaseName";
     public static final String SCHEMA_NAME = "schemaName";
+    public static final String AGENT_MODE = "agentMode";
 }

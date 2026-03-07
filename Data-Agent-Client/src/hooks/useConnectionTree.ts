@@ -198,6 +198,86 @@ export function useConnectionTree() {
     }
   };
 
+  function findNodeById(list: ExplorerNode[], targetId: string): ExplorerNode | null {
+    for (const n of list) {
+      if (n.id === targetId) return n;
+      if (n.children?.length) {
+        const found = findNodeById(n.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  const refreshNodeById = async (nodeId: string) => {
+    const node = findNodeById(treeDataState, nodeId);
+    if (!node) return;
+    const connId = node.connectionId ?? (node.dbConnection ? String(node.dbConnection.id) : undefined);
+    if (!connId) return;
+
+    try {
+      if (node.type === ExplorerNodeType.DB) {
+        const dbName = node.name;
+        const typeOption = supportedDbTypes.find((opt) => opt.code === node.dbConnection?.dbType);
+        const supportSchema = typeOption?.supportSchema ?? false;
+        if (supportSchema) {
+          const schemas = await schemaService.listSchemas(connId, dbName);
+          const childrenNodes: ExplorerNode[] = schemas.map((schemaName) => ({
+            id: `${node.id}${ExplorerIdPrefix.SCHEMA}${schemaName}`,
+            name: schemaName,
+            type: ExplorerNodeType.SCHEMA,
+            connectionId: connId,
+            dbConnection: node.dbConnection,
+            catalog: dbName,
+            schema: schemaName,
+            children: [],
+          }));
+          updateNodeChildren(node.id, childrenNodes);
+        } else {
+          const folders = await loadDbSchemaFolders({
+            connId,
+            parentId: node.id,
+            catalog: dbName,
+            schema: undefined,
+            t,
+          });
+          updateNodeChildren(node.id, folders);
+        }
+      } else if (node.type === ExplorerNodeType.SCHEMA) {
+        const dbName = node.catalog ?? '';
+        const schemaName = node.name;
+        const folders = await loadDbSchemaFolders({
+          connId,
+          parentId: node.id,
+          catalog: dbName,
+          schema: schemaName,
+          t,
+        });
+        updateNodeChildren(node.id, folders);
+      } else if (node.type === ExplorerNodeType.FOLDER && node.folderName) {
+        const catalog = node.catalog ?? '';
+        const schema = node.schema;
+        const folderName = node.folderName;
+        const children = await loadFolderContents(
+          {
+            connId,
+            parentId: node.id,
+            catalog,
+            schema,
+            folderId: node.id,
+            tableName: node.tableName,
+            t,
+          },
+          folderName
+        );
+        updateNodeChildren(node.id, toChildrenOrEmpty(children, node.id, t));
+      }
+    } catch (err) {
+      console.error('Failed to refresh node:', err);
+      toast.error(t('explorer.load_failed'));
+    }
+  };
+
   const handleDisconnect = (node: NodeApi<ExplorerNode>) => {
     if (!node.data.connectionId) return;
     const connId = Number(node.data.connectionId);
@@ -219,6 +299,7 @@ export function useConnectionTree() {
     treeDataState,
     setTreeDataState,
     loadNodeData,
+    refreshNodeById,
     handleDisconnect,
     isConnectionsLoading,
     refetchConnections,

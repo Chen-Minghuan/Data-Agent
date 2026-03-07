@@ -33,6 +33,7 @@ export interface ExplorerTreeNodeProps {
   onViewData: (node: ExplorerNode, highlightColumn?: string) => void;
   onDelete: (node: ExplorerNode, type: ExplorerNodeType) => void;
   onOpenQueryConsole: (node: ExplorerNode) => void;
+  onCreateTable: (node: ExplorerNode) => void;
 }
 
 export function ExplorerTreeNode({
@@ -48,6 +49,7 @@ export function ExplorerTreeNode({
   onViewData,
   onDelete,
   onOpenQueryConsole,
+  onCreateTable,
 }: ExplorerTreeNodeProps) {
   const { t } = useTranslation();
   const isConnected = !!node.data.connectionId;
@@ -202,6 +204,7 @@ export function ExplorerTreeNode({
           node={node.data}
           isConnected={isConnected}
           onOpenQueryConsole={onOpenQueryConsole}
+          onCreateTable={onCreateTable}
           onViewDdl={onViewDdl}
           onViewData={onViewData}
           onDelete={onDelete}

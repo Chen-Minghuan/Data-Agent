@@ -4,10 +4,11 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.model.AgentConnectionView;
+import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.domain.model.dto.response.db.ConnectionResponse;
 import edu.zsc.ai.domain.service.db.DbConnectionService;
-import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,10 +23,9 @@ public class ConnectionTool {
     private final DbConnectionService dbConnectionService;
 
     @Tool({
-        "[GOAL] Start source resolution by discovering which connections the user can operate on.",
-        "[PRECHECK] Call this before assuming any connection when current context is missing or ambiguous.",
+        "[GOAL] Discover which database connections the user can operate on.",
         "[WHEN] Use when connectionId is unknown, multiple data sources may match, or user asks to switch source.",
-        "[AFTER] Use result to narrow candidate sources, then continue with getCatalogNames/searchObjects."
+        "[WHEN_NOT] Do not call if connectionId is already known from session context. Do not use to list databases — use getCatalogNames."
     })
     public AgentToolResult getConnections(InvocationParameters parameters) {
         log.info("{} getConnections", "[Tool]");
@@ -40,7 +40,7 @@ public class ConnectionTool {
                 return AgentToolResult.empty();
             }
             log.info("{} getConnections, result size={}", "[Tool done]", connections.size());
-            return AgentToolResult.success(connections);
+            return AgentToolResult.success(AgentConnectionView.fromList(connections));
         } catch (Exception e) {
             log.error("{} getConnections", "[Tool error]", e);
             return AgentToolResult.fail(e);
@@ -48,10 +48,9 @@ public class ConnectionTool {
     }
 
     @Tool({
-        "[GOAL] Inspect one selected connection in detail to validate target source context.",
-        "[PRECHECK] connectionId should come from session context or getConnections.",
-        "[WHEN] Use when host/port/default-database details are needed for planning or disambiguation.",
-        "[AFTER] If multiple candidates remain, askUserQuestion before proceeding to SQL."
+        "[GOAL] Get detailed info about a specific connection (host, port, default database).",
+        "[WHEN] Use when connection details are needed for planning or disambiguation.",
+        "[WHEN_NOT] Do not use to list all connections — use getConnections. Do not use to list databases — use getCatalogNames."
     })
     public AgentToolResult getConnectionById(
             @P("The connection id (from session context or getConnections result)") Long connectionId,
@@ -64,7 +63,7 @@ public class ConnectionTool {
             }
             ConnectionResponse connection = dbConnectionService.getConnectionById(connectionId, userId);
             log.info("[Tool done] getConnectionById, connectionId={}", connectionId);
-            return AgentToolResult.success(connection);
+            return AgentToolResult.success(AgentConnectionView.from(connection));
         } catch (Exception e) {
             log.error("[Tool error] getConnectionById, connectionId={}", connectionId, e);
             return AgentToolResult.fail(e);

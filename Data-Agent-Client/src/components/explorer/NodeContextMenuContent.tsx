@@ -1,9 +1,12 @@
-import { FileText, Table, Trash2 } from 'lucide-react';
+import { FileText, Plus, Table, Table2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from '../ui/ContextMenu';
 import { ExplorerNodeType } from '../../constants/explorer';
 import type { ExplorerNode } from '../../types/explorer';
@@ -13,6 +16,7 @@ interface NodeContextMenuContentProps {
   node: ExplorerNode;
   isConnected: boolean;
   onOpenQueryConsole: (node: ExplorerNode) => void;
+  onCreateTable: (node: ExplorerNode) => void;
   onViewDdl: (node: ExplorerNode) => void;
   onViewData: (node: ExplorerNode, highlightColumn?: string) => void;
   onDelete: (node: ExplorerNode, type: ExplorerNodeType) => void;
@@ -22,6 +26,7 @@ export function NodeContextMenuContent({
   node,
   isConnected,
   onOpenQueryConsole,
+  onCreateTable,
   onViewDdl,
   onViewData,
   onDelete,
@@ -50,6 +55,11 @@ export function NodeContextMenuContent({
     node.folderName &&
     ['tables', 'views', 'routines', 'triggers'].includes(node.folderName);
 
+  const isTablesFolder =
+    node.type === ExplorerNodeType.FOLDER && node.folderName === 'tables';
+
+  const canCreateTable = isConnected && (isDb || isTablesFolder);
+
   // Extract column name from key/index name (format: "name (col1, col2)" or just "name")
   const extractColumnName = (nodeName: string): string | undefined => {
     const match = nodeName.match(/\(([^)]+)\)/);
@@ -65,13 +75,27 @@ export function NodeContextMenuContent({
 
   return (
     <ContextMenuContent>
-      {/* 1. Open Query Console - available for all connected nodes */}
+      {/* 1. 新建 (Create New) submenu - available for all connected nodes */}
       {isConnected && node.type !== ExplorerNodeType.EMPTY && (
         <>
-          <ContextMenuItem onSelect={() => onOpenQueryConsole(node)}>
-            <FileText className="w-3.5 h-3.5 mr-2" />
-            {t(I18N_KEYS.EXPLORER.OPEN_QUERY_CONSOLE)}
-          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <Plus className="w-3.5 h-3.5 mr-2" />
+              {t(I18N_KEYS.EXPLORER.CREATE_NEW)}
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem onSelect={() => onOpenQueryConsole(node)}>
+                <FileText className="w-3.5 h-3.5 mr-2" />
+                {t(I18N_KEYS.EXPLORER.OPEN_QUERY_CONSOLE)}
+              </ContextMenuItem>
+              {canCreateTable && (
+                <ContextMenuItem onSelect={() => onCreateTable(node)}>
+                  <Table2 className="w-3.5 h-3.5 mr-2" />
+                  {t(I18N_KEYS.EXPLORER.CREATE_TABLE)}
+                </ContextMenuItem>
+              )}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
           <ContextMenuSeparator />
         </>
       )}

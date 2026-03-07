@@ -1,5 +1,15 @@
 import http from '../lib/http';
 import { ApiPaths } from '../constants/apiPaths';
+import { sqlExecutionService } from './sqlExecution.service';
+import type { ExecuteSqlResponse } from '../types/sql';
+
+export interface CreateTableParams {
+  connectionId: number;
+  databaseName?: string | null;
+  schemaName?: string | null;
+  /** CREATE TABLE DDL SQL */
+  sql: string;
+}
 
 export const tableService = {
   listTables: async (connectionId: string, catalog?: string, schema?: string): Promise<string[]> => {
@@ -26,6 +36,19 @@ export const tableService = {
 
     const response = await http.get<string>(ApiPaths.TABLES_DDL, { params });
     return response.data;
+  },
+
+  /**
+   * Create table by executing CREATE TABLE DDL.
+   * Uses POST /api/db/sql/execute.
+   */
+  createTable: async (params: CreateTableParams): Promise<ExecuteSqlResponse> => {
+    return sqlExecutionService.executeSql({
+      connectionId: params.connectionId,
+      databaseName: params.databaseName ?? undefined,
+      schemaName: params.schemaName ?? undefined,
+      sql: params.sql,
+    });
   },
 
   deleteTable: async (

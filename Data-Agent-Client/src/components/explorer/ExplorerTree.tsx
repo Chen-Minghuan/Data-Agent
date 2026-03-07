@@ -17,6 +17,7 @@ interface ExplorerTreeProps {
   onViewData: (node: ExplorerNode, highlightColumn?: string) => void;
   onDelete: (node: ExplorerNode, type: ExplorerNodeType) => void;
   onOpenQueryConsole: (node: ExplorerNode) => void;
+  onCreateTable: (node: ExplorerNode) => void;
 }
 
 export function ExplorerTree({
@@ -31,6 +32,7 @@ export function ExplorerTree({
   onViewData,
   onDelete,
   onOpenQueryConsole,
+  onCreateTable,
 }: ExplorerTreeProps) {
   const { t } = useTranslation();
 
@@ -51,6 +53,7 @@ export function ExplorerTree({
         onViewData={onViewData}
         onDelete={onDelete}
         onOpenQueryConsole={onOpenQueryConsole}
+        onCreateTable={onCreateTable}
       />
     );
   };

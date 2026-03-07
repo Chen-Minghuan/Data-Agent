@@ -94,33 +94,12 @@ export function AskUserQuestionCard({ askUserPayload, submittedAnswer }: AskUser
 
         formattedAnswer += t(I18N_KEYS.AI.ASK_USER_QUESTION.CONTINUE_SUFFIX);
 
-        // Append original questions context to remind the AI what it asked
-        if (questions.length === 1) {
-            formattedAnswer += `\n\n${t(I18N_KEYS.AI.ASK_USER_QUESTION.ORIGINAL_QUESTION_PREFIX)}\n> ${questions[0].question}`;
-        } else {
-            formattedAnswer += `\n\n${t(I18N_KEYS.AI.ASK_USER_QUESTION.ORIGINAL_QUESTION_PREFIX)}\n`;
-            questions.forEach(q => {
-                formattedAnswer += `> - ${q.question}\n`;
-            });
-        }
-
         submitMessage(formattedAnswer);
         setIsSubmitted(true);
     };
 
     const handleReject = () => {
-        let msg = t(I18N_KEYS.AI.ASK_USER_QUESTION.REJECT_MESSAGE);
-
-        // Append original questions context to remind the AI what it asked
-        if (questions.length === 1) {
-            msg += `\n\n${t(I18N_KEYS.AI.ASK_USER_QUESTION.ORIGINAL_QUESTION_PREFIX)}\n> ${questions[0].question}`;
-        } else {
-            msg += `\n\n${t(I18N_KEYS.AI.ASK_USER_QUESTION.ORIGINAL_QUESTION_PREFIX)}\n`;
-            questions.forEach(q => {
-                msg += `> - ${q.question}\n`;
-            });
-        }
-
+        const msg = t(I18N_KEYS.AI.ASK_USER_QUESTION.REJECT_MESSAGE);
         submitMessage(msg);
         setIsSubmitted(true);
     };

@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,6 +18,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StreamUtils;
 
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ask.AskUserConfirmTool;
+import edu.zsc.ai.agent.tool.chart.ChartTool;
+import edu.zsc.ai.agent.tool.sql.ExecuteSqlTool;
 
 import dev.langchain4j.community.model.dashscope.QwenChatRequestParameters;
 import dev.langchain4j.community.model.dashscope.QwenStreamingChatModel;
@@ -25,6 +29,7 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import edu.zsc.ai.agent.ReActAgent;
 import edu.zsc.ai.agent.ReActAgentProvider;
+import edu.zsc.ai.common.enums.ai.AgentModeEnum;
 import edu.zsc.ai.common.enums.ai.ModelEnum;
 import edu.zsc.ai.common.enums.ai.PromptLanguageEnum;
 import lombok.RequiredArgsConstructor;
@@ -41,12 +46,10 @@ import lombok.extern.slf4j.Slf4j;
 public class MultiModelAgentConfig {
 
     /**
-     * Static prompt cache: loaded once at class initialization, then reused by all agent beans.
+     * Static prompt cache: keyed by "language::mode" (e.g. "en::agent", "zh::plan").
+     * Loaded once at class initialization, then reused by all agent beans.
      */
-    private static final Map<PromptLanguageEnum, String> SYSTEM_PROMPTS = Map.of(
-            PromptLanguageEnum.EN, loadSystemPrompt(PromptLanguageEnum.EN.getSystemPromptResource()),
-            PromptLanguageEnum.ZH, loadSystemPrompt(PromptLanguageEnum.ZH.getSystemPromptResource())
-    );
+    private static final Map<String, String> SYSTEM_PROMPTS = buildPromptCache();
 
     private final QwenProperties qwenProperties;
 
@@ -95,15 +98,30 @@ public class MultiModelAgentConfig {
                 .build();
     }
 
+    /**
+     * Tool classes completely disabled in Plan mode — not registered in the agent's tool list.
+     */
+    private static final Set<Class<?>> PLAN_MODE_DISABLED_TOOL_CLASSES = Set.of(
+            ExecuteSqlTool.class,
+            ChartTool.class,
+            AskUserConfirmTool.class
+    );
+
     private ReActAgent buildAgent(StreamingChatModel streamingChatModel,
                                   ChatMemoryProvider chatMemoryProvider,
                                   List<Object> agentTools,
+                                  AgentModeEnum mode,
                                   String systemPrompt) {
+        List<Object> tools = mode == AgentModeEnum.PLAN
+                ? agentTools.stream()
+                    .filter(tool -> !PLAN_MODE_DISABLED_TOOL_CLASSES.contains(tool.getClass()))
+                    .toList()
+                : agentTools;
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(streamingChatModel)
                 .systemMessage(systemPrompt)
                 .chatMemoryProvider(chatMemoryProvider)
-                .tools(agentTools)
+                .tools(tools)
                 .build();
     }
 
@@ -122,23 +140,39 @@ public class MultiModelAgentConfig {
         );
         Map<String, ReActAgent> dynamicAgentCache = new ConcurrentHashMap<>();
 
-        return (modelName, language) -> {
+        return (modelName, language, agentMode) -> {
             PromptLanguageEnum promptLanguage = PromptLanguageEnum.fromRequestLanguage(language);
+            AgentModeEnum mode = AgentModeEnum.fromRequest(agentMode);
             StreamingChatModel model = modelsByName.get(modelName);
             if (model == null) {
                 throw new IllegalArgumentException(
                         "No StreamingChatModel configured for model=" + modelName + ", language=" + promptLanguage.getCode());
             }
-            String cacheKey = modelName + "::" + promptLanguage.getCode();
+            String cacheKey = modelName + "::" + promptLanguage.getCode() + "::" + mode.getCode();
             return dynamicAgentCache.computeIfAbsent(cacheKey, key -> {
-                log.info("Create ReActAgent dynamically: model={}, language={}", modelName, promptLanguage.getCode());
-                return buildAgent(model, chatMemoryProvider, agentTools, systemPrompt(promptLanguage));
+                log.info("Create ReActAgent dynamically: model={}, language={}, mode={}", modelName, promptLanguage.getCode(), mode.getCode());
+                return buildAgent(model, chatMemoryProvider, agentTools, mode, systemPrompt(promptLanguage, mode));
             });
         };
     }
 
-    private static String systemPrompt(PromptLanguageEnum language) {
-        return SYSTEM_PROMPTS.get(language);
+    private static String systemPrompt(PromptLanguageEnum language, AgentModeEnum mode) {
+        return SYSTEM_PROMPTS.get(promptCacheKey(language, mode));
+    }
+
+    private static String promptCacheKey(PromptLanguageEnum language, AgentModeEnum mode) {
+        return language.getCode() + "::" + mode.getCode();
+    }
+
+    private static Map<String, String> buildPromptCache() {
+        Map<String, String> cache = new ConcurrentHashMap<>();
+        for (PromptLanguageEnum lang : PromptLanguageEnum.values()) {
+            for (AgentModeEnum mode : AgentModeEnum.values()) {
+                String resource = lang.getSystemPromptResource(mode);
+                cache.put(promptCacheKey(lang, mode), loadSystemPrompt(resource));
+            }
+        }
+        return cache;
     }
 
     private static String loadSystemPrompt(String resourcePath) {

@@ -56,10 +56,8 @@ export function MemoryCandidateDock({ conversationId, refreshKey }: MemoryCandid
   }, [loadCandidates, refreshKey]);
 
   useEffect(() => {
-    // Keep the dock collapsed when there is no candidate, and only auto-expand
-    // when candidates appear from an empty state.
+    // Auto-expand when candidates appear from an empty state.
     if (!hasCandidates) {
-      setExpanded(false);
       hadCandidatesRef.current = false;
       return;
     }
@@ -124,7 +122,7 @@ export function MemoryCandidateDock({ conversationId, refreshKey }: MemoryCandid
     }
   };
 
-  if (!conversationId) return null;
+  if (!conversationId || (!loading && !hasCandidates)) return null;
 
   return (
     <div className="shrink-0 border-t theme-border theme-bg-panel">

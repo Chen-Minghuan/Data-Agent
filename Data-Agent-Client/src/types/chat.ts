@@ -10,6 +10,8 @@ export interface ChatRequest {
   model?: string;
   /** Prompt language for backend system prompt routing (e.g. en, zh). */
   language?: string;
+  /** Agent mode: "Agent" or "Plan". */
+  agentType?: string;
   conversationId?: number;
   connectionId?: number;
   databaseName?: string;
@@ -87,8 +89,9 @@ export interface UseChatReturn {
   setInput: (value: string) => void;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
-  /** Send a specific message (e.g. from queue) without using input state. */
-  submitMessage: (message: string) => Promise<void>;
+  /** Send a specific message (e.g. from queue) without using input state.
+   *  Optional bodyOverrides lets callers override body fields (e.g. agentType) for this request only. */
+  submitMessage: (message: string, bodyOverrides?: Partial<ChatRequest>) => Promise<void>;
   isLoading: boolean;
   /** True when loading and no block received recently — used to show Planning indicator. */
   isWaiting: boolean;

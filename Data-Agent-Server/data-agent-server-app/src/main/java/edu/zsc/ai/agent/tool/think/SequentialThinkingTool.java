@@ -4,143 +4,100 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.tool.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
+import edu.zsc.ai.agent.tool.think.model.input.ThinkingRequest;
+import edu.zsc.ai.agent.tool.think.model.output.ThinkingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.LinkedHashMap;
-import java.util.Locale;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @AgentTool
 @Slf4j
 public class SequentialThinkingTool {
 
+    private static final Pattern RISK_PATTERN = Pattern.compile(
+            "(?i)(risk|danger|caution|warning|careful|unsafe|sensitive|pii|large table|no index|missing|ambiguous|conflict)",
+            Pattern.CASE_INSENSITIVE);
+
     @Tool({
-            "[GOAL] Provide a stateless reasoning checkpoint to choose the safest next action in complex workflows.",
-            "[PRECHECK] Prefer this by default before first SQL, because seemingly simple requests may hide source/scope/filter ambiguity.",
-            "[WHEN] Call before major branch decisions: askUserQuestion vs exploration vs SQL vs askUserConfirm.",
-            "[WRITE-SAFETY] For write paths, run this with phase=SAFETY before askUserConfirm.",
-            "[BYPASS] Skip only for truly trivial read tasks where source is unique/resolved, schema is known, filters are explicit, and no write risk exists.",
-            "[HOW] Pass current thought + progress flags. Tool validates structure and returns recommended next action.",
-            "[BOUNDARY] Stateless only: no server-side history is persisted."
+            "[GOAL] Structure your reasoning before acting. Helps prevent hallucination and missed risks.",
+            "[WHEN] Call at the start of each new request, or when encountering ambiguity/write operations.",
+            "[WHEN_NOT] Do not call for follow-up questions in an already-analyzed conversation. Do not call multiple times in a row without acting between calls.",
+            "[INPUT] goal=what you want to achieve; analysis=your reasoning about state, gaps, risks, and plan; isWrite=true for INSERT/UPDATE/DELETE/DDL."
     })
     public AgentToolResult sequentialThinking(
-            @P("Current thought content for this step") String thought,
-            @P("Whether another thought step is needed") Boolean nextThoughtNeeded,
-            @P("Current thought number, starting from 1") Integer thoughtNumber,
-            @P("Estimated total thoughts needed, can be adjusted dynamically") Integer totalThoughts,
-            @P(value = "Optional phase: INTENT/SOURCE/SCHEMA/SQL/SAFETY/EXECUTION/RESPONSE", required = false)
-            String phase,
-            @P(value = "Whether data source is already resolved (connection/database/schema)", required = false)
-            Boolean sourceResolved,
-            @P(value = "Whether this plan includes a write SQL operation", required = false)
-            Boolean writeOperation,
-            @P(value = "Whether user clarification is still needed", required = false)
-            Boolean needUserQuestion) {
-        log.info("[Tool] sequentialThinking, thoughtNumber={}, totalThoughts={}, phase={}",
-                thoughtNumber, totalThoughts, phase);
+            @P("Thinking request: goal + analysis + isWrite flag")
+            ThinkingRequest request) {
+        log.info("[Tool] sequentialThinking, goal={}, isWrite={}",
+                request != null ? request.getGoal() : null,
+                request != null && request.isWrite());
         try {
-            if (StringUtils.isBlank(thought)) {
-                throw new IllegalArgumentException("thought must not be blank");
-            }
-            if (nextThoughtNeeded == null) {
-                throw new IllegalArgumentException("nextThoughtNeeded must not be null");
-            }
-            int normalizedThoughtNumber = normalizePositive(thoughtNumber, "thoughtNumber");
-            int normalizedTotalThoughts = normalizePositive(totalThoughts, "totalThoughts");
-            if (normalizedThoughtNumber > normalizedTotalThoughts) {
-                normalizedTotalThoughts = normalizedThoughtNumber;
-            }
+            validate(request);
 
-            ThinkingPhase normalizedPhase = normalizePhase(phase);
-            boolean normalizedSourceResolved = Boolean.TRUE.equals(sourceResolved);
-            boolean normalizedWriteOperation = Boolean.TRUE.equals(writeOperation);
-            boolean normalizedNeedUserQuestion = Boolean.TRUE.equals(needUserQuestion);
+            ThinkingOutput output = new ThinkingOutput();
+            output.setSummary(buildSummary(request));
+            output.setNextAction(suggestNextAction(request));
+            output.setRisks(extractRisks(request));
 
-            String recommendedNextAction = recommendAction(
-                    normalizedPhase,
-                    normalizedSourceResolved,
-                    normalizedWriteOperation,
-                    normalizedNeedUserQuestion,
-                    nextThoughtNeeded
-            );
-
-            Map<String, Object> checklist = new LinkedHashMap<>();
-            checklist.put("sourceResolved", normalizedSourceResolved);
-            checklist.put("writeOperation", normalizedWriteOperation);
-            checklist.put("needUserQuestion", normalizedNeedUserQuestion);
-            checklist.put("writeSafetyGatePassed", !normalizedWriteOperation || ThinkingPhase.SAFETY.equals(normalizedPhase));
-
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("thoughtNumber", normalizedThoughtNumber);
-            result.put("totalThoughts", normalizedTotalThoughts);
-            result.put("nextThoughtNeeded", nextThoughtNeeded);
-            result.put("phase", normalizedPhase.name());
-            result.put("recommendedNextAction", recommendedNextAction);
-            result.put("checklist", checklist);
-            result.put("note", "Stateless step only. No history was stored.");
-
-            log.info("[Tool done] sequentialThinking, thoughtNumber={}, totalThoughts={}, action={}",
-                    normalizedThoughtNumber, normalizedTotalThoughts, recommendedNextAction);
-            return AgentToolResult.success(result);
+            return AgentToolResult.success(output);
         } catch (Exception e) {
             log.error("[Tool error] sequentialThinking", e);
             return AgentToolResult.fail(e);
         }
     }
 
-    private int normalizePositive(Integer value, String fieldName) {
-        if (value == null || value < 1) {
-            throw new IllegalArgumentException(fieldName + " must be >= 1");
+    private void validate(ThinkingRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("ThinkingRequest must not be null");
         }
-        return value;
-    }
-
-    private ThinkingPhase normalizePhase(String phase) {
-        if (StringUtils.isBlank(phase)) {
-            return ThinkingPhase.INTENT;
+        if (StringUtils.isBlank(request.getGoal())) {
+            throw new IllegalArgumentException("goal must not be blank");
         }
-        try {
-            return ThinkingPhase.valueOf(phase.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported phase: " + phase);
+        if (StringUtils.isBlank(request.getAnalysis())) {
+            throw new IllegalArgumentException("analysis must not be blank");
         }
     }
 
-    private String recommendAction(ThinkingPhase phase,
-                                   boolean sourceResolved,
-                                   boolean writeOperation,
-                                   boolean needUserQuestion,
-                                   boolean nextThoughtNeeded) {
-        if (!nextThoughtNeeded) {
-            return "respond";
+    private String buildSummary(ThinkingRequest request) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Goal: ").append(request.getGoal()).append("\n");
+        sb.append("Analysis: ").append(request.getAnalysis());
+        if (request.isWrite()) {
+            sb.append("\n[WRITE OPERATION] This task involves data modification. " +
+                    "Ensure askUserConfirm is called before executeNonSelectSql.");
         }
-        if (needUserQuestion) {
-            return "askUserQuestion";
-        }
-        if (!sourceResolved) {
-            return "getConnections -> getCatalogNames -> searchObjects";
-        }
-        if (writeOperation && !ThinkingPhase.SAFETY.equals(phase)) {
-            return "askUserConfirm";
-        }
-        return switch (phase) {
-            case SOURCE -> "searchObjects";
-            case SCHEMA -> "getObjectDdl";
-            case SQL, EXECUTION -> "executeSelectSql";
-            case SAFETY -> writeOperation ? "askUserConfirm" : "executeSelectSql";
-            case RESPONSE -> "respond";
-            default -> "continue-thinking";
-        };
+        return sb.toString();
     }
 
-    private enum ThinkingPhase {
-        INTENT,
-        SOURCE,
-        SCHEMA,
-        SQL,
-        SAFETY,
-        EXECUTION,
-        RESPONSE
+    private String suggestNextAction(ThinkingRequest request) {
+        if (request.isWrite()) {
+            return "Assess impact, then call askUserConfirm before executing write SQL.";
+        }
+        return "Proceed with exploration or SQL execution as planned.";
+    }
+
+    private List<String> extractRisks(ThinkingRequest request) {
+        List<String> risks = new ArrayList<>();
+        String analysis = request.getAnalysis().toLowerCase();
+
+        if (request.isWrite()) {
+            risks.add("Write operation detected — must call askUserConfirm before executeNonSelectSql.");
+        }
+
+        Matcher matcher = RISK_PATTERN.matcher(analysis);
+        while (matcher.find()) {
+            String keyword = matcher.group(1).toLowerCase();
+            switch (keyword) {
+                case "large table" -> risks.add("Large table detected — consider adding WHERE/LIMIT.");
+                case "pii", "sensitive" -> risks.add("Sensitive data — apply minimal disclosure.");
+                case "ambiguous", "conflict" -> risks.add("Ambiguity detected — consider askUserQuestion to clarify.");
+                case "no index", "missing" -> risks.add("Potential performance issue — verify indexes.");
+            }
+        }
+
+        return risks;
     }
 }

@@ -13,9 +13,11 @@ import { ExplorerDialogs } from './ExplorerDialogs';
 export function DatabaseExplorer() {
   const { supportedDbTypes, openTab } = useWorkspaceStore();
   const {
+    connections,
     treeDataState,
     setTreeDataState,
     loadNodeData,
+    refreshNodeById,
     handleDisconnect,
     isConnectionsLoading,
     refetchConnections,
@@ -45,8 +47,18 @@ export function DatabaseExplorer() {
     setDdlDialogOpen,
     selectedDdlNode,
     setSelectedDdlNode,
+    tableDataDialogOpen,
+    setTableDataDialogOpen,
+    selectedTableDataNode,
+    setSelectedTableDataNode,
+    highlightColumn,
+    setHighlightColumn,
     deleteState,
     setDeleteState,
+    createTableDialogOpen,
+    setCreateTableDialogOpen,
+    selectedCreateTableNode,
+    setSelectedCreateTableNode,
   } = dialogState;
 
   // Connection actions
@@ -58,9 +70,14 @@ export function DatabaseExplorer() {
   });
 
   // Data view actions
-  const { handleViewDdl, handleViewData, handleOpenQueryConsole, getDdlConfig } = useDataViewActions({
+  const { handleViewDdl, handleViewData, handleOpenQueryConsole, handleCreateTable, getDdlConfig } = useDataViewActions({
     setSelectedDdlNode,
     setDdlDialogOpen,
+    setTableDataDialogOpen,
+    setSelectedTableDataNode,
+    setHighlightColumn,
+    setCreateTableDialogOpen,
+    setSelectedCreateTableNode,
     openTab,
     selectedDdlNode,
   });
@@ -109,6 +126,7 @@ export function DatabaseExplorer() {
         onViewData={handleViewData}
         onDelete={handleDelete}
         onOpenQueryConsole={handleOpenQueryConsole}
+        onCreateTable={handleCreateTable}
       />
 
       <ExplorerDialogs
@@ -130,9 +148,21 @@ export function DatabaseExplorer() {
         ddlDialogOpen={ddlDialogOpen}
         onDdlDialogOpenChange={setDdlDialogOpen}
         ddlConfig={ddlConfig}
+        tableDataDialogOpen={tableDataDialogOpen}
+        onTableDataDialogOpenChange={setTableDataDialogOpen}
+        selectedTableDataNode={selectedTableDataNode}
+        highlightColumn={highlightColumn}
         deleteState={deleteState}
         onDeleteStateChange={setDeleteState}
         onConfirmDelete={confirmDelete}
+        createTableDialogOpen={createTableDialogOpen}
+        onCreateTableDialogOpenChange={setCreateTableDialogOpen}
+        setSelectedCreateTableNode={setSelectedCreateTableNode}
+        selectedCreateTableNode={selectedCreateTableNode}
+        connections={connections}
+        onCreateTableSuccess={(node) => {
+          if (node?.id) refreshNodeById(node.id);
+        }}
         onConnectionSuccess={refetchConnections}
       />
     </div>
