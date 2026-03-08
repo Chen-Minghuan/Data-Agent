@@ -16,9 +16,9 @@ import { I18N_KEYS } from "../constants/i18nKeys";
 export default function Home() {
     const { t } = useTranslation();
     const { tabs, activeTabId, updateTabContent, updateTabMetadata } = useWorkspaceStore();
-    const editorRef = useRef<MonacoEditorHandle | null>(null);
     const [isResultsVisible, setIsResultsVisible] = useState(false);
     const [executeResult, setExecuteResult] = useState<ExecuteSqlResponse | null>(null);
+    const editorRef = useRef<MonacoEditorHandle | null>(null);
     const [isRunning, setIsRunning] = useState(false);
 
     const activeTab = tabs.find(t => t.id === activeTabId);
