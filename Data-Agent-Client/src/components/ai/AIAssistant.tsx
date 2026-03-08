@@ -60,9 +60,28 @@ export function AIAssistant() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const userHasScrolledUpRef = useRef(false);
+  const SCROLL_NEAR_BOTTOM_PX = 100;
+
+  // Track when user manually scrolls up; only auto-scroll when they are near bottom
+  useEffect(() => {
+    const anchor = messagesEndRef.current;
+    const scrollEl = anchor?.parentElement;
+    if (!scrollEl) return;
+    const checkNearBottom = () => {
+      const { scrollTop, clientHeight, scrollHeight } = scrollEl;
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_NEAR_BOTTOM_PX;
+      userHasScrolledUpRef.current = !nearBottom;
+    };
+    scrollEl.addEventListener('scroll', checkNearBottom, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', checkNearBottom);
+  }, []); // Attach once when scroll container is available
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (userHasScrolledUpRef.current) return;
+    const el = messagesEndRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
@@ -81,6 +100,7 @@ export function AIAssistant() {
     if (!input.trim()) return;
     const messageText = input.trim();
     setInput('');
+    userHasScrolledUpRef.current = false; // Reset so new response auto-scrolls
     submitMessage(messageText);
   }, [input, setInput, submitMessage]);
 
