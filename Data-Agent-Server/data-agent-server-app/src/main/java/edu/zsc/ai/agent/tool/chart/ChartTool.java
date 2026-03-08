@@ -34,7 +34,11 @@ public class ChartTool {
             "If the user hasn't specified what dimension to visualize, ask them first with ",
             "askUserQuestion — a targeted chart is 10x more valuable than multiple generic ones. ",
             "Put your key insight in the description parameter — the chart IS the final answer, ",
-            "do not repeat data or add commentary in text afterward."
+            "do not repeat data or add commentary in text afterward.",
+            "",
+            "IMPORTANT: Before your first renderChart call in this conversation, ",
+            "call activateSkill('chart') to load ECharts templates and rules. ",
+            "Skip if already loaded in this session."
     })
     public AgentToolResult renderChart(
             @P("Chart type: LINE/BAR/PIE/SCATTER/AREA") String chartType,

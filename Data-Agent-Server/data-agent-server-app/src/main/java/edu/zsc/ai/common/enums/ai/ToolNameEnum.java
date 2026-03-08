@@ -45,6 +45,9 @@ public enum ToolNameEnum {
 
     // ── Task management ──
     TODO_WRITE("todoWrite"),
+
+    // ── Skill ──
+    ACTIVATE_SKILL("activateSkill"),
     ;
 
     private final String toolName;

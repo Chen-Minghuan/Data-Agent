@@ -6,6 +6,7 @@ import { isExitPlanModeTool } from './exitPlanModeTypes';
 
 const CHART_TOOL_NAMES = new Set(['renderChart']);
 const THINKING_TOOL_NAMES = new Set(['thinking']);
+const SKILL_TOOL_NAMES = new Set(['activateSkill']);
 
 /**
  * Unified tool type detection and classification for AI assistant tools.
@@ -31,6 +32,8 @@ export enum ToolType {
   ENTER_PLAN = 'ENTER_PLAN',
   /** ExitPlanMode tool - renders as plan card with action buttons. */
   EXIT_PLAN = 'EXIT_PLAN',
+  /** ActivateSkill tool - renders response as markdown. */
+  SKILL = 'SKILL',
   /** All other tools (including built-in database tools) - renders as ToolRunDetail */
   GENERIC = 'GENERIC',
 }
@@ -49,5 +52,6 @@ export function getToolType(toolName: string): ToolType {
   if (THINKING_TOOL_NAMES.has(toolName)) return ToolType.THINKING;
   if (isEnterPlanModeTool(toolName)) return ToolType.ENTER_PLAN;
   if (isExitPlanModeTool(toolName)) return ToolType.EXIT_PLAN;
+  if (SKILL_TOOL_NAMES.has(toolName)) return ToolType.SKILL;
   return ToolType.GENERIC;
 }
