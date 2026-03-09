@@ -5,8 +5,8 @@ import java.util.List;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.Tool;
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.model.UserQuestion;
+import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ask.model.UserQuestion;
 import lombok.extern.slf4j.Slf4j;
 
 /**

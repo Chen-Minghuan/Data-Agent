@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool.guard;
+package edu.zsc.ai.agent.guard;
 
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.common.constant.RequestContextConstant;

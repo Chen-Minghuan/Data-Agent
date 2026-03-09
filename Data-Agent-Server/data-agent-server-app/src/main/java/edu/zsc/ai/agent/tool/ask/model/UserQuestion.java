@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool.model;
+package edu.zsc.ai.agent.tool.ask.model;
 
 import dev.langchain4j.model.output.structured.Description;
 import lombok.AllArgsConstructor;

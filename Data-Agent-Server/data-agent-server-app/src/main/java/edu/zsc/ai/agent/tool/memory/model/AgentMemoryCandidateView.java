@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool.model;
+package edu.zsc.ai.agent.tool.memory.model;
 
 import edu.zsc.ai.domain.model.dto.response.ai.MemoryCandidateResponse;
 

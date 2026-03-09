@@ -1,6 +1,6 @@
 package edu.zsc.ai.config.ai;
 
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.ask.AskUserConfirmTool;
 import edu.zsc.ai.agent.tool.chart.ChartTool;
 import edu.zsc.ai.agent.tool.plan.ExitPlanModeTool;

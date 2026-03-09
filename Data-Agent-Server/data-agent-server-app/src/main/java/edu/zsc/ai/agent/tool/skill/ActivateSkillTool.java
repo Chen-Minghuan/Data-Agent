@@ -2,7 +2,7 @@ package edu.zsc.ai.agent.tool.skill;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.common.enums.ai.SkillEnum;
 import edu.zsc.ai.config.ai.PromptConfig;
 import lombok.extern.slf4j.Slf4j;

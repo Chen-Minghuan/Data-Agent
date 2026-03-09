@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool.model;
+package edu.zsc.ai.agent.tool.todo.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.langchain4j.model.output.structured.Description;

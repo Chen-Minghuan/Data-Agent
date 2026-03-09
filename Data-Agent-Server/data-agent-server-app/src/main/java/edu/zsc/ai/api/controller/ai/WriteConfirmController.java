@@ -1,7 +1,7 @@
 package edu.zsc.ai.api.controller.ai;
 
 import cn.dev33.satoken.stp.StpUtil;
-import edu.zsc.ai.agent.confirm.WriteConfirmationStore;
+import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
 import edu.zsc.ai.api.model.request.WriteConfirmRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
