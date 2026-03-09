@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import edu.zsc.ai.common.enums.ai.MemoryTypeEnum;
+import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.domain.exception.BusinessException;
 import edu.zsc.ai.domain.mapper.ai.AiMemoryCandidateMapper;
 import edu.zsc.ai.domain.model.entity.ai.AiMemory;
@@ -40,8 +41,9 @@ public class MemoryCandidateServiceImpl extends ServiceImpl<AiMemoryCandidateMap
     private final EmbeddingModel embeddingModel;
 
     @Override
-    public List<AiMemoryCandidate> listCurrentConversationCandidates(Long userId, Long conversationId, int limit) {
-        checkUserAndConversation(userId, conversationId);
+    public List<AiMemoryCandidate> listCurrentConversationCandidates(Long conversationId, int limit) {
+        Long userId = requireUserId();
+        checkConversationAccess(userId, conversationId);
 
         int safeLimit = Math.max(1, Math.min(limit, MAX_LIST_LIMIT));
         LambdaQueryWrapper<AiMemoryCandidate> wrapper = new LambdaQueryWrapper<>();
@@ -54,12 +56,12 @@ public class MemoryCandidateServiceImpl extends ServiceImpl<AiMemoryCandidateMap
     }
 
     @Override
-    public AiMemoryCandidate createCandidate(Long userId,
-                                             Long conversationId,
+    public AiMemoryCandidate createCandidate(Long conversationId,
                                              String candidateType,
                                              String candidateContent,
                                              String reason) {
-        checkUserAndConversation(userId, conversationId);
+        Long userId = requireUserId();
+        checkConversationAccess(userId, conversationId);
 
         MemoryTypeEnum type = MemoryTypeEnum.fromValue(candidateType);
         String content = StringUtils.trimToEmpty(candidateContent);
@@ -81,8 +83,9 @@ public class MemoryCandidateServiceImpl extends ServiceImpl<AiMemoryCandidateMap
     }
 
     @Override
-    public boolean deleteCandidate(Long userId, Long candidateId) {
-        if (Objects.isNull(userId) || Objects.isNull(candidateId)) {
+    public boolean deleteCandidate(Long candidateId) {
+        Long userId = requireUserId();
+        if (Objects.isNull(candidateId)) {
             return false;
         }
 
@@ -96,8 +99,9 @@ public class MemoryCandidateServiceImpl extends ServiceImpl<AiMemoryCandidateMap
     }
 
     @Override
-    public List<AiMemory> commitCandidates(Long userId, Long conversationId, List<Long> candidateIds) {
-        checkUserAndConversation(userId, conversationId);
+    public List<AiMemory> commitCandidates(Long conversationId, List<Long> candidateIds) {
+        Long userId = requireUserId();
+        checkConversationAccess(userId, conversationId);
         BusinessException.assertFalse(CollectionUtils.isEmpty(candidateIds), "Candidate ids cannot be empty");
 
         LambdaQueryWrapper<AiMemoryCandidate> wrapper = new LambdaQueryWrapper<>();
@@ -117,23 +121,26 @@ public class MemoryCandidateServiceImpl extends ServiceImpl<AiMemoryCandidateMap
             embeddings.add(embeddingModel.embed(content).content());
         }
 
-        return doCommitInTransaction(userId, conversationId, candidates, embeddings);
+        return doCommitInTransaction(candidates, embeddings);
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public List<AiMemory> doCommitInTransaction(Long userId, Long conversationId,
-                                                 List<AiMemoryCandidate> candidates, List<Embedding> embeddings) {
+    public List<AiMemory> doCommitInTransaction(List<AiMemoryCandidate> candidates, List<Embedding> embeddings) {
         List<AiMemory> created = new ArrayList<>(candidates.size());
         for (int i = 0; i < candidates.size(); i++) {
-            created.add(memoryService.createFromCandidateWithEmbedding(
-                    userId, conversationId, candidates.get(i), embeddings.get(i)));
+            created.add(memoryService.createFromCandidateWithEmbedding(candidates.get(i), embeddings.get(i)));
         }
         removeBatchByIds(candidates.stream().map(AiMemoryCandidate::getId).toList());
         return created;
     }
 
-    private void checkUserAndConversation(Long userId, Long conversationId) {
+    private Long requireUserId() {
+        Long userId = RequestContext.getUserId();
         BusinessException.assertNotNull(userId, "error.not.login");
+        return userId;
+    }
+
+    private void checkConversationAccess(Long userId, Long conversationId) {
         BusinessException.assertNotNull(conversationId, "Conversation id is required");
         aiConversationService.checkAccess(userId, conversationId);
     }

@@ -3,8 +3,6 @@ package edu.zsc.ai.agent.tool.model;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.function.Supplier;
-
 /**
  * Standardized return type for agent tool methods.
  *
@@ -32,13 +30,6 @@ public class AgentToolResult {
     private Object result;
 
     private Long elapsedMs;
-
-    public static AgentToolResult timed(Supplier<AgentToolResult> action) {
-        long start = System.currentTimeMillis();
-        AgentToolResult result = action.get();
-        result.setElapsedMs(System.currentTimeMillis() - start);
-        return result;
-    }
 
     public static AgentToolResult success(Object result) {
         return AgentToolResult.builder()

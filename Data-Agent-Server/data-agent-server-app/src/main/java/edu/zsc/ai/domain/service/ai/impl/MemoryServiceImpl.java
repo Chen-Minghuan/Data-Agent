@@ -13,12 +13,12 @@ import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
 import edu.zsc.ai.common.enums.ai.MemoryStatusEnum;
+import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.domain.exception.BusinessException;
 import edu.zsc.ai.domain.mapper.ai.AiMemoryMapper;
 import edu.zsc.ai.domain.model.entity.ai.AiMemory;
@@ -48,7 +48,8 @@ public class MemoryServiceImpl extends ServiceImpl<AiMemoryMapper, AiMemory> imp
     private final EmbeddingModel embeddingModel;
 
     @Override
-    public List<MemorySearchResult> searchActiveMemories(Long userId, String queryText, int limit, double minScore) {
+    public List<MemorySearchResult> searchActiveMemories(String queryText, int limit, double minScore) {
+        Long userId = RequestContext.getUserId();
         if (Objects.isNull(userId) || StringUtils.isBlank(queryText)) {
             return List.of();
         }
@@ -72,7 +73,8 @@ public class MemoryServiceImpl extends ServiceImpl<AiMemoryMapper, AiMemory> imp
     }
 
     @Override
-    public AiMemory createFromCandidate(Long userId, Long conversationId, AiMemoryCandidate candidate) {
+    public AiMemory createFromCandidate(AiMemoryCandidate candidate) {
+        Long userId = RequestContext.getUserId();
         if (Objects.isNull(userId) || Objects.isNull(candidate)) {
             throw BusinessException.badRequest(ERR_USER_AND_CANDIDATE_REQUIRED);
         }
@@ -82,12 +84,12 @@ public class MemoryServiceImpl extends ServiceImpl<AiMemoryMapper, AiMemory> imp
         }
 
         Embedding embedding = embeddingModel.embed(content).content();
-        return createFromCandidateWithEmbedding(userId, conversationId, candidate, embedding);
+        return createFromCandidateWithEmbedding(candidate, embedding);
     }
 
     @Override
-    public AiMemory createFromCandidateWithEmbedding(Long userId, Long conversationId,
-                                                      AiMemoryCandidate candidate, Embedding embedding) {
+    public AiMemory createFromCandidateWithEmbedding(AiMemoryCandidate candidate, Embedding embedding) {
+        Long userId = RequestContext.getUserId();
         if (Objects.isNull(userId) || Objects.isNull(candidate)) {
             throw BusinessException.badRequest(ERR_USER_AND_CANDIDATE_REQUIRED);
         }
@@ -99,6 +101,7 @@ public class MemoryServiceImpl extends ServiceImpl<AiMemoryMapper, AiMemory> imp
             throw BusinessException.badRequest(ERR_EMBEDDING_EMPTY);
         }
 
+        Long conversationId = RequestContext.getConversationId();
         LocalDateTime now = LocalDateTime.now();
 
         AiMemory memory = AiMemory.builder()
@@ -127,9 +130,9 @@ public class MemoryServiceImpl extends ServiceImpl<AiMemoryMapper, AiMemory> imp
         return memory;
     }
 
-    private MemorySearchResult toMemorySearchResult(EmbeddingMatch<TextSegment> match) {
+    private MemorySearchResult toMemorySearchResult(dev.langchain4j.store.embedding.EmbeddingMatch<TextSegment> match) {
         TextSegment segment = match.embedded();
-        Metadata metadata = segment.metadata();
+        dev.langchain4j.data.document.Metadata metadata = segment.metadata();
 
         return MemorySearchResult.builder()
                 .id(metadata.getLong(METADATA_KEY_MEMORY_ID))

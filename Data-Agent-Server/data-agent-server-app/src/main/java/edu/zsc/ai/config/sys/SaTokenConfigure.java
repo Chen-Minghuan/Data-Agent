@@ -2,13 +2,26 @@ package edu.zsc.ai.config.sys;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import cn.dev33.satoken.stp.StpLogic;
+import cn.dev33.satoken.stp.StpUtil;
+import edu.zsc.ai.common.constant.ResponseCode;
+import edu.zsc.ai.common.constant.ResponseMessageKey;
+import edu.zsc.ai.common.enums.sys.SessionStatusEnum;
+import edu.zsc.ai.context.RequestContext;
+import edu.zsc.ai.context.RequestContextInfo;
+import edu.zsc.ai.domain.exception.BusinessException;
+import edu.zsc.ai.domain.model.dto.request.sys.FindSessionByTokenRequest;
+import edu.zsc.ai.domain.model.entity.sys.SysSessions;
 import edu.zsc.ai.domain.service.sys.SysSessionsService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import jakarta.servlet.DispatcherType;
 
 @Configuration
 public class SaTokenConfigure implements WebMvcConfigurer {
@@ -20,33 +33,42 @@ public class SaTokenConfigure implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // Custom interceptor to exclude OPTIONS requests
         registry.addInterceptor(new HandlerInterceptor() {
-//            @Override
-//            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-//                // OPTIONS requests directly pass through (CORS preflight requests)
-//                if ("OPTIONS".equals(request.getMethod())) {
-//                    return true;
-//                }
-//
-//                // Async dispatch: login already checked on initial request, skip to avoid SaTokenContext not set on this thread
-//                if (DispatcherType.ASYNC.equals(request.getDispatcherType())) {
-//                    return true;
-//                }
-//
-//
-//                // 1) Framework login check
-//                StpUtil.checkLogin();
-//                // 2) Business session active check
-//                String token = StpUtil.getTokenValue();
-//                long userId = StpUtil.getLoginIdAsLong();
-//                FindSessionByTokenRequest req = new FindSessionByTokenRequest();
-//                req.setAccessToken(token);
-//                req.setUserId(userId);
-//                SysSessions s = sessionService.findByAccessTokenAndUserId(req);
-//                if (s == null || s.getActive() == null || !s.getActive().equals(SessionStatusEnum.ACTIVE.getValue())) {
-//                    throw BusinessException.of(ResponseCode.UNAUTHORIZED, ResponseMessageKey.NOT_LOGIN_MESSAGE);
-//                }
-//                return true;
-//            }
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+                // OPTIONS requests directly pass through (CORS preflight requests)
+                if ("OPTIONS".equals(request.getMethod())) {
+                    return true;
+                }
+
+                // Async dispatch: login already checked on initial request, skip to avoid SaTokenContext not set on this thread
+                if (DispatcherType.ASYNC.equals(request.getDispatcherType())) {
+                    return true;
+                }
+
+                // 1) Framework login check
+                StpUtil.checkLogin();
+                // 2) Business session active check
+                String token = StpUtil.getTokenValue();
+                long userId = StpUtil.getLoginIdAsLong();
+                FindSessionByTokenRequest req = new FindSessionByTokenRequest();
+                req.setAccessToken(token);
+                req.setUserId(userId);
+                SysSessions s = sessionService.findByAccessTokenAndUserId(req);
+                if (s == null || s.getActive() == null || !s.getActive().equals(SessionStatusEnum.ACTIVE.getValue())) {
+                    throw BusinessException.of(ResponseCode.UNAUTHORIZED, ResponseMessageKey.NOT_LOGIN_MESSAGE);
+                }
+
+                // 3) Set RequestContext with userId for downstream service methods
+                RequestContext.set(RequestContextInfo.builder().userId(userId).build());
+
+                return true;
+            }
+
+            @Override
+            public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
+                                        Object handler, Exception ex) {
+                RequestContext.clear();
+            }
         })
                 .addPathPatterns("/**")
                 .excludePathPatterns(

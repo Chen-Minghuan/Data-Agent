@@ -9,15 +9,14 @@ import edu.zsc.ai.domain.model.entity.ai.AiMemoryCandidate;
 
 public interface MemoryCandidateService extends IService<AiMemoryCandidate> {
 
-    List<AiMemoryCandidate> listCurrentConversationCandidates(Long userId, Long conversationId, int limit);
+    List<AiMemoryCandidate> listCurrentConversationCandidates(Long conversationId, int limit);
 
-    AiMemoryCandidate createCandidate(Long userId,
-                                      Long conversationId,
+    AiMemoryCandidate createCandidate(Long conversationId,
                                       String candidateType,
                                       String candidateContent,
                                       String reason);
 
-    boolean deleteCandidate(Long userId, Long candidateId);
+    boolean deleteCandidate(Long candidateId);
 
-    List<AiMemory> commitCandidates(Long userId, Long conversationId, List<Long> candidateIds);
+    List<AiMemory> commitCandidates(Long conversationId, List<Long> candidateIds);
 }

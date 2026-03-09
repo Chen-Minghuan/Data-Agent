@@ -6,8 +6,8 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.guard.AgentModeGuard;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolContext;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
-import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.common.enums.ai.ChartTypeEnum;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.util.JsonUtil;
@@ -17,7 +17,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 @AgentTool
 @Slf4j
@@ -45,13 +44,9 @@ public class ChartTool {
             @P(value = "Optional explanation for users: chart meaning, key insight(s), and reading guide", required = false)
             String description,
             InvocationParameters parameters) {
-        log.info("[Tool] renderChart, chartType={}", chartType);
-        try {
-            AgentModeGuard.assertNotPlanMode(parameters, ToolNameEnum.RENDER_CHART);
-            Long userId = parameters.get(RequestContextConstant.USER_ID);
-            if (Objects.isNull(userId)) {
-                return AgentToolResult.noContext();
-            }
+        try (var ctx = ToolContext.from(parameters)) {
+            log.info("[Tool] renderChart, chartType={}", chartType);
+            AgentModeGuard.assertNotPlanMode(ToolNameEnum.RENDER_CHART);
 
             ChartTypeEnum normalizedType = ChartTypeEnum.fromValue(chartType);
             JsonNode optionNode = JsonUtil.readObjectNode(optionJson, "optionJson");

@@ -1,20 +1,16 @@
 package edu.zsc.ai.agent.tool.memory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolContext;
 import edu.zsc.ai.agent.tool.memory.model.AgentMemoryCandidateView;
 import edu.zsc.ai.agent.tool.memory.model.AgentMemoryView;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
-import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.common.converter.ai.MemoryConverter;
 import edu.zsc.ai.config.ai.MemoryProperties;
+import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.domain.model.dto.response.ai.MemoryCandidateResponse;
 import edu.zsc.ai.domain.model.entity.ai.AiMemoryCandidate;
 import edu.zsc.ai.domain.service.ai.MemoryCandidateService;
@@ -22,6 +18,10 @@ import edu.zsc.ai.domain.service.ai.MemoryService;
 import edu.zsc.ai.domain.service.ai.model.MemorySearchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @AgentTool
 @Slf4j
@@ -48,18 +48,13 @@ public class MemoryTool {
             @P("Natural language query to search memories") String queryText,
             @P(value = "Maximum number of results to return", required = false) Integer limit,
             InvocationParameters parameters) {
-        try {
-            Long userId = parameters.get(RequestContextConstant.USER_ID);
-            if (Objects.isNull(userId)) {
-                return AgentToolResult.noContext();
-            }
-
+        try (var ctx = ToolContext.from(parameters)) {
             MemoryProperties.Retrieval retrieval = memoryProperties.getRetrieval();
             int safeLimit = limit == null ? retrieval.getCandidateTopK()
                     : Math.max(1, Math.min(limit, MAX_LIMIT));
 
             List<MemorySearchResult> results = memoryService.searchActiveMemories(
-                    userId, queryText, safeLimit, retrieval.getMinScore());
+                    queryText, safeLimit, retrieval.getMinScore());
 
             if (results.isEmpty()) {
                 return AgentToolResult.empty();
@@ -83,10 +78,9 @@ public class MemoryTool {
             @P(value = "Conversation id from current session context", required = false) Long conversationId,
             @P(value = "Maximum number of candidates to return", required = false) Integer limit,
             InvocationParameters parameters) {
-        try {
-            Long userId = parameters.get(RequestContextConstant.USER_ID);
-            Long contextConversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
-            if (Objects.isNull(userId) || Objects.isNull(contextConversationId)) {
+        try (var ctx = ToolContext.from(parameters)) {
+            Long contextConversationId = RequestContext.getConversationId();
+            if (contextConversationId == null) {
                 return AgentToolResult.noContext();
             }
             if (conversationId != null && !conversationId.equals(contextConversationId)) {
@@ -96,7 +90,7 @@ public class MemoryTool {
 
             int safeLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
             List<AiMemoryCandidate> candidates = memoryCandidateService
-                    .listCurrentConversationCandidates(userId, contextConversationId, safeLimit);
+                    .listCurrentConversationCandidates(contextConversationId, safeLimit);
 
             List<MemoryCandidateResponse> response = candidates.stream()
                     .map(MemoryConverter::toCandidateResponse)
@@ -128,10 +122,9 @@ public class MemoryTool {
             @P("Normalized candidate memory text to be reviewed by user") String candidateContent,
             @P(value = "Why this candidate should be saved", required = false) String reason,
             InvocationParameters parameters) {
-        try {
-            Long userId = parameters.get(RequestContextConstant.USER_ID);
-            Long contextConversationId = parameters.get(RequestContextConstant.CONVERSATION_ID);
-            if (Objects.isNull(userId) || Objects.isNull(contextConversationId)) {
+        try (var ctx = ToolContext.from(parameters)) {
+            Long contextConversationId = RequestContext.getConversationId();
+            if (contextConversationId == null) {
                 return AgentToolResult.noContext();
             }
             if (conversationId != null && !conversationId.equals(contextConversationId)) {
@@ -140,7 +133,6 @@ public class MemoryTool {
             }
 
             AiMemoryCandidate candidate = memoryCandidateService.createCandidate(
-                    userId,
                     contextConversationId,
                     candidateType,
                     candidateContent,
@@ -165,13 +157,8 @@ public class MemoryTool {
     public AgentToolResult deleteCandidateMemory(
             @P("Candidate id to delete") Long candidateId,
             InvocationParameters parameters) {
-        try {
-            Long userId = parameters.get(RequestContextConstant.USER_ID);
-            if (Objects.isNull(userId)) {
-                return AgentToolResult.noContext();
-            }
-
-            boolean deleted = memoryCandidateService.deleteCandidate(userId, candidateId);
+        try (var ctx = ToolContext.from(parameters)) {
+            boolean deleted = memoryCandidateService.deleteCandidate(candidateId);
             if (!deleted) {
                 return AgentToolResult.fail("Candidate memory with id=" + candidateId
                         + " not found or not owned by current user. Use listCandidateMemories to verify the candidateId.");

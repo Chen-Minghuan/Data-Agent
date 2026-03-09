@@ -1,12 +1,12 @@
 package edu.zsc.ai.domain.service.db.impl;
 
-import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.zsc.ai.common.converter.db.ConnectionConverter;
 import edu.zsc.ai.common.constant.ResponseCode;
 import edu.zsc.ai.common.constant.ResponseMessageKey;
+import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.domain.mapper.db.DbConnectionMapper;
 import edu.zsc.ai.domain.model.dto.request.db.ConnectionCreateRequest;
 import edu.zsc.ai.domain.model.dto.response.db.ConnectionResponse;
@@ -53,22 +53,23 @@ public class DbConnectionServiceImpl extends ServiceImpl<DbConnectionMapper, DbC
 
     @Override
     public DbConnection getOwnedById(Long id) {
-        return getOwnedById(id, null);
-    }
-
-    @Override
-    public DbConnection getOwnedById(Long id, Long userId) {
-        long ownerId = userId != null ? userId : StpUtil.getLoginIdAsLong();
+        Long userId = RequestContext.getUserId();
+        if (userId == null) {
+            throw new IllegalStateException("No userId available in RequestContext");
+        }
         DbConnection connection = this.getOne(Wrappers.<DbConnection>lambdaQuery()
                 .eq(DbConnection::getId, id)
-                .eq(DbConnection::getUserId, ownerId));
+                .eq(DbConnection::getUserId, userId));
         BusinessException.assertNotNull(connection, ResponseCode.PARAM_ERROR, ResponseMessageKey.CONNECTION_ACCESS_DENIED_MESSAGE);
         return connection;
     }
 
     @Override
     public ConnectionResponse createConnection(ConnectionCreateRequest request) {
-        long currentUserId = StpUtil.getLoginIdAsLong();
+        Long currentUserId = RequestContext.getUserId();
+        if (currentUserId == null) {
+            throw new IllegalStateException("No userId available in RequestContext");
+        }
         DbConnection existingConnection = getByNameAndUserId(request.getName(), currentUserId);
         if (existingConnection != null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR, ResponseMessageKey.CONNECTION_NAME_EXISTS_MESSAGE);
@@ -86,10 +87,10 @@ public class DbConnectionServiceImpl extends ServiceImpl<DbConnectionMapper, DbC
     @Override
     public ConnectionResponse updateConnection(ConnectionCreateRequest request) {
         Long connectionId = request.getConnectionId();
-        long currentUserId = StpUtil.getLoginIdAsLong();
 
         DbConnection existingConnection = this.getOwnedById(connectionId);
 
+        Long currentUserId = RequestContext.getUserId();
         DbConnection nameConflict = getByNameAndUserId(request.getName(), currentUserId);
         if (nameConflict != null && !nameConflict.getId().equals(connectionId)) {
             throw new BusinessException(ResponseCode.PARAM_ERROR, ResponseMessageKey.CONNECTION_NAME_EXISTS_MESSAGE);
@@ -109,25 +110,18 @@ public class DbConnectionServiceImpl extends ServiceImpl<DbConnectionMapper, DbC
 
     @Override
     public ConnectionResponse getConnectionById(Long connectionId) {
-        return getConnectionById(connectionId, null);
-    }
-
-    @Override
-    public ConnectionResponse getConnectionById(Long connectionId, Long userId) {
-        DbConnection connection = this.getOwnedById(connectionId, userId);
+        DbConnection connection = this.getOwnedById(connectionId);
         return ConnectionConverter.convertToResponse(connection);
     }
 
     @Override
     public List<ConnectionResponse> getAllConnections() {
-        return getAllConnections(null);
-    }
-
-    @Override
-    public List<ConnectionResponse> getAllConnections(Long userId) {
-        long ownerId = userId != null ? userId : StpUtil.getLoginIdAsLong();
+        Long userId = RequestContext.getUserId();
+        if (userId == null) {
+            throw new IllegalStateException("No userId available in RequestContext");
+        }
         LambdaQueryWrapper<DbConnection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(DbConnection::getUserId, ownerId).orderByAsc(DbConnection::getId);
+        wrapper.eq(DbConnection::getUserId, userId).orderByAsc(DbConnection::getId);
         List<DbConnection> connections = this.list(wrapper);
         return connections.stream()
                 .map(ConnectionConverter::convertToResponse)

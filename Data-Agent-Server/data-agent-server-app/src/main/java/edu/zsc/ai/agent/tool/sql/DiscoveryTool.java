@@ -4,13 +4,13 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolContext;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.ConnectionOverview;
 import edu.zsc.ai.agent.tool.sql.model.NamedObjectDetail;
 import edu.zsc.ai.agent.tool.sql.model.ObjectQueryItem;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchQuery;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchResponse;
-import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.domain.service.db.DiscoveryService;
 import edu.zsc.ai.plugin.constant.DatabaseObjectTypeEnum;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
-import java.util.Objects;
 
 @AgentTool
 @Slf4j
@@ -41,26 +40,20 @@ public class DiscoveryTool {
             "keep this in mind when choosing how broadly to search with subsequent calls."
     })
     public AgentToolResult getEnvironmentOverview(InvocationParameters parameters) {
-        return AgentToolResult.timed(() -> {
+        try (var ctx = ToolContext.from(parameters)) {
             log.info("[Tool] getEnvironmentOverview");
-            try {
-                Long userId = parameters.get(RequestContextConstant.USER_ID);
-                if (Objects.isNull(userId)) {
-                    return AgentToolResult.noContext();
-                }
-                List<ConnectionOverview> overview = discoveryService.getEnvironmentOverview(userId);
-                if (CollectionUtils.isEmpty(overview)) {
-                    log.info("[Tool done] getEnvironmentOverview -> empty");
-                    return AgentToolResult.empty();
-                }
-                log.info("[Tool done] getEnvironmentOverview, connections={}", overview.size());
-                return AgentToolResult.success(overview);
-            } catch (Exception e) {
-                log.error("[Tool error] getEnvironmentOverview", e);
-                String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
-                return AgentToolResult.fail("Failed to get environment overview: " + errorMsg);
+            List<ConnectionOverview> overview = discoveryService.getEnvironmentOverview();
+            if (CollectionUtils.isEmpty(overview)) {
+                log.info("[Tool done] getEnvironmentOverview -> empty");
+                return ctx.timed(AgentToolResult.empty());
             }
-        });
+            log.info("[Tool done] getEnvironmentOverview, connections={}", overview.size());
+            return ctx.timed(AgentToolResult.success(overview));
+        } catch (Exception e) {
+            log.error("[Tool error] getEnvironmentOverview", e);
+            String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
+            return AgentToolResult.fail("Failed to get environment overview: " + errorMsg);
+        }
     }
 
     @Tool({
@@ -79,7 +72,7 @@ public class DiscoveryTool {
     public AgentToolResult searchObjects(
             @P("Search query parameters") ObjectSearchQuery query,
             InvocationParameters parameters) {
-        return AgentToolResult.timed(() -> {
+    try (var ctx = ToolContext.from(parameters)) {
             String objectNamePattern = query.getObjectNamePattern();
             String objectType = query.getObjectType();
             Long connectionId = query.getConnectionId();
@@ -88,41 +81,34 @@ public class DiscoveryTool {
 
             log.info("[Tool] searchObjects, pattern={}, type={}, connectionId={}, database={}, schema={}",
                     objectNamePattern, objectType, connectionId, databaseName, schemaName);
-            try {
-                Long userId = parameters.get(RequestContextConstant.USER_ID);
-                if (Objects.isNull(userId)) {
-                    return AgentToolResult.noContext();
-                }
 
-                // Validate parameter dependency chain
-                if (StringUtils.isNotBlank(schemaName) && StringUtils.isBlank(databaseName)) {
-                    return AgentToolResult.fail("schemaName requires databaseName to be specified.");
-                }
-                if (StringUtils.isNotBlank(databaseName) && Objects.isNull(connectionId)) {
-                    return AgentToolResult.fail("databaseName requires connectionId to be specified.");
-                }
-
-                DatabaseObjectTypeEnum normalizedType = StringUtils.isNotBlank(objectType)
-                        ? DatabaseObjectTypeEnum.parseQueryable(objectType)
-                        : null;
-
-                ObjectSearchResponse response = discoveryService.searchObjects(
-                        objectNamePattern, normalizedType, connectionId, databaseName, schemaName, userId);
-
-                if (CollectionUtils.isEmpty(response.results())) {
-                    log.info("[Tool done] searchObjects -> empty");
-                    return AgentToolResult.empty();
-                }
-
-                log.info("[Tool done] searchObjects, resultCount={}, truncated={}",
-                        response.totalCount(), response.truncated());
-                return AgentToolResult.success(response);
-            } catch (Exception e) {
-                log.error("[Tool error] searchObjects, pattern={}", objectNamePattern, e);
-                String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
-                return AgentToolResult.fail("Failed to search objects with pattern '" + objectNamePattern + "': " + errorMsg);
+            if (StringUtils.isNotBlank(schemaName) && StringUtils.isBlank(databaseName)) {
+                return AgentToolResult.fail("schemaName requires databaseName to be specified.");
             }
-        });
+            if (StringUtils.isNotBlank(databaseName) && connectionId == null) {
+                return AgentToolResult.fail("databaseName requires connectionId to be specified.");
+            }
+
+            DatabaseObjectTypeEnum normalizedType = StringUtils.isNotBlank(objectType)
+                    ? DatabaseObjectTypeEnum.parseQueryable(objectType)
+                    : null;
+
+            ObjectSearchResponse response = discoveryService.searchObjects(
+                    objectNamePattern, normalizedType, connectionId, databaseName, schemaName);
+
+            if (CollectionUtils.isEmpty(response.results())) {
+                log.info("[Tool done] searchObjects -> empty");
+                return ctx.timed(AgentToolResult.empty());
+            }
+
+            log.info("[Tool done] searchObjects, resultCount={}, truncated={}",
+                    response.totalCount(), response.truncated());
+            return ctx.timed(AgentToolResult.success(response));
+        } catch (Exception e) {
+            log.error("[Tool error] searchObjects, pattern={}", query.getObjectNamePattern(), e);
+            String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
+            return AgentToolResult.fail("Failed to search objects with pattern '" + query.getObjectNamePattern() + "': " + errorMsg);
+        }
     }
 
     @Tool({
@@ -140,27 +126,21 @@ public class DiscoveryTool {
     public AgentToolResult getObjectDetail(
             @P("List of objects to retrieve details for") List<ObjectQueryItem> objects,
             InvocationParameters parameters) {
-        return AgentToolResult.timed(() -> {
+        try (var ctx = ToolContext.from(parameters)) {
             log.info("[Tool] getObjectDetail, objectCount={}", CollectionUtils.size(objects));
-            try {
-                Long userId = parameters.get(RequestContextConstant.USER_ID);
-                if (Objects.isNull(userId)) {
-                    return AgentToolResult.noContext();
-                }
-                if (CollectionUtils.isEmpty(objects)) {
-                    return AgentToolResult.fail("objects list must not be empty.");
-                }
-
-                List<NamedObjectDetail> results = discoveryService.getObjectDetails(objects, userId);
-
-                log.info("[Tool done] getObjectDetail, requested={}, succeeded={}",
-                        objects.size(), results.stream().filter(NamedObjectDetail::success).count());
-                return AgentToolResult.success(results);
-            } catch (Exception e) {
-                log.error("[Tool error] getObjectDetail", e);
-                String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
-                return AgentToolResult.fail("Failed to get object details: " + errorMsg);
+            if (CollectionUtils.isEmpty(objects)) {
+                return AgentToolResult.fail("objects list must not be empty.");
             }
-        });
+
+            List<NamedObjectDetail> results = discoveryService.getObjectDetails(objects);
+
+            log.info("[Tool done] getObjectDetail, requested={}, succeeded={}",
+                    objects.size(), results.stream().filter(NamedObjectDetail::success).count());
+            return ctx.timed(AgentToolResult.success(results));
+        } catch (Exception e) {
+            log.error("[Tool error] getObjectDetail", e);
+            String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
+            return AgentToolResult.fail("Failed to get object details: " + errorMsg);
+        }
     }
 }

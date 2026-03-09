@@ -1,6 +1,5 @@
 package edu.zsc.ai.api.controller.ai;
 
-import cn.dev33.satoken.stp.StpUtil;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
 import edu.zsc.ai.api.model.request.WriteConfirmRequest;
 import jakarta.validation.Valid;
@@ -27,8 +26,7 @@ public class WriteConfirmController {
      */
     @PostMapping("/confirm")
     public void confirm(@Valid @RequestBody WriteConfirmRequest request) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        if (!confirmationStore.confirm(request.getConfirmationToken(), userId)) {
+        if (!confirmationStore.confirm(request.getConfirmationToken())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid, expired, or already-used confirmation token.");
         }
@@ -40,8 +38,7 @@ public class WriteConfirmController {
      */
     @PostMapping("/cancel")
     public void cancel(@Valid @RequestBody WriteConfirmRequest request) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        if (!confirmationStore.cancel(request.getConfirmationToken(), userId)) {
+        if (!confirmationStore.cancel(request.getConfirmationToken())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Token not found, expired, or not owned by current user.");
         }

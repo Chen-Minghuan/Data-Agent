@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import cn.dev33.satoken.stp.StpUtil;
 import edu.zsc.ai.common.converter.ai.MemoryConverter;
 import edu.zsc.ai.domain.exception.BusinessException;
 import edu.zsc.ai.domain.model.dto.request.ai.CommitCandidateRequest;
@@ -39,16 +38,14 @@ public class MemoryCandidateController {
     @GetMapping("/current-conversation")
     public ApiResponse<List<MemoryCandidateResponse>> listCurrentConversation(
             @RequestParam @NotNull Long conversationId) {
-        Long userId = StpUtil.getLoginIdAsLong();
         List<AiMemoryCandidate> list = memoryCandidateService
-                .listCurrentConversationCandidates(userId, conversationId, DEFAULT_LIST_LIMIT);
+                .listCurrentConversationCandidates(conversationId, DEFAULT_LIST_LIMIT);
         return ApiResponse.success(list.stream().map(MemoryConverter::toCandidateResponse).toList());
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteCandidate(@PathVariable("id") @NotNull Long id) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        boolean deleted = memoryCandidateService.deleteCandidate(userId, id);
+        boolean deleted = memoryCandidateService.deleteCandidate(id);
         if (!deleted) {
             throw BusinessException.notFound("Candidate not found");
         }
@@ -57,9 +54,8 @@ public class MemoryCandidateController {
 
     @PostMapping("/commit")
     public ApiResponse<List<MemoryResponse>> commitCandidates(@Valid @RequestBody CommitCandidateRequest request) {
-        Long userId = StpUtil.getLoginIdAsLong();
         List<AiMemory> memories = memoryCandidateService
-                .commitCandidates(userId, request.getConversationId(), request.getCandidateIds());
+                .commitCandidates(request.getConversationId(), request.getCandidateIds());
         return ApiResponse.success(memories.stream().map(MemoryConverter::toMemoryResponse).toList());
     }
 }

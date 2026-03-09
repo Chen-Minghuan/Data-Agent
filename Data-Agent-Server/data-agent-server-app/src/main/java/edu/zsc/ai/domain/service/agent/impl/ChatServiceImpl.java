@@ -282,7 +282,7 @@ public class ChatServiceImpl implements ChatService {
         List<MemorySearchResult> memories = List.of();
         try {
             memories = memoryService.searchActiveMemories(
-                    userId, userMessage, retrieval.getPreloadTopK(), retrieval.getMinScore());
+                    userMessage, retrieval.getPreloadTopK(), retrieval.getMinScore());
         } catch (Exception e) {
             log.warn("Failed to fetch memory context for user {}", userId, e);
         }
@@ -290,7 +290,7 @@ public class ChatServiceImpl implements ChatService {
         List<AiMemoryCandidate> candidates = List.of();
         try {
             candidates = memoryCandidateService.listCurrentConversationCandidates(
-                    userId, conversationId, retrieval.getCandidateTopK());
+                    conversationId, retrieval.getCandidateTopK());
         } catch (Exception e) {
             log.warn("Failed to fetch candidate context for conversation {}", conversationId, e);
         }

@@ -11,13 +11,13 @@ import edu.zsc.ai.domain.service.ai.model.MemorySearchResult;
 
 public interface MemoryService extends IService<AiMemory> {
 
-    List<MemorySearchResult> searchActiveMemories(Long userId, String queryText, int limit, double minScore);
+    List<MemorySearchResult> searchActiveMemories(String queryText, int limit, double minScore);
 
-    AiMemory createFromCandidate(Long userId, Long conversationId, AiMemoryCandidate candidate);
+    AiMemory createFromCandidate(AiMemoryCandidate candidate);
 
     /**
      * Creates memory from candidate using a pre-computed embedding.
      * Use this to avoid calling the embedding API inside a transaction.
      */
-    AiMemory createFromCandidateWithEmbedding(Long userId, Long conversationId, AiMemoryCandidate candidate, Embedding embedding);
+    AiMemory createFromCandidateWithEmbedding(AiMemoryCandidate candidate, Embedding embedding);
 }
