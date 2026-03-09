@@ -1,3 +1,5 @@
+import type { ChatMessage, ToolCallData } from '../../../types/chat';
+
 /** Mirrors backend ExitPlanResult */
 export interface ExitPlanPayload {
   title: string;
@@ -71,5 +73,29 @@ export function parsePartialExitPlanPayload(
 
 function unescape(s: string): string {
   return s.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+}
+
+/**
+ * Scan all messages for completed exitPlanMode TOOL_CALL blocks
+ * and return their parsed payloads in message order.
+ */
+export function extractPlansFromMessages(messages: ChatMessage[]): ExitPlanPayload[] {
+  const plans: ExitPlanPayload[] = [];
+  for (const msg of messages) {
+    if (!msg.blocks) continue;
+    for (const block of msg.blocks) {
+      if (block.type !== 'TOOL_CALL' || !block.data) continue;
+      try {
+        const toolCall = JSON.parse(block.data) as ToolCallData;
+        if (toolCall.toolName !== EXIT_PLAN_MODE_TOOL_NAME) continue;
+        if (toolCall.streaming) continue;
+        const payload = parseExitPlanPayload(toolCall.arguments);
+        if (payload) plans.push(payload);
+      } catch {
+        // skip unparseable blocks
+      }
+    }
+  }
+  return plans;
 }
 

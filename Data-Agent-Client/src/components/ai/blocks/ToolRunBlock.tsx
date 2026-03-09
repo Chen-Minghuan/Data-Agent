@@ -225,7 +225,7 @@ export function ToolRunBlock({
 }
 
 /** Derive a stable tab ID from a plan title. */
-function planTabId(title: string): string {
+export function planTabId(title: string): string {
   return `plan-${title.replace(/\s+/g, '-').toLowerCase().slice(0, 40)}`;
 }
 
@@ -279,16 +279,23 @@ function PlanStreamHandler({ parametersData }: { parametersData: string }) {
  */
 function PlanCompleteHandler({ payload }: { payload: ExitPlanPayload }) {
   const finalizedRef = useRef(false);
+  const { latestPlanTabId } = useAIAssistantContext();
   const tabId = planTabId(payload.title);
 
   useEffect(() => {
     if (finalizedRef.current) return;
     finalizedRef.current = true;
+
+    // Only auto-open the tab if:
+    // - latestPlanTabId is undefined (no context = streaming / live session)
+    // - OR this is the latest plan in the conversation
+    const shouldAutoOpen = latestPlanTabId === undefined || latestPlanTabId === tabId;
+
     const ws = useWorkspaceStore.getState();
     const existingTab = ws.tabs.find((t) => t.id === tabId);
     if (existingTab) {
       ws.updatePlanPayload(tabId, payload);
-    } else {
+    } else if (shouldAutoOpen) {
       ws.openTab({
         id: tabId,
         name: payload.title,
@@ -299,7 +306,19 @@ function PlanCompleteHandler({ payload }: { payload: ExitPlanPayload }) {
   }, [tabId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleViewPlan = () => {
-    useWorkspaceStore.getState().switchTab(tabId);
+    const ws = useWorkspaceStore.getState();
+    const existingTab = ws.tabs.find((t) => t.id === tabId);
+    if (existingTab) {
+      ws.switchTab(tabId);
+    } else {
+      // Create tab on demand for non-latest plans
+      ws.openTab({
+        id: tabId,
+        name: payload.title,
+        type: 'plan',
+        metadata: { planPayload: payload },
+      });
+    }
   };
 
   return (

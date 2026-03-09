@@ -38,6 +38,9 @@ export interface AIAssistantContextValue {
   onCommand?: (commandId: string) => void;
   /** Raw messages for todo tracking */
   messages?: any[];
+  /** Tab ID of the latest (most recent) plan in the conversation; null if no plans exist.
+   *  Used by PlanCompleteHandler to only auto-open the latest plan on history load. */
+  latestPlanTabId?: string | null;
 }
 
 const AIAssistantContext = createContext<AIAssistantContextValue | null>(null);

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgentType } from './agentTypes';
 import { AIAssistantProvider } from './AIAssistantContext';
@@ -6,6 +6,7 @@ import { ChatInput } from './ChatInput';
 import { AIAssistantHeader } from './AIAssistantHeader';
 import { AIAssistantContent } from './AIAssistantContent';
 import { MemoryCandidateDock } from './MemoryCandidateDock';
+import { PlanListPanel } from './PlanListPanel';
 import { useConversationRuntime } from '../../hooks/useConversationRuntime';
 import { useAuthStore } from '../../store/authStore';
 import { conversationService } from '../../services/conversation.service';
@@ -17,6 +18,8 @@ import { I18N_KEYS } from '../../constants/i18nKeys';
 import type { ChatContext } from '../../types/chat';
 import type { ModelOption } from '../../types/ai';
 import { chatMessagesToMessages } from './MessageList';
+import { extractPlansFromMessages } from './blocks/exitPlanModeTypes';
+import { planTabId } from './blocks/ToolRunBlock';
 
 export function AIAssistant() {
   const { t, i18n } = useTranslation();
@@ -28,6 +31,7 @@ export function AIAssistant() {
   const [chatContext, setChatContext] = useState<ChatContext>({});
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPlanListOpen, setIsPlanListOpen] = useState(false);
   const [input, setInput] = useState('');
 
   const {
@@ -60,6 +64,7 @@ export function AIAssistant() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputAnchorRef = useRef<HTMLDivElement>(null);
   const userHasScrolledUpRef = useRef(false);
   const SCROLL_NEAR_BOTTOM_PX = 100;
 
@@ -114,6 +119,12 @@ export function AIAssistant() {
   }, 0);
   const candidateRefreshKey = `${activeConversationId ?? 'none'}:${isLoading ? 'loading' : completedAssistantCount}`;
 
+  const conversationPlans = useMemo(() => extractPlansFromMessages(messages), [messages]);
+  const latestPlanTabId_ = useMemo(() => {
+    if (conversationPlans.length === 0) return null;
+    return planTabId(conversationPlans[conversationPlans.length - 1].title);
+  }, [conversationPlans]);
+
   const contextValue = {
     input,
     setInput,
@@ -127,12 +138,15 @@ export function AIAssistant() {
     agentState: { agent, setAgent },
     chatContextState: { chatContext, setChatContext },
     messages,
+    latestPlanTabId: latestPlanTabId_,
     onCommand: (id: string) => {
       if (id === SLASH_COMMAND_IDS.NEW) {
         setActiveConversation(null);
         loadMessages(null, []);
       } else if (id === SLASH_COMMAND_IDS.HISTORY) {
         setIsHistoryOpen(true);
+      } else if (id === SLASH_COMMAND_IDS.PLAN) {
+        setIsPlanListOpen(true);
       }
     },
   };
@@ -202,7 +216,15 @@ export function AIAssistant() {
           refreshKey={candidateRefreshKey}
         />
 
-        <ChatInput />
+        <div ref={chatInputAnchorRef}>
+          <ChatInput />
+        </div>
+        <PlanListPanel
+          open={isPlanListOpen}
+          onClose={() => setIsPlanListOpen(false)}
+          plans={conversationPlans}
+          anchorRef={chatInputAnchorRef}
+        />
       </div>
     </AIAssistantProvider>
   );

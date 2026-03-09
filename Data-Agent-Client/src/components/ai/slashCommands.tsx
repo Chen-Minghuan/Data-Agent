@@ -1,4 +1,4 @@
-import { MessageSquarePlus, Clock } from 'lucide-react';
+import { MessageSquarePlus, Clock, ListTodo } from 'lucide-react';
 
 export interface SlashCommandItem {
   id: string;
@@ -10,6 +10,7 @@ export interface SlashCommandItem {
 export const SLASH_COMMAND_IDS = {
   NEW: 'new',
   HISTORY: 'history',
+  PLAN: 'plan',
 } as const;
 
 export const SLASH_COMMANDS: SlashCommandItem[] = [
@@ -24,5 +25,11 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     slug: SLASH_COMMAND_IDS.HISTORY,
     label: 'Show conversation history',
     icon: <Clock className="w-3.5 h-3.5 shrink-0" />,
+  },
+  {
+    id: SLASH_COMMAND_IDS.PLAN,
+    slug: SLASH_COMMAND_IDS.PLAN,
+    label: 'Show plans in conversation',
+    icon: <ListTodo className="w-3.5 h-3.5 shrink-0" />,
   },
 ];
