@@ -6,8 +6,7 @@ import { ChatInput } from './ChatInput';
 import { AIAssistantHeader } from './AIAssistantHeader';
 import { AIAssistantContent } from './AIAssistantContent';
 import { MemoryCandidateDock } from './MemoryCandidateDock';
-import { useChat } from '../../hooks/useChat';
-import { useMessageQueue } from '../../hooks/useMessageQueue';
+import { useConversationRuntime } from '../../hooks/useConversationRuntime';
 import { useAuthStore } from '../../store/authStore';
 import { conversationService } from '../../services/conversation.service';
 import { aiService } from '../../services/ai.service';
@@ -27,69 +26,62 @@ export function AIAssistant() {
   const [modelOptions, setModelOptions] = useState<ModelOption[]>(FALLBACK_MODELS);
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [chatContext, setChatContext] = useState<ChatContext>({});
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const messageQueue = useMessageQueue();
+  const [input, setInput] = useState('');
 
   const {
     messages,
-    setMessages,
-    input,
-    setInput,
     isLoading,
     isWaiting,
-    stop,
-    error,
-    handleSubmit,
+    queue,
     submitMessage,
-  } = useChat({
+    stop,
+    removeFromQueue,
+    setActiveConversation,
+    loadMessages,
+    activeConversationId,
+    conversationTabs,
+    closeConversationTab,
+    setConversationTabTitle,
+  } = useConversationRuntime({
     api: ChatPaths.STREAM,
     body: {
       model,
       language: i18n.resolvedLanguage ?? i18n.language ?? 'en',
       agentType: agent,
-      ...(currentConversationId != null && { conversationId: currentConversationId }),
       ...(chatContext.connectionId != null && { connectionId: chatContext.connectionId }),
       ...(chatContext.databaseName != null && chatContext.databaseName !== '' && { databaseName: chatContext.databaseName }),
       ...(chatContext.schemaName != null && chatContext.schemaName !== '' && { schemaName: chatContext.schemaName }),
     },
-    onResponse: (response) => {
-      const headerConversationId = response.headers.get('X-Conversation-Id');
-      if (!headerConversationId) return;
-      const parsed = Number(headerConversationId);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        setCurrentConversationId(parsed);
-      }
-    },
-    onConversationId: (id) => setCurrentConversationId(id),
-    onFinish: messageQueue.drainOnFinish,
     onError: (err) => {
       console.error('Stream error:', err);
     },
   });
 
-  useEffect(() => {
-    messageQueue.setSubmitMessage(submitMessage);
-  }, [messageQueue, submitMessage]);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const userHasScrolledUpRef = useRef(false);
+  const SCROLL_NEAR_BOTTOM_PX = 100;
 
-  // Only auto-scroll when user is near the bottom (hasn't manually scrolled up).
-  // During streaming, messages update frequently; without this check, every update
-  // would force scroll-to-bottom and prevent the user from reading earlier content.
-  const SCROLL_FOLLOW_THRESHOLD = 80; // px from bottom to consider "following"
+  // Track when user manually scrolls up; only auto-scroll when they are near bottom
   useEffect(() => {
+    const anchor = messagesEndRef.current;
+    const scrollEl = anchor?.parentElement;
+    if (!scrollEl) return;
+    const checkNearBottom = () => {
+      const { scrollTop, clientHeight, scrollHeight } = scrollEl;
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_NEAR_BOTTOM_PX;
+      userHasScrolledUpRef.current = !nearBottom;
+    };
+    scrollEl.addEventListener('scroll', checkNearBottom, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', checkNearBottom);
+  }, []); // Attach once when scroll container is available
+
+  useEffect(() => {
+    if (userHasScrolledUpRef.current) return;
     const el = messagesEndRef.current;
     if (!el) return;
-    const scrollParent = el.parentElement;
-    if (!scrollParent || scrollParent.scrollHeight <= scrollParent.clientHeight) return;
-    const { scrollTop, clientHeight, scrollHeight } = scrollParent;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_FOLLOW_THRESHOLD;
-    if (isNearBottom) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
+    el.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
@@ -106,24 +98,21 @@ export function AIAssistant() {
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
-    if (isLoading) {
-      messageQueue.addToQueue(input);
-      setInput('');
-      return;
-    }
-    handleSubmit({ preventDefault: () => {} } as unknown as React.FormEvent);
-  }, [input, isLoading, handleSubmit, setInput, messageQueue.addToQueue]);
+    const messageText = input.trim();
+    setInput('');
+    userHasScrolledUpRef.current = false; // Reset so new response auto-scrolls
+    submitMessage(messageText);
+  }, [input, setInput, submitMessage]);
 
   const chatMessages = chatMessagesToMessages(messages);
+  
   // Refresh memory candidates only after the full assistant response is done
-  // (isLoading=false). While streaming, freeze the key so intermediate block
-  // completions don't trigger premature fetches.
   const completedAssistantCount = messages.reduce((count, message) => {
     if (message.role !== 'assistant') return count;
     const hasDoneBlock = message.blocks?.some((block) => block.done) ?? false;
     return hasDoneBlock ? count + 1 : count;
   }, 0);
-  const candidateRefreshKey = `${currentConversationId ?? 'none'}:${isLoading ? 'loading' : completedAssistantCount}`;
+  const candidateRefreshKey = `${activeConversationId ?? 'none'}:${isLoading ? 'loading' : completedAssistantCount}`;
 
   const contextValue = {
     input,
@@ -131,17 +120,17 @@ export function AIAssistant() {
     onSend: handleSend,
     onStop: stop,
     submitMessage,
-    enqueueMessage: messageQueue.addToQueue,
+    enqueueMessage: submitMessage, // Queue is now handled internally
     isLoading,
-    conversationId: currentConversationId,
+    conversationId: activeConversationId,
     modelState: { model, setModel, modelOptions },
     agentState: { agent, setAgent },
     chatContextState: { chatContext, setChatContext },
     messages,
     onCommand: (id: string) => {
       if (id === SLASH_COMMAND_IDS.NEW) {
-        setCurrentConversationId(null);
-        setMessages([]);
+        setActiveConversation(null);
+        loadMessages(null, []);
       } else if (id === SLASH_COMMAND_IDS.HISTORY) {
         setIsHistoryOpen(true);
       }
@@ -159,34 +148,57 @@ export function AIAssistant() {
           setIsHistoryOpen={setIsHistoryOpen}
           isSettingsOpen={isSettingsOpen}
           setIsSettingsOpen={setIsSettingsOpen}
-          currentConversationId={currentConversationId}
-          onSelectConversation={async (id) => {
-            setCurrentConversationId(id);
+          currentConversationId={activeConversationId}
+          conversationTabs={conversationTabs}
+          onSelectTab={async (id) => {
+            if (id == null) {
+              setActiveConversation(null);
+              loadMessages(null, []);
+              return;
+            }
+            setActiveConversation(id);
+
+            const tab = conversationTabs.find((t) => t.id === id);
+            if (tab && tab.messageCount > 0) return;
+
             try {
               const list = await conversationService.getMessages(id);
-              setMessages(list);
+              loadMessages(id, list);
             } catch {
-              setMessages([]);
+              loadMessages(id, []);
+            }
+          }}
+          onCloseTab={(id) => {
+            closeConversationTab(id);
+          }}
+          onSelectConversation={async (c) => {
+            setActiveConversation(c.id);
+            setConversationTabTitle(c.id, c.title);
+            try {
+              const list = await conversationService.getMessages(c.id);
+              loadMessages(c.id, list);
+            } catch {
+              loadMessages(c.id, []);
             }
           }}
           onNewChat={() => {
-            setCurrentConversationId(null);
-            setMessages([]);
+            setActiveConversation(null);
+            loadMessages(null, []);
           }}
         />
 
         <AIAssistantContent
-          error={error}
+          error={undefined}
           messages={chatMessages}
           messagesEndRef={messagesEndRef}
           isLoading={isLoading}
           isWaiting={isWaiting}
-          queue={messageQueue.queue}
-          onRemoveFromQueue={messageQueue.removeFromQueue}
+          queue={queue}
+          onRemoveFromQueue={removeFromQueue}
         />
 
         <MemoryCandidateDock
-          conversationId={currentConversationId}
+          conversationId={activeConversationId}
           refreshKey={candidateRefreshKey}
         />
 

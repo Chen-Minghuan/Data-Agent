@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool.model;
+package edu.zsc.ai.agent.tool.todo.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

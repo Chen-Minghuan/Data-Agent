@@ -3,7 +3,7 @@ package edu.zsc.ai.agent.tool.plan;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.Tool;
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.annotation.AgentTool;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -24,9 +24,16 @@ public class EnterPlanModeTool {
                     "a structured execution plan before any SQL runs. This prevents costly mistakes ",
                     "on multi-step operations, irreversible changes, and cross-database work.",
                     "",
-                    "Planning is cheap, recovering from a bad execution is expensive. When in doubt, ",
-                    "enter Plan mode. The thinking tool's suggestPlanMode flag will guide you, but ",
-                    "you can also enter proactively whenever a task feels complex or risky."
+                    "Planning is cheap, recovering from a bad execution is expensive. ",
+                    "Proactively enter Plan mode whenever the task is not a simple one-shot query. ",
+                    "Typical signals (not exhaustive): ",
+                    "- Write operations (DML/DDL), especially multi-table or with cascade effects; ",
+                    "- User asks multiple questions or a multi-step task in one message; ",
+                    "- Queries requiring multi-table JOINs or cross-database operations; ",
+                    "- Data migrations, bulk updates, schema changes — any high-impact operation; ",
+                    "- Vague or open-ended goals that need investigation before action; ",
+                    "- The thinking tool's suggestPlanMode flag is true. ",
+                    "If any signal applies, or you judge the task has non-trivial complexity, call this tool."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )

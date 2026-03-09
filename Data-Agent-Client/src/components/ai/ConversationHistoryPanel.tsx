@@ -60,7 +60,7 @@ function groupByDate(conversations: Conversation[], t: (k: string) => string): {
 export interface ConversationHistoryPanelProps {
   open: boolean;
   onClose: () => void;
-  onSelectConversation: (id: number) => void;
+  onSelectConversation: (conversation: Conversation) => void;
   onNewChat: () => void;
   currentConversationId: number | null;
 }
@@ -227,7 +227,7 @@ export function ConversationHistoryPanel({
   }, [open, grouped, highlightedIndex, pendingHighlightIndex, current, pages, fetchList]);
 
   const handleSelect = (c: Conversation) => {
-    onSelectConversation(c.id);
+    onSelectConversation(c);
     onClose();
   };
 

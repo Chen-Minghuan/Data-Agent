@@ -2,7 +2,7 @@ package edu.zsc.ai.agent.tool.think;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
+import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.think.model.input.CandidateObject;
 import edu.zsc.ai.agent.tool.think.model.input.ThinkingRequest;

@@ -3,15 +3,13 @@ package edu.zsc.ai.agent.tool.sql;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
-import edu.zsc.ai.agent.confirm.WriteConsumeResult;
-import edu.zsc.ai.agent.confirm.WriteConfirmationStore;
-import java.util.Objects;
-
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.guard.AgentModeGuard;
+import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
+import edu.zsc.ai.agent.tool.ask.confirm.WriteConsumeResult;
+import edu.zsc.ai.agent.guard.AgentModeGuard;
+import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.sql.model.AgentSqlResult;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
-import edu.zsc.ai.agent.tool.model.AgentSqlResult;
 import edu.zsc.ai.domain.model.dto.request.db.AgentExecuteSqlRequest;
 import edu.zsc.ai.domain.model.dto.response.db.ExecuteSqlResponse;
 import edu.zsc.ai.domain.service.db.SqlExecutionService;
@@ -20,6 +18,8 @@ import edu.zsc.ai.plugin.capability.SqlValidator;
 import edu.zsc.ai.plugin.manager.DefaultPluginManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Objects;
 
 
 @AgentTool

@@ -1,5 +1,5 @@
 
-package edu.zsc.ai.agent.confirm;
+package edu.zsc.ai.agent.tool.ask.confirm;
 
 /**
  * Lifecycle states for a write confirmation token.

@@ -1,24 +1,23 @@
 package edu.zsc.ai.agent.tool.chart;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
-
 import com.fasterxml.jackson.databind.JsonNode;
-
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
-import edu.zsc.ai.agent.tool.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.guard.AgentModeGuard;
+import edu.zsc.ai.agent.guard.AgentModeGuard;
+import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
-import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.common.constant.RequestContextConstant;
 import edu.zsc.ai.common.enums.ai.ChartTypeEnum;
+import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.util.JsonUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
 @AgentTool
 @Slf4j
@@ -34,7 +33,11 @@ public class ChartTool {
             "If the user hasn't specified what dimension to visualize, ask them first with ",
             "askUserQuestion — a targeted chart is 10x more valuable than multiple generic ones. ",
             "Put your key insight in the description parameter — the chart IS the final answer, ",
-            "do not repeat data or add commentary in text afterward."
+            "do not repeat data or add commentary in text afterward.",
+            "",
+            "IMPORTANT: Before your first renderChart call in this conversation, ",
+            "call activateSkill('chart') to load ECharts templates and rules. ",
+            "Skip if already loaded in this session."
     })
     public AgentToolResult renderChart(
             @P("Chart type: LINE/BAR/PIE/SCATTER/AREA") String chartType,

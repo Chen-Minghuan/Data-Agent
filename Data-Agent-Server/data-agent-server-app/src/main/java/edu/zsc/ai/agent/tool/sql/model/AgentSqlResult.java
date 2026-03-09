@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.tool.model;
+package edu.zsc.ai.agent.tool.sql.model;
 
 import edu.zsc.ai.domain.model.dto.response.db.ExecuteSqlExecutionInfo;
 import edu.zsc.ai.domain.model.dto.response.db.ExecuteSqlResponse;

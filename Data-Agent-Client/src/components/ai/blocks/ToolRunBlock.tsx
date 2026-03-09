@@ -5,6 +5,7 @@ import { ToolRunStreaming } from './ToolRunStreaming';
 import { ToolRunExecuting } from './ToolRunExecuting';
 import { GenericToolRun } from './GenericToolRun';
 import { ChartToolBlock } from './ChartToolBlock';
+import { SkillToolBlock } from './SkillToolBlock';
 import { parseTodoListResponse } from './todoTypes';
 import {
   parseAskUserQuestionParameters,
@@ -198,6 +199,17 @@ export function ToolRunBlock({
         />
       );
 
+    case ToolType.SKILL: {
+      const parsedSkillName = extractSkillName(parametersData);
+      return (
+        <SkillToolBlock
+          skillName={parsedSkillName}
+          responseData={responseData}
+          responseError={responseError}
+        />
+      );
+    }
+
     // CATEGORY C: Generic Data Fetching / DB Tools
     case ToolType.GENERIC:
     default:
@@ -340,6 +352,27 @@ function EnterPlanModeIndicator({ isStreaming }: { isStreaming: boolean }) {
       </span>
     </div>
   );
+}
+
+/** Extract the "skillName" field from activateSkill tool call arguments. */
+function extractSkillName(parametersData: string): string {
+  if (!parametersData) return 'unknown';
+  try {
+    let parsed: unknown = JSON.parse(parametersData);
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const obj = parsed as Record<string, unknown>;
+      if (typeof obj.skillName === 'string') return obj.skillName;
+      if (obj.request && typeof obj.request === 'object') {
+        const req = obj.request as Record<string, unknown>;
+        if (typeof req.skillName === 'string') return req.skillName;
+      }
+    }
+  } catch {
+    const match = parametersData.match(/"skillName"\s*:\s*"([^"]+)"/);
+    if (match?.[1]) return match[1];
+  }
+  return 'unknown';
 }
 
 /** Extract the "analysis" field from thinking tool call arguments. */

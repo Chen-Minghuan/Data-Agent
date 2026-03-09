@@ -1,4 +1,4 @@
-package edu.zsc.ai.agent.confirm;
+package edu.zsc.ai.agent.tool.ask.confirm;
 
 public record WriteConsumeResult(
     boolean success,
