@@ -89,6 +89,18 @@ public class ChatResponseBlock {
     }
 
     /**
+     * Status block: lightweight notification to the frontend (e.g. "compressing").
+     * data is a status key that the frontend maps to a user-visible message.
+     */
+    public static ChatResponseBlock status(String statusKey) {
+        return ChatResponseBlock.builder()
+                .type(MessageBlockEnum.STATUS.name())
+                .data(statusKey)
+                .done(false)
+                .build();
+    }
+
+    /**
      * Tool result block: data is JSON {"id":"...", "toolName":"...", "result":"...", "error": true|false}.
      * id matches the tool call id for pairing. error is true when tool execution failed (ToolExecution.hasFailed()).
      */

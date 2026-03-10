@@ -6,6 +6,7 @@ export enum SegmentKind {
   TEXT = 'TEXT',
   THOUGHT = 'THOUGHT',
   TOOL_RUN = 'TOOL_RUN',
+  STATUS = 'STATUS',
 }
 
 export enum ToolExecutionState {
@@ -25,6 +26,7 @@ export interface Message {
 export type Segment =
   | { kind: SegmentKind.TEXT; data: string }
   | { kind: SegmentKind.THOUGHT; data: string }
+  | { kind: SegmentKind.STATUS; statusKey: string }
   | {
       kind: SegmentKind.TOOL_RUN;
       toolName: string;

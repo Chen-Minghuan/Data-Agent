@@ -8,5 +8,6 @@ public enum MessageBlockEnum {
     AUDIO,
     THOUGHT,
     TOOL_CALL,
-    TOOL_RESULT
+    TOOL_RESULT,
+    STATUS
 }

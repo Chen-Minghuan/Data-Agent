@@ -2,7 +2,6 @@ package edu.zsc.ai.agent.memory;
 
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ChatMessageDeserializer;
-import dev.langchain4j.data.message.ChatMessageSerializer;
 import dev.langchain4j.data.message.ChatMessageType;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import edu.zsc.ai.domain.model.entity.ai.StoredChatMessage;
@@ -14,8 +13,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -25,113 +22,64 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
 
     private final AiMessageService aiMessageService;
     private final AiConversationService aiConversationService;
+    private final ChatMemoryCompressor compressor;
 
     @Override
     public List<ChatMessage> getMessages(Object memoryId) {
-        if (memoryId == null) {
-            return List.of();
-        }
-
-        MemoryIdInfo idInfo = parseMemoryId(memoryId);
+        MemoryIdInfo idInfo = MemoryIdUtil.parse(memoryId);
         if (idInfo == null) {
             return List.of();
         }
 
-        aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId);
+        aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId());
 
-        List<StoredChatMessage> stored = aiMessageService.getByConversationIdOrderByCreatedAtAsc(idInfo.conversationId);
+        List<StoredChatMessage> stored = aiMessageService.getByConversationIdOrderByCreatedAtAsc(idInfo.conversationId());
         if (stored.isEmpty()) {
             return List.of();
         }
 
-        return stored.stream().map(item -> ChatMessageDeserializer.messageFromJson(item.getData())).toList();
+        List<ChatMessage> messages = stored.stream()
+                .map(item -> ChatMessageDeserializer.messageFromJson(item.getData()))
+                .toList();
+
+        return compressor.compressIfNeeded(idInfo.conversationId(), idInfo.modelName(), messages);
     }
 
     @Override
     @Transactional
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
-        if (memoryId == null || CollectionUtils.isEmpty(messages)) {
+        if (CollectionUtils.isEmpty(messages)) {
             return;
         }
 
-        MemoryIdInfo idInfo = parseMemoryId(memoryId);
+        MemoryIdInfo idInfo = MemoryIdUtil.parse(memoryId);
         if (idInfo == null) {
             return;
         }
 
-        aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId);
+        aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId());
 
-        aiMessageService.removeByConversationId(idInfo.conversationId);
+        List<ChatMessage> nonSystemMessages = messages.stream()
+                .filter(m -> m.type() != ChatMessageType.SYSTEM)
+                .toList();
 
-        LocalDateTime baseTime = LocalDateTime.now();
-        List<StoredChatMessage> toSave = new ArrayList<>(messages.size());
-        int index = 0;
+        List<ChatMessage> toPersist = compressor.compressIfNeeded(
+                idInfo.conversationId(), idInfo.modelName(), nonSystemMessages);
 
-        for (ChatMessage message : messages) {
-            if (message.type() == ChatMessageType.SYSTEM) {
-                continue;
-            }
-            ChatMessage normalizedMessage = MemoryUtil.normalizeUserMessage(message);
-
-            // Add microsecond offset for each message to ensure unique timestamps
-            LocalDateTime timestamp = baseTime.plusNanos(index * 1000L);
-
-            StoredChatMessage stored = StoredChatMessage.builder()
-                    .conversationId(idInfo.conversationId())
-                    .role(normalizedMessage.type().name())
-                    .tokenCount(0)
-                    .data(ChatMessageSerializer.messageToJson(normalizedMessage))
-                    .createdAt(timestamp)
-                    .updatedAt(baseTime)
-                    .build();
-            toSave.add(stored);
-            index++;
-        }
-
-        aiMessageService.saveBatchMessages(toSave);
+        aiMessageService.replaceConversationMessages(idInfo.conversationId(), toPersist);
     }
 
     @Override
     @Transactional
     public void deleteMessages(Object memoryId) {
-        if (memoryId == null) {
-            return;
-        }
-
-        MemoryIdInfo idInfo = parseMemoryId(memoryId);
+        MemoryIdInfo idInfo = MemoryIdUtil.parse(memoryId);
         if (idInfo == null) {
             return;
         }
 
-        aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId);
+        aiConversationService.checkAccess(idInfo.userId(), idInfo.conversationId());
 
-        int deletedCount = aiMessageService.removeByConversationId(idInfo.conversationId);
-        log.debug("Deleted {} messages for conversation {}", deletedCount, idInfo.conversationId);
-    }
-
-    private MemoryIdInfo parseMemoryId(Object memoryId) {
-        if (memoryId == null) {
-            return null;
-        }
-
-        String id = memoryId.toString();
-        String[] parts = id.split(":");
-
-        if (parts.length != 2) {
-            log.warn("Invalid memoryId format: {}. Expected format: '{{userId}}:{{conversationId}}'", id);
-            return null;
-        }
-
-        try {
-            Long userId = Long.parseLong(parts[0]);
-            Long conversationId = Long.parseLong(parts[1]);
-            return new MemoryIdInfo(userId, conversationId);
-        } catch (NumberFormatException e) {
-            log.warn("Invalid memoryId format: {}. Expected format: '{{userId}}:{{conversationId}}'", id, e);
-            return null;
-        }
-    }
-
-    private record MemoryIdInfo(Long userId, Long conversationId) {
+        int deletedCount = aiMessageService.removeByConversationId(idInfo.conversationId());
+        log.debug("Deleted {} messages for conversation {}", deletedCount, idInfo.conversationId());
     }
 }

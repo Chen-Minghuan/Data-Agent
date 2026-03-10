@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextBlock, ThoughtBlock, ToolRunBlock } from '../blocks';
+import { StatusBlock, TextBlock, ThoughtBlock, ToolRunBlock } from '../blocks';
 import type { Segment } from './types';
 import { SegmentKind } from './types';
 
@@ -21,6 +21,8 @@ export function renderSegment(
           defaultExpanded={isStreamingThought}
         />
       );
+    case SegmentKind.STATUS:
+      return <StatusBlock key={key} statusKey={segment.statusKey} />;
     case SegmentKind.TOOL_RUN:
       return (
         <ToolRunBlock

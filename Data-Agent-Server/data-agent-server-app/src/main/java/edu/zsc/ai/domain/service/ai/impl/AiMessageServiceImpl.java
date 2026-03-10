@@ -3,7 +3,12 @@ package edu.zsc.ai.domain.service.ai.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.ChatMessageSerializer;
 import dev.langchain4j.data.message.ChatMessageType;
+import edu.zsc.ai.agent.memory.ChatMemoryCompressor;
+import edu.zsc.ai.agent.memory.MemoryUtil;
+import edu.zsc.ai.common.enums.ai.MessageStatusEnum;
 import edu.zsc.ai.domain.mapper.ai.AiMessageMapper;
 import edu.zsc.ai.domain.model.entity.ai.StoredChatMessage;
 import edu.zsc.ai.domain.service.ai.AiMessageService;
@@ -12,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -46,6 +53,36 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, StoredCha
         remove(wrapper);
         log.debug("Deleted {} messages for conversation {}", count, conversationId);
         return count;
+    }
+
+    @Override
+    @Transactional
+    public void replaceConversationMessages(Long conversationId, List<ChatMessage> messages) {
+        removeByConversationId(conversationId);
+
+        LocalDateTime baseTime = LocalDateTime.now();
+        List<StoredChatMessage> toSave = new ArrayList<>(messages.size());
+
+        for (int i = 0; i < messages.size(); i++) {
+            ChatMessage message = messages.get(i);
+            ChatMessage normalized = MemoryUtil.normalizeUserMessage(message);
+
+            int status = (i == 0 && ChatMemoryCompressor.isSummaryMessage(message))
+                    ? MessageStatusEnum.COMPRESSED.getCode()
+                    : MessageStatusEnum.NORMAL.getCode();
+
+            toSave.add(StoredChatMessage.builder()
+                    .conversationId(conversationId)
+                    .role(normalized.type().name())
+                    .tokenCount(0)
+                    .status(status)
+                    .data(ChatMessageSerializer.messageToJson(normalized))
+                    .createdAt(baseTime.plusNanos(i * 1000L))
+                    .updatedAt(baseTime)
+                    .build());
+        }
+
+        saveBatchMessages(toSave);
     }
 
     @Override

@@ -9,11 +9,13 @@ import edu.zsc.ai.common.constant.ResponseMessageKey;
 import edu.zsc.ai.domain.mapper.ai.AiConversationMapper;
 import edu.zsc.ai.domain.model.dto.request.base.PageRequest;
 import edu.zsc.ai.domain.model.entity.ai.AiConversation;
+import edu.zsc.ai.domain.event.ConversationDeletedEvent;
 import edu.zsc.ai.domain.service.ai.AiConversationService;
 import edu.zsc.ai.domain.service.ai.AiMessageService;
 import edu.zsc.ai.domain.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ public class AiConversationServiceImpl extends ServiceImpl<AiConversationMapper,
 
     private final AiMessageService aiMessageService;
     private final StoredMessageToResponseConverter messageConverter;
+    private final ApplicationEventPublisher eventPublisher;
 
     private long getCurrentUserId() {
         return StpUtil.getLoginIdAsLong();
@@ -107,8 +110,8 @@ public class AiConversationServiceImpl extends ServiceImpl<AiConversationMapper,
     public void deleteByCurrentUser(Long conversationId) {
         long userId = getCurrentUserId();
         checkAccess(userId, conversationId);
-        aiMessageService.removeByConversationId(conversationId);
         removeById(conversationId);
+        eventPublisher.publishEvent(new ConversationDeletedEvent(this, conversationId));
         log.info("Deleted conversation {} for user {}", conversationId, userId);
     }
 

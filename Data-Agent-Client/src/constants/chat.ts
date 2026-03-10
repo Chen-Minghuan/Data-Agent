@@ -34,3 +34,8 @@ export const TOOL_RUN_EMPTY_PLACEHOLDER = '—';
 
 /** PlanningIndicator: label shown while waiting for AI response or between blocks. */
 export const PLANNING_LABEL = 'Planning...';
+
+/** Status key → display label mapping for STATUS blocks. */
+export const STATUS_LABELS: Record<string, string> = {
+  compressing: 'Compressing memory...',
+};

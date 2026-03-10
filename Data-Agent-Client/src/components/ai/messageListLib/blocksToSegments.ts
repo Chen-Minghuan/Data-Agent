@@ -174,6 +174,12 @@ export function blocksToSegments(blocks: ChatResponseBlock[]): Segment[] {
         break;
       }
 
+      case MessageBlockType.STATUS: {
+        flushText();
+        segments.push({ kind: SegmentKind.STATUS, statusKey: block.data ?? '' });
+        break;
+      }
+
       case MessageBlockType.TOOL_RESULT: {
         flushText();
         const resultPayload = parseToolResult(block);

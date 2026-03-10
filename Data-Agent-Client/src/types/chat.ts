@@ -24,6 +24,7 @@ export const MessageBlockType = {
   THOUGHT: 'THOUGHT',
   TOOL_CALL: 'TOOL_CALL',
   TOOL_RESULT: 'TOOL_RESULT',
+  STATUS: 'STATUS',
 } as const;
 
 export type MessageBlockType = (typeof MessageBlockType)[keyof typeof MessageBlockType];

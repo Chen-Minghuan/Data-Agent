@@ -29,4 +29,14 @@ public enum ModelEnum {
         }
         throw new IllegalArgumentException("Unknown model: " + modelName);
     }
+
+    /**
+     * Resolves a model name to a valid ModelEnum, falling back to QWEN3_MAX if blank.
+     *
+     * @throws IllegalArgumentException if the model name is not supported
+     */
+    public static ModelEnum resolve(String modelName) {
+        String name = (modelName == null || modelName.isBlank()) ? QWEN3_MAX.modelName : modelName.trim();
+        return fromModelName(name);
+    }
 }

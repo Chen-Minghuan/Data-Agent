@@ -28,6 +28,8 @@ public class StoredChatMessage {
 
     private String data;
 
+    private Integer status;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
