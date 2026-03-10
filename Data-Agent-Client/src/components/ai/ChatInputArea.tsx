@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import { useMemo, useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { parseMentionSegments } from './mentionTypes';
 import { AGENT_COLORS, type AgentType } from './agentTypes';
@@ -21,7 +21,17 @@ export interface ChatInputAreaRef {
 export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
     function ChatInputArea({ input, agent, mention, onChange, onKeyDown }, ref) {
         const { t } = useTranslation();
-        const inputSegments = useMemo(() => parseMentionSegments(input), [input]);
+        
+        // 优化: 只在有 @ 符号时才解析和显示镜像层
+        const hasMention = input.includes('@');
+        const inputSegments = useMemo(() => {
+            // 没有 @ 符号时返回空数组，不显示镜像层
+            if (!hasMention) {
+                return [];
+            }
+            return parseMentionSegments(input);
+        }, [input, hasMention]);
+        
         const textareaRef = useRef<HTMLTextAreaElement>(null);
         const mirrorRef = useRef<HTMLDivElement>(null);
         const [isSelecting, setIsSelecting] = useState(false);
@@ -32,12 +42,12 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
         const prevMentionLevelRef = useRef<string>('');
 
         // Sync caret position whenever it changes
-        const syncCaret = () => {
+        const syncCaret = useCallback(() => {
             const textarea = textareaRef.current;
             if (textarea) {
                 caretRef.current = textarea.selectionStart;
             }
-        };
+        }, []);
 
         // Monitor mention popup state changes to detect table selection
         useEffect(() => {
@@ -107,75 +117,78 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
         useEffect(() => {
             const textarea = textareaRef.current;
             const mirror = mirrorRef.current;
-            if (!textarea || !mirror) return;
+            if (!textarea) return;
 
             const MIN_HEIGHT = 96;
-            const MAX_LINES = 14; // 12-16 lines for desktop, similar to GPT
+            const MAX_LINES = 14;
 
             const resize = () => {
-                // Calculate line height
                 const computedStyle = window.getComputedStyle(textarea);
                 let lineHeight = parseFloat(computedStyle.lineHeight);
 
-                // If lineHeight is 'normal' or NaN, calculate from fontSize
                 if (isNaN(lineHeight)) {
                     const fontSize = parseFloat(computedStyle.fontSize);
-                    lineHeight = fontSize * 1.2; // Default line-height multiplier
+                    lineHeight = fontSize * 1.2;
                 }
 
                 const paddingTop = parseFloat(computedStyle.paddingTop);
                 const paddingBottom = parseFloat(computedStyle.paddingBottom);
-
-                // Calculate max height based on lines
                 const MAX_HEIGHT = lineHeight * MAX_LINES + paddingTop + paddingBottom;
 
-                // Reset to auto to get real scrollHeight
                 textarea.style.height = 'auto';
-                mirror.style.height = 'auto';
-
-                // Calculate new height: clamp(scrollHeight, MIN_HEIGHT, MAX_HEIGHT)
                 const scrollHeight = textarea.scrollHeight;
                 const newHeight = Math.min(Math.max(scrollHeight, MIN_HEIGHT), MAX_HEIGHT);
 
                 textarea.style.height = `${newHeight}px`;
-                mirror.style.height = `${newHeight}px`;
+                if (mirror) {
+                    mirror.style.height = `${newHeight}px`;
+                }
             };
 
-            resize();
+            // 使用 requestAnimationFrame 优化 resize 性能
+            let rafId: number;
+            const debouncedResize = () => {
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(resize);
+            };
 
-            // Watch for layout changes
-            const ro = new ResizeObserver(resize);
+            debouncedResize();
+
+            const ro = new ResizeObserver(debouncedResize);
             ro.observe(textarea);
 
-            return () => ro.disconnect();
+            return () => {
+                ro.disconnect();
+                if (rafId) cancelAnimationFrame(rafId);
+            };
         }, [input]);
 
         // Sync scroll position between textarea and mirror
-        const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+        const handleScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
             if (mirrorRef.current) {
                 mirrorRef.current.scrollTop = e.currentTarget.scrollTop;
             }
-        };
+        }, []);
 
         // Detect text selection to toggle mirror visibility
-        const handleSelect = () => {
+        const handleSelect = useCallback(() => {
             const textarea = textareaRef.current;
             if (!textarea) return;
 
             const hasSelection = textarea.selectionStart !== textarea.selectionEnd;
             setIsSelecting(hasSelection);
             syncCaret(); // Update caret position
-        };
+        }, [syncCaret]);
 
-        const handleMouseUp = () => {
+        const handleMouseUp = useCallback(() => {
             handleSelect();
-        };
+        }, [handleSelect]);
 
-        const handleKeyUp = () => {
+        const handleKeyUp = useCallback(() => {
             handleSelect();
-        };
+        }, [handleSelect]);
 
-        const handleBlur = () => {
+        const handleBlur = useCallback(() => {
             // Don't close popups if ignoreBlur is set (e.g., when clicking mention items)
             if (ignoreBlurRef.current) {
                 ignoreBlurRef.current = false;
@@ -186,15 +199,15 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
                 return;
             }
             // Normal blur handling can go here if needed
-        };
+        }, []);
 
-        const handleCompositionStart = () => {
+        const handleCompositionStart = useCallback(() => {
             setIsComposing(true);
-        };
+        }, []);
 
-        const handleCompositionEnd = () => {
+        const handleCompositionEnd = useCallback(() => {
             setIsComposing(false);
-        };
+        }, []);
 
         return (
             <>
@@ -218,32 +231,35 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
       `}</style>
 
                 <div className="relative min-h-24">
-                    {/* Mirror layer: same layout as textarea, shows colored @mention text */}
-                    <div
-                        ref={mirrorRef}
-                        className="chat-input-mirror absolute inset-0 overflow-y-auto text-xs p-3 whitespace-pre-wrap theme-text-primary"
-                        aria-hidden="true"
-                        style={{
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            scrollbarGutter: 'stable',
-                            wordWrap: 'break-word',
-                            overflowWrap: 'break-word',
-                            lineHeight: 'normal',
-                            opacity: isSelecting || isComposing ? 0 : 1,
-                            pointerEvents: 'none'
-                        }}
-                    >
-                        {inputSegments.map((seg, i) =>
+                    {/* Mirror layer: 只在有 @mention 时显示 */}
+                    {hasMention && (
+                        <div
+                            ref={mirrorRef}
+                            className="chat-input-mirror absolute inset-0 overflow-y-auto text-xs p-3 whitespace-pre-wrap theme-text-primary"
+                            aria-hidden="true"
+                            style={{
+                                scrollbarWidth: 'none',
+                                msOverflowStyle: 'none',
+                                scrollbarGutter: 'stable',
+                                wordWrap: 'break-word',
+                                overflowWrap: 'break-word',
+                                lineHeight: 'normal',
+                                opacity: isSelecting || isComposing ? 0 : 1,
+                                pointerEvents: 'none',
+                                willChange: 'opacity',
+                            }}
+                        >
+                            {inputSegments.map((seg, i) =>
                                 seg.type === 'mention' ? (
                                     <span key={i} className={AGENT_COLORS[agent].mentionText}>
-              {seg.text}
-            </span>
+                                        {seg.text}
+                                    </span>
                                 ) : (
                                     <span key={i}>{seg.text}</span>
                                 )
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                     <textarea
                         ref={textareaRef}
                         id="chat-input-textarea"
@@ -267,7 +283,8 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
                             wordWrap: 'break-word',
                             overflowWrap: 'break-word',
                             lineHeight: 'normal',
-                            color: isSelecting || isComposing ? 'var(--text-primary)' : 'transparent'
+                            color: (isSelecting || isComposing || !hasMention) ? 'var(--text-primary)' : 'transparent',
+                            willChange: 'contents',
                         }}
                     />
                 </div>

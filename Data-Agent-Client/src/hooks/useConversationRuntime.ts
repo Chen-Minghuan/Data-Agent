@@ -223,47 +223,93 @@ export function useConversationRuntime(
             let accumulatedContent = '';
             const accumulatedBlocks: ChatResponseBlock[] = [];
             let updateCounter = 0;
-            const UPDATE_THROTTLE = 3;
+            const UPDATE_THROTTLE = 5; // 增加节流阈值，减少更新频率
+            
+            // 使用 RAF 批量更新，避免阻塞输入
+            let rafId: number | null = null;
+            let pendingUpdate = false;
+            
+            const scheduleUpdate = () => {
+                if (pendingUpdate) return;
+                pendingUpdate = true;
+                
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(() => {
+                    const lastMessage = runtime.messages[runtime.messages.length - 1];
+                    if (lastMessage?.role === MessageRole.ASSISTANT) {
+                        const updatedMessages = [...runtime.messages];
+                        updatedMessages[updatedMessages.length - 1] = {
+                            ...lastMessage,
+                            content: accumulatedContent,
+                            blocks: [...accumulatedBlocks],
+                        };
+                        updateRuntimeMessages(runtime, updatedMessages);
+                    }
+                    pendingUpdate = false;
+                    rafId = null;
+                });
+            };
 
-            for await (const block of parseSSEResponse(response)) {
-                const lastMessage = runtime.messages[runtime.messages.length - 1];
-                if (lastMessage?.role !== MessageRole.ASSISTANT) continue;
+            try {
+                for await (const block of parseSSEResponse(response)) {
+                    const lastMessage = runtime.messages[runtime.messages.length - 1];
+                    if (lastMessage?.role !== MessageRole.ASSISTANT) continue;
 
-                if (block.conversationId != null) {
-                    onConversationIdReceived?.(block.conversationId);
+                    if (block.conversationId != null) {
+                        onConversationIdReceived?.(block.conversationId);
+                    }
+
+                    if (isContentBlockType(block.type)) {
+                        accumulatedContent += block.data ?? '';
+                    }
+                    accumulatedBlocks.push(block);
+
+                    updateCounter++;
+
+                    // 重要 block 立即更新，普通文本使用 RAF 批量更新
+                    const isImportantBlock = 
+                        block.done ||
+                        block.type === 'TOOL_CALL' ||
+                        block.type === 'TOOL_RESULT';
+                    
+                    const shouldUpdate = isImportantBlock || updateCounter >= UPDATE_THROTTLE;
+
+                    if (shouldUpdate) {
+                        updateCounter = 0;
+                        
+                        if (isImportantBlock) {
+                            // 重要 block 立即更新
+                            if (rafId) {
+                                cancelAnimationFrame(rafId);
+                                rafId = null;
+                            }
+                            const updatedMessages = [...runtime.messages];
+                            updatedMessages[updatedMessages.length - 1] = {
+                                ...lastMessage,
+                                content: accumulatedContent,
+                                blocks: [...accumulatedBlocks],
+                            };
+                            updateRuntimeMessages(runtime, updatedMessages);
+                            pendingUpdate = false;
+                        } else {
+                            // 普通文本使用 RAF 批量更新
+                            scheduleUpdate();
+                        }
+                    }
+
+                    if (block.done) {
+                        break;
+                    }
+
+                    cancelWaiting(runtime);
+                    scheduleWaiting(runtime);
+                    runtime.lastStreamEventAt = Date.now();
                 }
-
-                if (isContentBlockType(block.type)) {
-                    accumulatedContent += block.data ?? '';
+            } finally {
+                // 清理 RAF
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
                 }
-                accumulatedBlocks.push(block);
-
-                updateCounter++;
-
-                const shouldUpdate =
-                    block.done ||
-                    block.type === 'TOOL_CALL' ||
-                    block.type === 'TOOL_RESULT' ||
-                    updateCounter >= UPDATE_THROTTLE;
-
-                if (shouldUpdate) {
-                    updateCounter = 0;
-                    const updatedMessages = [...runtime.messages];
-                    updatedMessages[updatedMessages.length - 1] = {
-                        ...lastMessage,
-                        content: accumulatedContent,
-                        blocks: [...accumulatedBlocks],
-                    };
-                    updateRuntimeMessages(runtime, updatedMessages);
-                }
-
-                if (block.done) {
-                    break;
-                }
-
-                cancelWaiting(runtime);
-                scheduleWaiting(runtime);
-                runtime.lastStreamEventAt = Date.now();
             }
         },
         [updateRuntimeMessages, cancelWaiting, scheduleWaiting]

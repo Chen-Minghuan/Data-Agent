@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot } from 'lucide-react';
 import { MessageRole } from '../../../types/chat';
@@ -29,7 +29,7 @@ export function MessageList({
   isWaiting = false,
 }: MessageListProps) {
   const { t } = useTranslation();
-  const displayMessages = mergeAssistantToolPairs(messages);
+  const displayMessages = useMemo(() => mergeAssistantToolPairs(messages), [messages]);
   const {
     lastAssistantMessageIndexWithTodo,
     latestTodoItems,
@@ -40,10 +40,26 @@ export function MessageList({
   // Phase A: isWaiting=true and no assistant message yet (last is user or list empty)
   const showPlanningRow = isWaiting && (!lastMsg || lastMsg.role !== MessageRole.ASSISTANT);
 
+  // 优化: 只渲染最近的消息，避免长对话时 DOM 节点过多
+  const VISIBLE_MESSAGE_COUNT = 50;
+  const visibleMessages = useMemo(() => 
+    displayMessages.length > VISIBLE_MESSAGE_COUNT 
+      ? displayMessages.slice(-VISIBLE_MESSAGE_COUNT)
+      : displayMessages,
+    [displayMessages]
+  );
+  const hiddenCount = displayMessages.length - visibleMessages.length;
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4 theme-bg-main">
-      {displayMessages.map((msg, msgIndex) => {
-        const isLastMessage = msgIndex === displayMessages.length - 1;
+      {hiddenCount > 0 && (
+        <div className="text-center text-xs theme-text-secondary py-2 opacity-60">
+          {hiddenCount} {t('ai.messages_hidden', { defaultValue: 'earlier messages hidden' })}
+        </div>
+      )}
+      {visibleMessages.map((msg, msgIndex) => {
+        const actualIndex = hiddenCount + msgIndex;
+        const isLastMessage = actualIndex === displayMessages.length - 1;
         const isLastAssistantStreaming =
           isLastMessage && msg.role === MessageRole.ASSISTANT && isLoading;
         let segments =
@@ -71,7 +87,7 @@ export function MessageList({
         // Don't use overrideTodoBoxes since todos are shown above input
         const overrideTodoBoxes: TodoBoxSpec[] = [];
         const showAllCompletedPrompt =
-          msgIndex === lastAssistantMessageIndexWithTodo &&
+          actualIndex === lastAssistantMessageIndexWithTodo &&
           allTodoCompleted &&
           latestTodoItems != null;
 
@@ -84,10 +100,10 @@ export function MessageList({
         }
 
         return (
-          <MessageListItem
+          <MemoizedMessageListItem
             key={msg.id}
             msg={msg}
-            msgIndex={msgIndex}
+            msgIndex={actualIndex}
             totalCount={displayMessages.length}
             isLoading={isLoading}
             isWaiting={isLastAssistantStreaming ? isWaiting : false}
@@ -117,3 +133,24 @@ export function MessageList({
     </div>
   );
 }
+
+// 优化: 使用 React.memo 避免历史消息不必要的重新渲染
+const MemoizedMessageListItem = React.memo(
+  MessageListItem,
+  (prevProps, nextProps) => {
+    // 如果不是最后一条消息且内容没变，跳过重新渲染
+    if (!nextProps.isLastAssistantStreaming && prevProps.msg.id === nextProps.msg.id) {
+      // 检查关键属性是否变化
+      const contentSame = prevProps.msg.content === nextProps.msg.content;
+      const blocksSame = prevProps.msg.blocks?.length === nextProps.msg.blocks?.length;
+      const segmentsSame = prevProps.segments.length === nextProps.segments.length;
+      
+      if (contentSame && blocksSame && segmentsSame) {
+        return true; // 返回 true 表示不重新渲染
+      }
+    }
+    
+    // 最后一条流式消息需要实时更新
+    return false;
+  }
+);
