@@ -70,10 +70,10 @@
     --text-markdown-strong: #ffffff;
     --border-markdown-block: #4e5155;
 
-    /* User Message Bubble (Dark) - hollow/outline */
-    --user-bubble-bg: transparent;
+    /* User Message Bubble (Dark) - with background */
+    --user-bubble-bg: rgba(255, 255, 255, 0.05);
     --user-bubble-text: 220 10% 92%;
-    --user-bubble-border: 212 5% 42%;
+    --user-bubble-border: 212 5% 32%;
   }
 
   .light {
@@ -138,10 +138,10 @@
     --text-markdown-strong: #000000;
     --border-markdown-block: #d1d5db;
 
-    /* User Message Bubble (Light) - hollow/outline */
-    --user-bubble-bg: transparent;
+    /* User Message Bubble (Light) - with background */
+    --user-bubble-bg: rgba(0, 0, 0, 0.03);
     --user-bubble-text: 215 25% 17%;
-    --user-bubble-border: 214 32% 75%;
+    --user-bubble-border: 214 32% 85%;
   }
 }
 
