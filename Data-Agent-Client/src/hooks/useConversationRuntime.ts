@@ -16,6 +16,32 @@ export interface ConversationPrefs {
     model: string;
 }
 
+const PREFS_STORAGE_KEY = 'conversation_prefs';
+
+function loadAllPrefsFromStorage(): Record<string, ConversationPrefs> {
+    try {
+        const raw = localStorage.getItem(PREFS_STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as Record<string, ConversationPrefs>) : {};
+    } catch {
+        return {};
+    }
+}
+
+function savePrefsToStorage(conversationId: number, prefs: ConversationPrefs): void {
+    try {
+        const all = loadAllPrefsFromStorage();
+        all[String(conversationId)] = prefs;
+        localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(all));
+    } catch {
+        // localStorage unavailable, silently ignore
+    }
+}
+
+function readPrefsFromStorage(conversationId: number): ConversationPrefs | null {
+    const all = loadAllPrefsFromStorage();
+    return all[String(conversationId)] ?? null;
+}
+
 interface ConversationRuntime {
     conversationId: number | null;
     messages: ChatMessage[];
@@ -410,6 +436,8 @@ export function useConversationRuntime(
                         runtime.conversationId = parsed;
                         runtimesRef.current.set(newKey, runtime);
                         touchRuntime(runtime);
+                        // Persist prefs that were set before the real ID was known
+                        if (runtime.prefs) savePrefsToStorage(parsed, runtime.prefs);
 
                         // Only auto-switch if user is still on this runtime.
                         if (activeConversationIdRef.current === previousConversationId) {
@@ -451,6 +479,8 @@ export function useConversationRuntime(
                         runtime.conversationId = newConversationId;
                         runtimesRef.current.set(newKey, runtime);
                         touchRuntime(runtime);
+                        // Persist prefs that were set before the real ID was known
+                        if (runtime.prefs) savePrefsToStorage(newConversationId, runtime.prefs);
 
                         // Update active conversation ID if this runtime is still active
                         if (activeConversationIdRef.current === previousConversationId) {
@@ -599,11 +629,25 @@ export function useConversationRuntime(
     }, [renderTick, getFirstValidUserMessage]);
 
     const getActivePrefs = useCallback((): ConversationPrefs | null => {
-        return getOrCreateRuntime(activeConversationIdRef.current).prefs;
+        const id = activeConversationIdRef.current;
+        const runtime = getOrCreateRuntime(id);
+        // Return from runtime cache first; fall back to localStorage for persisted conversations
+        if (runtime.prefs) return runtime.prefs;
+        if (isPersistedConversationId(id)) {
+            const stored = readPrefsFromStorage(id);
+            if (stored) runtime.prefs = stored; // back-fill cache
+            return stored;
+        }
+        return null;
     }, [getOrCreateRuntime]);
 
     const setActivePrefs = useCallback((prefs: ConversationPrefs) => {
-        getOrCreateRuntime(activeConversationIdRef.current).prefs = prefs;
+        const id = activeConversationIdRef.current;
+        getOrCreateRuntime(id).prefs = prefs;
+        // Only persist for real server-assigned conversation IDs
+        if (isPersistedConversationId(id)) {
+            savePrefsToStorage(id, prefs);
+        }
     }, [getOrCreateRuntime]);
 
     return {
