@@ -26,7 +26,6 @@ public class ExitPlanModeTool {
                     "they can approve or adjust before any execution. Title + steps (order, description, SQL, objectName). Only in Plan mode.",
                     "",
                     "When to Use: when analysis is complete and you have a clear, step-by-step plan with production-ready SQL.",
-                    "When NOT to Use: in Agent mode — this tool is only exposed in Plan mode.",
                     "Relation: pair with enterPlanMode; after exploration and analysis call this with all steps needed to achieve the goal."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE

@@ -24,7 +24,6 @@ public class AskUserQuestionTool {
                     "Asks structured questions with 2-3 options to eliminate ambiguity and get the right target.",
                     "",
                     "When to Use: when searchObjects or getEnvironmentOverview yields multiple candidates; when scope or intent is unclear; before renderChart to choose dimension.",
-                    "When NOT to Use: when there is only one candidate or the user has already specified the target clearly.",
                     "Relation: call after discovery when 2+ candidates; provide concrete options (e.g. table/database choice, time range, chart dimension). Maximum 3 options per question."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE

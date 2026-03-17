@@ -44,4 +44,9 @@ public class RequestContextInfo {
      * Agent mode (agent / plan)
      */
     private String agentMode;
+
+    /**
+     * AI model name used in current session
+     */
+    private String modelName;
 }

@@ -12,16 +12,17 @@ import lombok.extern.slf4j.Slf4j;
 public class ActivateSkillTool {
 
     @Tool({
-            "Calling this before first use of a capability greatly improves output quality — you get expert ",
-            "rules and templates (e.g. for charts). Skip if already loaded this session. ",
-            "Loads expert rules and templates for a task type (e.g. chart).",
+            "Loads expert rules and templates for a capability, greatly improving output quality. ",
+            "Skip if already loaded this session.",
             "",
-            "When to Use: before first renderChart in the conversation to load ECharts rules.",
-            "When NOT to Use: when the skill was already loaded in this session.",
-            "Relation: call before first use of the capability (e.g. activateSkill('chart') before renderChart). skillName must be one of: chart."
+            "When to Use:",
+            "  - 'chart': before first renderChart call, loads ECharts rules and templates.",
+            "  - 'sql-optimization': when optimizing complex SQL (3+ table JOIN, subqueries, or user requests optimization), ",
+            "    loads index analysis, execution plan, and rewrite strategies.",
+            "skillName must be one of: chart, sql-optimization."
     })
     public String activateSkill(
-            @P("Skill to load. MUST be one of: chart") String skillName) {
+            @P("Skill to load. MUST be one of: chart, sql-optimization") String skillName) {
         SkillEnum skill = SkillEnum.fromName(skillName);
         if (skill == null) {
             return "Unknown skill: " + skillName

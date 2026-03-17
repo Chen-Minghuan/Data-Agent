@@ -29,3 +29,53 @@ export interface TableTabMetadata extends ConsoleTabMetadata {
 export interface PlanTabMetadata {
   planPayload: import('../components/ai/blocks/exitPlanModeTypes').ExitPlanPayload;
 }
+
+export interface SubAgentParamsSummary {
+  userQuestion?: string;
+  connectionIds?: number[];
+  taskCount?: number;
+}
+
+/**
+ * SubAgent Console Tab Metadata
+ * Stores all SubAgent invocations for a conversation, displayed in the Console tab.
+ */
+export interface SubAgentConsoleTabMetadata {
+  conversationId: number | null;
+  agentType: 'explorer' | 'sql_planner';
+  status: 'running' | 'complete' | 'error';
+  startedAt: number;
+  completedAt?: number;
+  params?: SubAgentParamsSummary;
+  summary?: string;
+  resultJson?: string;
+  invocations: SubAgentInvocation[];
+}
+
+/** Minimal info for a nested tool call (e.g. getEnvironmentOverview, searchObjects) in Explorer Console. */
+export interface NestedToolCall {
+  toolName: string;
+  status: 'pending' | 'running' | 'complete';
+  responseError?: boolean;
+}
+
+export interface SubAgentInvocation {
+  id: string;
+  taskLabel: string;
+  agentType: 'explorer' | 'sql_planner';
+  status: 'running' | 'complete' | 'error';
+  params: SubAgentParamsSummary;
+  progressEvents: import('../components/ai/blocks/subAgentTypes').SubAgentProgressEvent[];
+  /** Nested tool calls (getEnvironmentOverview, searchObjects, getObjectDetail) for real-time display. */
+  nestedToolCalls?: NestedToolCall[];
+  /** Full nested tool run segments for reuse in the console renderer. */
+  nestedToolRuns?: import('../components/ai/messageListLib/types').Segment[];
+  /** Final result summary only when the frontend has a real task-scoped result. Never use status text here. */
+  resultSummary?: string;
+  /** Final result JSON only when the frontend has a real task-scoped result payload. */
+  resultJson?: string;
+  tokenUsage?: number;
+  trace?: Record<string, unknown>;
+  startedAt: number;
+  completedAt?: number;
+}

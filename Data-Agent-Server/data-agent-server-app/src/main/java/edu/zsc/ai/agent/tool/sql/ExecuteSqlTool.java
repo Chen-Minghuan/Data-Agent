@@ -37,7 +37,6 @@ public class ExecuteSqlTool {
         "Executes read-only SQL; pass multiple statements in one call — results in 'results' array.",
         "",
         "When to Use: after you have verified connection, database, and table structure via getObjectDetail.",
-        "When NOT to Use: for INSERT/UPDATE/DELETE/DDL — use askUserConfirm then executeNonSelectSql instead.",
         "Relation: call getEnvironmentOverview and searchObjects to resolve target; getObjectDetail for every referenced table; then build SQL and call here. For large tables (>10000 rows) always include WHERE/LIMIT."
     })
     public AgentSqlResult executeSelectSql(
@@ -73,7 +72,6 @@ public class ExecuteSqlTool {
         "Executes write SQL (INSERT, UPDATE, DELETE, DDL); requires askUserConfirm first.",
         "",
         "When to Use: only after askUserConfirm has been called and the user approved the same SQL.",
-        "When NOT to Use: never call without calling askUserConfirm first; for read-only use executeSelectSql.",
         "Relation: (1) finalize SQL, (2) call askUserConfirm with impact explanation, (3) after approval call here with the exact same SQL. Accepts a list; results in 'results' array."
     })
     public AgentSqlResult executeNonSelectSql(

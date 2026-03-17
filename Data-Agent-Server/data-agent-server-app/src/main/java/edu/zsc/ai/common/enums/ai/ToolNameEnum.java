@@ -11,6 +11,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ToolNameEnum {
 
+    // ── Orchestration (SubAgent) ──
+    CALLING_EXPLORER_SUB_AGENT("callingExplorerSubAgent"),
+    CALLING_PLANNER_SUB_AGENT("callingPlannerSubAgent"),
+
     // ── Plan mode ──
     ENTER_PLAN_MODE("enterPlanMode"),
     EXIT_PLAN_MODE("exitPlanMode"),
@@ -28,17 +32,8 @@ public enum ToolNameEnum {
     SEARCH_OBJECTS("searchObjects"),
     GET_OBJECT_DETAIL("getObjectDetail"),
 
-    // ── Thinking ──
-    THINKING("thinking"),
-
     // ── Visualization ──
     RENDER_CHART("renderChart"),
-
-    // ── Memory ──
-    SEARCH_MEMORIES("searchMemories"),
-    LIST_CANDIDATE_MEMORIES("listCandidateMemories"),
-    CREATE_CANDIDATE_MEMORY("createCandidateMemory"),
-    DELETE_CANDIDATE_MEMORY("deleteCandidateMemory"),
 
     // ── Task management ──
     TODO_WRITE("todoWrite"),
@@ -48,4 +43,13 @@ public enum ToolNameEnum {
     ;
 
     private final String toolName;
+
+    private static final java.util.Set<String> SUB_AGENT_TOOLS = java.util.Set.of(
+            CALLING_EXPLORER_SUB_AGENT.toolName,
+            CALLING_PLANNER_SUB_AGENT.toolName
+    );
+
+    public static boolean isSubAgentTool(String name) {
+        return name != null && SUB_AGENT_TOOLS.contains(name);
+    }
 }

@@ -22,9 +22,8 @@ public class EnterPlanModeTool {
                     "Calling this tool greatly reduces risk on complex or write operations — you analyze ",
                     "and plan without executing, avoiding costly mistakes. Use exitPlanMode to deliver the plan.",
                     "",
-                    "When to Use: write operations (DML/DDL), multi-step or multi-table tasks, vague goals, or when thinking suggests Plan mode.",
-                    "When NOT to Use: for simple one-shot read-only queries with a clear target.",
-                    "Relation: after entering, use getEnvironmentOverview/searchObjects/getObjectDetail and thinking; then exitPlanMode with title and steps. triggerSignal: CHECKLIST_RECOMMENDATION|MULTI_STEP_DISCOVERED|UNEXPECTED_COMPLEXITY|IRREVERSIBLE_OPERATION|MULTI_TABLE_WRITE."
+                    "When to Use: write operations (DML/DDL), multi-step or multi-table tasks, vague goals, or when analysis suggests Plan mode.",
+                    "Relation: after entering, use getEnvironmentOverview/searchObjects/getObjectDetail for discovery; then exitPlanMode with title and steps. triggerSignal: CHECKLIST_RECOMMENDATION|MULTI_STEP_DISCOVERED|UNEXPECTED_COMPLEXITY|IRREVERSIBLE_OPERATION|MULTI_TABLE_WRITE."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )

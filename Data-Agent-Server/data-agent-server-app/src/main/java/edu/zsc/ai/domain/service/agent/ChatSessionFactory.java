@@ -43,6 +43,7 @@ public class ChatSessionFactory {
         AgentModeEnum agentMode = AgentModeEnum.fromRequest(request.getAgentType());
 
         RequestContext.get().setAgentMode(agentMode.getCode());
+        RequestContext.get().setModelName(modelName);
 
         ReActAgent agent = reActAgentProvider.getAgent(modelName, request.getLanguage(), agentMode.getCode());
 

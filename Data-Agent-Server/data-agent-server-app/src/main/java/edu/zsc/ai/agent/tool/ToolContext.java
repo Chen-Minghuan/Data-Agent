@@ -3,6 +3,7 @@ package edu.zsc.ai.agent.tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.RequestContextConstant;
+import edu.zsc.ai.util.ConnectionIdUtil;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
 
@@ -24,9 +25,9 @@ public class ToolContext implements AutoCloseable {
     public static ToolContext from(InvocationParameters params) {
         if (params != null) {
             RequestContextInfo contextInfo = RequestContextInfo.builder()
-                    .userId(params.get(RequestContextConstant.USER_ID))
-                    .conversationId(params.get(RequestContextConstant.CONVERSATION_ID))
-                    .connectionId(params.get(RequestContextConstant.CONNECTION_ID))
+                    .userId(ConnectionIdUtil.toLong(params.get(RequestContextConstant.USER_ID)))
+                    .conversationId(ConnectionIdUtil.toLong(params.get(RequestContextConstant.CONVERSATION_ID)))
+                    .connectionId(ConnectionIdUtil.toLong(params.get(RequestContextConstant.CONNECTION_ID)))
                     .catalog(params.get(RequestContextConstant.DATABASE_NAME))
                     .schema(params.get(RequestContextConstant.SCHEMA_NAME))
                     .agentMode(params.get(RequestContextConstant.AGENT_MODE))

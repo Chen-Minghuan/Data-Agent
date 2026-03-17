@@ -4,8 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * MiniMax 模型配置（参照 Qwen 单配置块）
- * 配置前缀: ai.minimax
+ * MiniMax model configuration (following Qwen config pattern).
+ * Config prefix: ai.minimax
  */
 @Data
 @ConfigurationProperties(prefix = "ai.minimax")

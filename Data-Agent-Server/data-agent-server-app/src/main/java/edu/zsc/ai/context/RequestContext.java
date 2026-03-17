@@ -88,6 +88,14 @@ public class RequestContext {
     }
 
     /**
+     * Get model name from current context
+     */
+    public static String getModelName() {
+        RequestContextInfo context = get();
+        return context != null ? context.getModelName() : null;
+    }
+
+    /**
      * Clear context from current thread
      */
     public static void clear() {
@@ -127,6 +135,7 @@ public class RequestContext {
         putIfNotNull(map, RequestContextConstant.DATABASE_NAME, getCatalog());
         putIfNotNull(map, RequestContextConstant.SCHEMA_NAME, getSchema());
         putIfNotNull(map, RequestContextConstant.AGENT_MODE, getAgentMode());
+        putIfNotNull(map, RequestContextConstant.MODEL_NAME, getModelName());
         return map;
     }
 

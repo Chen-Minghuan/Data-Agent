@@ -9,8 +9,10 @@ import edu.zsc.ai.agent.tool.sql.model.ObjectSearchResponse;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchResult;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
+import edu.zsc.ai.util.ConnectionIdUtil;
 import edu.zsc.ai.domain.model.context.DbContext;
 import edu.zsc.ai.domain.model.dto.response.db.ConnectionResponse;
+import edu.zsc.ai.domain.service.db.ColumnService;
 import edu.zsc.ai.domain.service.db.DatabaseObjectService;
 import edu.zsc.ai.domain.service.db.DatabaseService;
 import edu.zsc.ai.domain.service.db.DbConnectionService;
@@ -18,6 +20,7 @@ import edu.zsc.ai.domain.service.db.DiscoveryService;
 import edu.zsc.ai.domain.service.db.IndexService;
 import edu.zsc.ai.domain.service.db.SchemaService;
 import edu.zsc.ai.plugin.constant.DatabaseObjectTypeEnum;
+import edu.zsc.ai.plugin.model.metadata.ColumnMetadata;
 import edu.zsc.ai.plugin.model.metadata.IndexMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -39,9 +42,9 @@ import static edu.zsc.ai.config.ExecutorConfig.SHARED_EXECUTOR_BEAN_NAME;
 @Service
 public class DiscoveryServiceImpl implements DiscoveryService {
 
-    // TODO OOM 风险：SEARCH_RESULT_LIMIT 只截断了最终返回给 Tool 的结果数量，
-    //  但底层 databaseObjectService.searchObjects() 可能一次从数据库查出大量数据加载到内存。
-    //  后续需要在 plugin 层的 SQL 查询中加 LIMIT，从源头控制内存占用。
+    // TODO OOM risk: SEARCH_RESULT_LIMIT only truncates the final result count returned to Tool,
+    //  but databaseObjectService.searchObjects() may load a large dataset into memory at once.
+    //  Need to add LIMIT in plugin-layer SQL queries to control memory usage at source.
     private static final int SEARCH_RESULT_LIMIT = 100;
 
     private static final EnumSet<DatabaseObjectTypeEnum> ROW_COUNT_TYPES = EnumSet.of(
@@ -60,6 +63,7 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private final SchemaService schemaService;
     private final DatabaseObjectService databaseObjectService;
     private final IndexService indexService;
+    private final ColumnService columnService;
 
     public DiscoveryServiceImpl(
             @Qualifier(SHARED_EXECUTOR_BEAN_NAME) Executor sharedExecutor,
@@ -67,13 +71,15 @@ public class DiscoveryServiceImpl implements DiscoveryService {
             DatabaseService databaseService,
             SchemaService schemaService,
             DatabaseObjectService databaseObjectService,
-            IndexService indexService) {
+            IndexService indexService,
+            ColumnService columnService) {
         this.sharedExecutor = sharedExecutor;
         this.dbConnectionService = dbConnectionService;
         this.databaseService = databaseService;
         this.schemaService = schemaService;
         this.databaseObjectService = databaseObjectService;
         this.indexService = indexService;
+        this.columnService = columnService;
     }
 
     // ==================== getEnvironmentOverview ====================
@@ -273,7 +279,17 @@ public class DiscoveryServiceImpl implements DiscoveryService {
                 ? indexService.getIndexes(db, objectName)
                 : null;
 
-        return new ObjectDetail(ddl, rowCount, indexes);
+        List<ColumnMetadata> columns = List.of();
+        if (ROW_COUNT_TYPES.contains(type)) {
+            try {
+                columns = columnService.listColumns(db, objectName);
+                if (columns == null) columns = List.of();
+            } catch (Exception e) {
+                log.warn("Failed to list columns for {} '{}': {}", type, objectName, e.getMessage());
+            }
+        }
+
+        return new ObjectDetail(ddl, rowCount, indexes, columns);
     }
 
     // ==================== getObjectDetails (batch) ====================
@@ -284,7 +300,9 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         for (ObjectQueryItem item : items) {
             try {
                 DatabaseObjectTypeEnum type = DatabaseObjectTypeEnum.parseQueryable(item.getObjectType());
-                DbContext db = new DbContext(item.getConnectionId(), item.getDatabaseName(), item.getSchemaName());
+                Long connId = ConnectionIdUtil.toLong(item.getConnectionId());
+                if (connId == null) connId = RequestContext.getConnectionId();
+                DbContext db = new DbContext(connId, item.getDatabaseName(), item.getSchemaName());
                 ObjectDetail detail = getObjectDetail(type, item.getObjectName(), db);
                 results.add(new NamedObjectDetail(
                         item.getObjectName(), item.getObjectType(), true, null, detail));

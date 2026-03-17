@@ -1,4 +1,4 @@
-import { FileCode, ListTodo, Table as TableIcon, X } from 'lucide-react';
+import { FileCode, ListTodo, Table as TableIcon, X, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { useTabStore } from '../../store/tabStore';
@@ -30,7 +30,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/
 interface SortableTabProps {
   tabId: string;
   name: string;
-  type: 'file' | 'table' | 'plan';
+  type: 'file' | 'table' | 'plan' | 'subagent-console';
   connectionName?: string;
   databaseName?: string | null;
   isActive: boolean;
@@ -67,7 +67,7 @@ function SortableTab({
   } = useSortable({ id: tabId });
 
   const tabLabel =
-    type === 'plan'
+    type === 'plan' || type === 'subagent-console'
       ? name
       : type === 'table'
         ? name
@@ -102,6 +102,8 @@ function SortableTab({
               <span className="mr-1.5 shrink-0">
                 {type === 'plan' ? (
                   <ListTodo className="w-3 h-3 text-amber-400" />
+                ) : type === 'subagent-console' ? (
+                  <Zap className="w-3 h-3 text-cyan-400" />
                 ) : type === 'file' ? (
                   <FileCode className="w-3 h-3 text-blue-400" />
                 ) : (
@@ -187,8 +189,8 @@ export function TabBar() {
                 tabId={tab.id}
                 name={tab.name}
                 type={tab.type}
-                connectionName={tab.type !== 'plan' ? (tab.metadata as import('../../types/tab').ConsoleTabMetadata | undefined)?.connectionName : undefined}
-                databaseName={tab.type !== 'plan' ? (tab.metadata as import('../../types/tab').ConsoleTabMetadata | undefined)?.databaseName : undefined}
+                connectionName={tab.type !== 'plan' && tab.type !== 'subagent-console' ? (tab.metadata as import('../../types/tab').ConsoleTabMetadata | undefined)?.connectionName : undefined}
+                databaseName={tab.type !== 'plan' && tab.type !== 'subagent-console' ? (tab.metadata as import('../../types/tab').ConsoleTabMetadata | undefined)?.databaseName : undefined}
                 isActive={tab.active}
                 onSwitch={switchTab}
                 onClose={closeTab}

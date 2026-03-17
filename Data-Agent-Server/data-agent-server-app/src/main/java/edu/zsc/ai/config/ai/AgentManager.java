@@ -6,6 +6,7 @@ import dev.langchain4j.service.AiServices;
 import edu.zsc.ai.agent.ReActAgent;
 import edu.zsc.ai.agent.ReActAgentProvider;
 import edu.zsc.ai.common.enums.ai.AgentModeEnum;
+import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
 import edu.zsc.ai.common.enums.ai.PromptEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,20 +41,21 @@ public class AgentManager {
                 throw new IllegalArgumentException(
                         "No StreamingChatModel configured for model=" + modelName);
             }
-            String cacheKey = modelName + "::" + promptLanguage.getCode() + "::" + mode.getCode();
+            String cacheKey = buildCacheKey(modelName, promptLanguage.getCode(), mode.getCode(), AgentTypeEnum.MAIN);
             return dynamicAgentCache.computeIfAbsent(cacheKey, key -> {
-                log.info("Create ReActAgent dynamically: model={}, language={}, mode={}",
+                log.info("Create MainAgent dynamically: model={}, language={}, mode={}",
                         modelName, promptLanguage.getCode(), mode.getCode());
                 String systemPrompt = PromptConfig.getPrompt(promptLanguage);
-                return buildAgent(model, mode, systemPrompt);
+                return buildMainAgent(model, mode, systemPrompt);
             });
         };
     }
 
-    private ReActAgent buildAgent(StreamingChatModel model,
-                                   AgentModeEnum mode,
-                                   String systemPrompt) {
+    private ReActAgent buildMainAgent(StreamingChatModel model,
+                                       AgentModeEnum mode,
+                                       String systemPrompt) {
         List<Object> tools = agentToolConfig.filterTools(agentTools, mode);
+        tools = agentToolConfig.filterToolsByAgentType(tools, AgentTypeEnum.MAIN);
 
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(model)
@@ -61,5 +63,12 @@ public class AgentManager {
                 .chatMemoryProvider(chatMemoryProvider)
                 .tools(tools)
                 .build();
+    }
+
+    /**
+     * Cache key format: modelName::language::mode::agentType
+     */
+    static String buildCacheKey(String modelName, String language, String mode, AgentTypeEnum agentType) {
+        return modelName + "::" + language + "::" + mode + "::" + agentType.getCode();
     }
 }

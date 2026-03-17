@@ -1,7 +1,9 @@
 package edu.zsc.ai.agent.tool.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Standardized return type for agent tool methods.
@@ -15,6 +17,8 @@ import lombok.Data;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AgentToolResult {
 
     private static final String MSG_SUCCESS = "ok";

@@ -1,8 +1,9 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import { parseSSEResponse } from '../lib/sse';
 import { ensureValidAccessToken } from '../lib/authToken';
-import type { ChatRequest, ChatMessage, ChatResponseBlock } from '../types/chat';
+import type { ChatRequest, ChatMessage, ChatResponseBlock, DoneMetadata } from '../types/chat';
 import { isContentBlockType, MessageRole } from '../types/chat';
 import type { TokenPairResponse } from '../types/auth';
 import {
@@ -222,6 +223,7 @@ export function useConversationRuntime(
         ): Promise<void> => {
             let accumulatedContent = '';
             const accumulatedBlocks: ChatResponseBlock[] = [];
+            let doneMetadata: DoneMetadata | undefined;
             let updateCounter = 0;
             const UPDATE_THROTTLE = 5; // 增加节流阈值，减少更新频率
             
@@ -262,7 +264,10 @@ export function useConversationRuntime(
                     if (isContentBlockType(block.type)) {
                         accumulatedContent += block.data ?? '';
                     }
-                    accumulatedBlocks.push(block);
+                    // Don't add done blocks to the block list — metadata is stored in doneMetadata
+                    if (!block.done) {
+                        accumulatedBlocks.push(block);
+                    }
 
                     updateCounter++;
 
@@ -274,9 +279,18 @@ export function useConversationRuntime(
                     
                     const shouldUpdate = isImportantBlock || updateCounter >= UPDATE_THROTTLE;
 
+                    // Parse doneBlock metadata (tool stats, token usage)
+                    if (block.done && block.data) {
+                        try {
+                            doneMetadata = JSON.parse(block.data) as DoneMetadata;
+                        } catch {
+                            console.warn("[SSE] doneMetadata parse failed", block.data);
+                        }
+                    }
+
                     if (shouldUpdate) {
                         updateCounter = 0;
-                        
+
                         if (isImportantBlock) {
                             // 重要 block 立即更新
                             if (rafId) {
@@ -288,6 +302,7 @@ export function useConversationRuntime(
                                 ...lastMessage,
                                 content: accumulatedContent,
                                 blocks: [...accumulatedBlocks],
+                                ...(doneMetadata && { doneMetadata }),
                             };
                             updateRuntimeMessages(runtime, updatedMessages);
                             pendingUpdate = false;
@@ -491,6 +506,18 @@ export function useConversationRuntime(
     const closeConversationTab = useCallback((id: number | null) => {
         const key = getRuntimeKey(id);
         const wasActive = activeConversationIdRef.current === id;
+
+        const workspace = useWorkspaceStore.getState();
+        const relatedSubAgentTabs = workspace.tabs
+            .filter((tab) =>
+                tab.type === 'subagent-console'
+                && (tab.metadata as import('../types/tab').SubAgentConsoleTabMetadata | undefined)?.conversationId === id
+            )
+            .map((tab) => tab.id);
+
+        relatedSubAgentTabs.forEach((tabId) => {
+            workspace.closeTab(tabId);
+        });
 
         runtimesRef.current.delete(key);
 

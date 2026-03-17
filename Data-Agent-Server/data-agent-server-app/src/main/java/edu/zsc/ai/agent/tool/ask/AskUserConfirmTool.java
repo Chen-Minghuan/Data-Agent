@@ -32,7 +32,6 @@ public class AskUserConfirmTool {
                     "Shows the user exactly what will change and gets explicit approval before any write executes.",
                     "",
                     "When to Use: before every INSERT/UPDATE/DELETE/DDL; pass finalized SQL, connectionId, and impact explanation.",
-                    "When NOT to Use: for read-only operations — use executeSelectSql only.",
                     "Relation: always call this first; only after user approval call executeNonSelectSql with the exact same SQL."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE

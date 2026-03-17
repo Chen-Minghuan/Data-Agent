@@ -1,5 +1,6 @@
 package edu.zsc.ai.domain.model.dto.response.agent;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import edu.zsc.ai.common.enums.ai.MessageBlockEnum;
 import edu.zsc.ai.util.JsonUtil;
 import lombok.AllArgsConstructor;
@@ -33,6 +34,14 @@ public class ChatResponseBlock {
     private Long conversationId;
     private boolean done;
 
+    /** Parent tool call id when this block is from a SubAgent (nested under callingSubAgent). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String parentToolCallId;
+
+    /** SubAgent task id for grouping concurrent Explorer task events. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String subAgentTaskId;
+
     public static ChatResponseBlock text(String data) {
         return ChatResponseBlock.builder()
                 .type(MessageBlockEnum.TEXT.name())
@@ -55,6 +64,16 @@ public class ChatResponseBlock {
     public static ChatResponseBlock doneBlock() {
         return ChatResponseBlock.builder()
                 .done(true)
+                .build();
+    }
+
+    /**
+     * End-of-stream block with metadata (e.g. tool usage stats).
+     */
+    public static ChatResponseBlock doneBlock(Map<String, Object> metadata) {
+        return ChatResponseBlock.builder()
+                .done(true)
+                .data(JsonUtil.object2json(metadata))
                 .build();
     }
 
@@ -118,6 +137,84 @@ public class ChatResponseBlock {
                 .data(data)
                 .done(false)
                 .build();
+    }
+
+    // ─── SubAgent lifecycle factory methods ──────────────────────────────
+
+    public static ChatResponseBlock subAgentStart(String agentType, String parentToolCallId, String taskId) {
+        return subAgentStart(agentType, parentToolCallId, taskId, null);
+    }
+
+    public static ChatResponseBlock subAgentStart(String agentType, String parentToolCallId, String taskId, Long connectionId) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("agentType", agentType);
+        if (connectionId != null) map.put("connectionId", connectionId);
+        return ChatResponseBlock.builder()
+                .type(MessageBlockEnum.SUB_AGENT_START.name())
+                .data(JsonUtil.object2json(map))
+                .parentToolCallId(parentToolCallId)
+                .subAgentTaskId(taskId)
+                .done(false).build();
+    }
+
+    public static ChatResponseBlock subAgentProgress(String agentType, String message, String parentToolCallId, String taskId) {
+        return subAgentProgress(agentType, message, parentToolCallId, taskId, null);
+    }
+
+    public static ChatResponseBlock subAgentProgress(String agentType, String message, String parentToolCallId, String taskId, Long connectionId) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("agentType", agentType);
+        map.put("message", message);
+        if (connectionId != null) map.put("connectionId", connectionId);
+        return ChatResponseBlock.builder()
+                .type(MessageBlockEnum.SUB_AGENT_PROGRESS.name())
+                .data(JsonUtil.object2json(map))
+                .parentToolCallId(parentToolCallId)
+                .subAgentTaskId(taskId)
+                .done(false).build();
+    }
+
+    public static ChatResponseBlock subAgentComplete(String agentType, String parentToolCallId, String taskId, int toolCount, Map<String, Integer> toolCounts) {
+        return subAgentComplete(agentType, parentToolCallId, taskId, toolCount, toolCounts, null, null, null);
+    }
+
+    public static ChatResponseBlock subAgentComplete(String agentType, String parentToolCallId, String taskId, int toolCount,
+                                                     Map<String, Integer> toolCounts, String summaryText, String resultJson) {
+        return subAgentComplete(agentType, parentToolCallId, taskId, toolCount, toolCounts, summaryText, resultJson, null);
+    }
+
+    public static ChatResponseBlock subAgentComplete(String agentType, String parentToolCallId, String taskId, int toolCount,
+                                                     Map<String, Integer> toolCounts, String summaryText, String resultJson, Long connectionId) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("agentType", agentType);
+        map.put("toolCount", toolCount);
+        if (toolCounts != null) map.put("toolCounts", toolCounts);
+        if (summaryText != null && !summaryText.isBlank()) map.put("summaryText", summaryText);
+        if (resultJson != null && !resultJson.isBlank()) map.put("resultJson", resultJson);
+        if (connectionId != null) map.put("connectionId", connectionId);
+        return ChatResponseBlock.builder()
+                .type(MessageBlockEnum.SUB_AGENT_COMPLETE.name())
+                .data(JsonUtil.object2json(map))
+                .parentToolCallId(parentToolCallId)
+                .subAgentTaskId(taskId)
+                .done(false).build();
+    }
+
+    public static ChatResponseBlock subAgentError(String agentType, String message, String parentToolCallId, String taskId) {
+        return subAgentError(agentType, message, parentToolCallId, taskId, null);
+    }
+
+    public static ChatResponseBlock subAgentError(String agentType, String message, String parentToolCallId, String taskId, Long connectionId) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("agentType", agentType);
+        map.put("message", message);
+        if (connectionId != null) map.put("connectionId", connectionId);
+        return ChatResponseBlock.builder()
+                .type(MessageBlockEnum.SUB_AGENT_ERROR.name())
+                .data(JsonUtil.object2json(map))
+                .parentToolCallId(parentToolCallId)
+                .subAgentTaskId(taskId)
+                .done(false).build();
     }
 
 }

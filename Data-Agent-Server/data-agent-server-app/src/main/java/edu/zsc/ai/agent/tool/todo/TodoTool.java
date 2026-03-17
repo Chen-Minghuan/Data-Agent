@@ -22,7 +22,6 @@ public class TodoTool {
         "Tracks progress: CREATE (start), UPDATE (sync at milestones), DELETE (clean up when done).",
         "",
         "When to Use: for tasks with 3+ steps; keep progress in sync with workflow.",
-        "When NOT to Use: for single-step or two-step tasks.",
         "Relation: CREATE at start of multi-step task; UPDATE when a step completes; DELETE when the task is fully done. Use same todoId for the life of the task."
     })
     public AgentToolResult todoWrite(
