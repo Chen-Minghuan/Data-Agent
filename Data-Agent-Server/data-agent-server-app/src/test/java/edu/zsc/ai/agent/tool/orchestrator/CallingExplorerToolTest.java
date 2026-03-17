@@ -33,6 +33,7 @@ class CallingExplorerToolTest {
 
     private SchemaSummary buildTestSchema(String tableName) {
         return SchemaSummary.builder()
+                .summaryText("found " + tableName)
                 .objects(List.of(
                         ExploreObject.builder()
                                 .catalog("analytics")
@@ -103,6 +104,23 @@ class CallingExplorerToolTest {
                 .sorted()
                 .toList();
         assertEquals(List.of("orders", "users"), objectNames);
+    }
+
+    @Test
+    void multipleTasks_partialFailure_returnsSuccessEnvelope() {
+        when(mockExplorer.invoke(any(SubAgentRequest.class)))
+                .thenReturn(buildTestSchema("users"))
+                .thenThrow(new RuntimeException("connection timeout"));
+
+        String tasksJson = "[{\"connectionId\":1,\"instruction\":\"explore users\"},{\"connectionId\":2,\"instruction\":\"explore orders\"}]";
+        AgentToolResult result = tool.callingExplorerSubAgent(tasksJson, null, null);
+
+        assertTrue(result.isSuccess());
+        ExplorerResultEnvelope envelope = JsonUtil.json2Object((String) result.getResult(), ExplorerResultEnvelope.class);
+        assertEquals(2, envelope.getTaskResults().size());
+        assertEquals(1, envelope.getTaskResults().stream().filter(task -> task.getStatus() == ExplorerTaskStatus.SUCCESS).count());
+        assertEquals(1, envelope.getTaskResults().stream().filter(task -> task.getStatus() == ExplorerTaskStatus.ERROR).count());
+        assertTrue(envelope.getTaskResults().stream().anyMatch(task -> "connection timeout".equals(task.getErrorMessage())));
     }
 
     @Test

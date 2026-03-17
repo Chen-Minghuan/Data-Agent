@@ -9,6 +9,7 @@ import edu.zsc.ai.agent.subagent.SubAgentRequest;
 import edu.zsc.ai.agent.subagent.contract.ExplorerResultEnvelope;
 import edu.zsc.ai.agent.subagent.contract.ExplorerTask;
 import edu.zsc.ai.agent.subagent.contract.ExplorerTaskResult;
+import edu.zsc.ai.agent.subagent.contract.ExplorerTaskStatus;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
 import edu.zsc.ai.agent.tool.ToolContext;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
@@ -92,7 +93,7 @@ public class CallingExplorerTool extends SubAgentToolSupport {
                 buildTaskId(contextSnapshot)
         );
         int objectCount = result.getObjects() != null ? result.getObjects().size() : 0;
-        log.info("[Tool done] callingExplorerSubAgent: {} objects", objectCount);
+        log.info("[Tool done] callingExplorerSubAgent: status={}, {} objects", result.getStatus(), objectCount);
         return AgentToolResult.success(JsonUtil.object2json(ExplorerResultEnvelope.builder()
                 .taskResults(List.of(result))
                 .build()));
@@ -121,7 +122,9 @@ public class CallingExplorerTool extends SubAgentToolSupport {
                     .map(CompletableFuture::join)
                     .toList();
 
-            log.info("[Tool done] callingExplorerSubAgent (concurrent): {} task(s) completed", tasks.size());
+            long successCount = results.stream().filter(result -> result.getStatus() == ExplorerTaskStatus.SUCCESS).count();
+            long errorCount = results.size() - successCount;
+            log.info("[Tool done] callingExplorerSubAgent (concurrent): {} success, {} error", successCount, errorCount);
             return AgentToolResult.success(JsonUtil.object2json(ExplorerResultEnvelope.builder()
                     .taskResults(results)
                     .build()));
@@ -154,9 +157,20 @@ public class CallingExplorerTool extends SubAgentToolSupport {
             SchemaSummary summary = subAgentManager.getExplorerSubAgent().invoke(request);
             return ExplorerTaskResult.builder()
                     .taskId(taskId)
+                    .status(ExplorerTaskStatus.SUCCESS)
                     .summaryText(summary != null ? summary.getSummaryText() : null)
                     .objects(summary != null ? summary.getObjects() : List.of())
                     .rawResponse(summary != null ? summary.getRawResponse() : "")
+                    .build();
+        } catch (Exception e) {
+            String errorMessage = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
+            log.warn("[Explorer] task failed, connectionId={}, error={}", task.getConnectionId(), errorMessage);
+            return ExplorerTaskResult.builder()
+                    .taskId(taskId)
+                    .status(ExplorerTaskStatus.ERROR)
+                    .objects(List.of())
+                    .rawResponse("")
+                    .errorMessage(errorMessage)
                     .build();
         } finally {
             SubAgentContext.setParentToolCallId(previousParentToolCallId);

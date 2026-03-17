@@ -64,6 +64,7 @@ export interface SubAgentInvocation {
   taskLabel: string;
   agentType: 'explorer' | 'sql_planner';
   status: 'running' | 'complete' | 'error';
+  errorMessage?: string;
   params: SubAgentParamsSummary;
   progressEvents: import('../components/ai/blocks/subAgentTypes').SubAgentProgressEvent[];
   /** Nested tool calls (getEnvironmentOverview, searchObjects, getObjectDetail) for real-time display. */

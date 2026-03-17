@@ -49,8 +49,15 @@ class CallingPlannerToolTest {
     @Test
     void invokesPlanner() {
         SqlPlan plan = SqlPlan.builder()
-                .rawResponse("SELECT 1")
-                .tokenUsage(10)
+                .summaryText("Generate a trivial query.")
+                .sqlBlocks(List.of(
+                        SqlPlanBlock.builder()
+                                .title("Final SQL")
+                                .sql("SELECT 1")
+                                .kind(SqlPlanBlockKind.FINAL)
+                                .build()
+                ))
+                .rawResponse("Use SELECT 1 as the final SQL.")
                 .build();
         when(mockPlanner.invoke(any(PlannerRequest.class))).thenReturn(plan);
 
@@ -81,8 +88,15 @@ class CallingPlannerToolTest {
     @Test
     void validSchemaJson_returnsRawResponse() {
         SqlPlan plan = SqlPlan.builder()
-                .rawResponse("SELECT SUM(total) FROM orders")
-                .tokenUsage(30)
+                .summaryText("Aggregate total revenue from orders.")
+                .sqlBlocks(List.of(
+                        SqlPlanBlock.builder()
+                                .title("Final SQL")
+                                .sql("SELECT SUM(total) FROM orders")
+                                .kind(SqlPlanBlockKind.FINAL)
+                                .build()
+                ))
+                .rawResponse("Aggregate the orders table to compute total revenue.")
                 .build();
         when(mockPlanner.invoke(any(PlannerRequest.class))).thenReturn(plan);
 
@@ -92,14 +106,22 @@ class CallingPlannerToolTest {
 
         assertTrue(result.isSuccess());
         String resultText = (String) result.getResult();
+        assertTrue(resultText.contains("summaryText"));
         assertTrue(resultText.contains("SELECT SUM(total)"));
     }
 
     @Test
     void instructionWithOptimizationContext_passedThrough() {
         SqlPlan plan = SqlPlan.builder()
-                .rawResponse("SELECT 1")
-                .tokenUsage(10)
+                .summaryText("Optimize the provided SQL.")
+                .sqlBlocks(List.of(
+                        SqlPlanBlock.builder()
+                                .title("Final SQL")
+                                .sql("SELECT 1")
+                                .kind(SqlPlanBlockKind.FINAL)
+                                .build()
+                ))
+                .rawResponse("Optimized SQL produced.")
                 .build();
         when(mockPlanner.invoke(any(PlannerRequest.class))).thenAnswer(invocation -> {
             PlannerRequest req = invocation.getArgument(0);
@@ -118,8 +140,15 @@ class CallingPlannerToolTest {
     @Test
     void explorerEnvelope_isAcceptedAsSchemaInput() {
         SqlPlan plan = SqlPlan.builder()
-                .rawResponse("SELECT * FROM users")
-                .tokenUsage(10)
+                .summaryText("Query users.")
+                .sqlBlocks(List.of(
+                        SqlPlanBlock.builder()
+                                .title("Final SQL")
+                                .sql("SELECT * FROM users")
+                                .kind(SqlPlanBlockKind.FINAL)
+                                .build()
+                ))
+                .rawResponse("Use the users table directly.")
                 .build();
         when(mockPlanner.invoke(any(PlannerRequest.class))).thenReturn(plan);
 
@@ -130,6 +159,54 @@ class CallingPlannerToolTest {
                                 .summaryText("Relevant objects: users (TABLE).")
                                 .objects(buildTestSchema().getObjects())
                                 .rawResponse(buildTestSchema().getRawResponse())
+                                .build()
+                ))
+                .build();
+
+        AgentToolResult result = tool.callingPlannerSubAgent(
+                "generate query",
+                JsonUtil.object2json(envelope),
+                null);
+
+        assertTrue(result.isSuccess());
+        verify(mockPlanner).invoke(any(PlannerRequest.class));
+    }
+
+    @Test
+    void explorerEnvelope_skipsFailedTasksWhenBuildingSchema() {
+        SqlPlan plan = SqlPlan.builder()
+                .summaryText("Query users.")
+                .sqlBlocks(List.of(
+                        SqlPlanBlock.builder()
+                                .title("Final SQL")
+                                .sql("SELECT * FROM users")
+                                .kind(SqlPlanBlockKind.FINAL)
+                                .build()
+                ))
+                .rawResponse("Use the users table directly.")
+                .build();
+        when(mockPlanner.invoke(any(PlannerRequest.class))).thenAnswer(invocation -> {
+            PlannerRequest request = invocation.getArgument(0);
+            assertEquals(1, request.getSchemaSummary().getObjects().size());
+            assertEquals("users", request.getSchemaSummary().getObjects().get(0).getObjectName());
+            return plan;
+        });
+
+        ExplorerResultEnvelope envelope = ExplorerResultEnvelope.builder()
+                .taskResults(List.of(
+                        ExplorerTaskResult.builder()
+                                .taskId("explore-1")
+                                .status(ExplorerTaskStatus.SUCCESS)
+                                .summaryText("Relevant objects: users (TABLE).")
+                                .objects(buildTestSchema().getObjects())
+                                .rawResponse(buildTestSchema().getRawResponse())
+                                .build(),
+                        ExplorerTaskResult.builder()
+                                .taskId("explore-2")
+                                .status(ExplorerTaskStatus.ERROR)
+                                .objects(List.of())
+                                .rawResponse("")
+                                .errorMessage("connection timeout")
                                 .build()
                 ))
                 .build();

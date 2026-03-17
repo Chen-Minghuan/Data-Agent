@@ -48,6 +48,10 @@ Phase 5: Verification
     - User requests optimization of an existing SQL statement
     - User requests modifications to a previously generated SQL plan
   </when-to-call>
+  <result-shape>
+    - Returns structured JSON with `summaryText`, `sqlBlocks`, `planSteps`, and `rawResponse`
+    - Prefer `summaryText` and `sqlBlocks` when composing the user-facing reply
+  </result-shape>
 </agent>
 
 </sub-agents>

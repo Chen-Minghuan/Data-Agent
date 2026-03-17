@@ -16,6 +16,7 @@ import edu.zsc.ai.context.RequestContext;
 import org.apache.commons.lang3.StringUtils;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
 import edu.zsc.ai.domain.service.agent.SseEmitterRegistry;
+import edu.zsc.ai.util.JsonUtil;
 import reactor.core.publisher.Sinks;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -86,14 +87,12 @@ public class PlannerSubAgent implements SubAgent<PlannerRequest, SqlPlan> {
             tokenStream.start();
 
             String responseText = future.get(properties.getPlanner().getTimeoutSeconds(), TimeUnit.SECONDS);
+            SqlPlan plan = PlannerResponseParser.parse(responseText);
 
-            SqlPlan plan = SqlPlan.builder()
-                    .rawResponse(responseText)
-                    .tokenUsage(responseText.length() / 4)
-                    .build();
-
-            observer.emitComplete();
-            log.info("[Planner] completed, response length={}", responseText.length());
+            observer.emitComplete(plan.getSummaryText(), JsonUtil.object2json(plan));
+            log.info("[Planner] completed, sqlBlockCount={}, stepCount={}",
+                    CollectionUtils.size(plan.getSqlBlocks()),
+                    CollectionUtils.size(plan.getPlanSteps()));
             return plan;
 
         } catch (java.util.concurrent.TimeoutException e) {

@@ -22,8 +22,34 @@ export interface ResolvedSubAgentResult {
 
 function buildExplorerPayload(raw: Record<string, unknown>): string | undefined {
   const payload: Record<string, unknown> = {};
+  if (typeof raw.status === 'string') {
+    payload.status = raw.status;
+  }
   if (Array.isArray(raw.objects)) {
     payload.objects = raw.objects;
+  }
+  if (typeof raw.summaryText === 'string') {
+    payload.summaryText = raw.summaryText;
+  }
+  if (typeof raw.errorMessage === 'string') {
+    payload.errorMessage = raw.errorMessage;
+  }
+  if (typeof raw.rawResponse === 'string') {
+    payload.rawResponse = raw.rawResponse;
+  }
+  return Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined;
+}
+
+function buildPlannerPayload(raw: Record<string, unknown>): string | undefined {
+  const payload: Record<string, unknown> = {};
+  if (typeof raw.summaryText === 'string') {
+    payload.summaryText = raw.summaryText;
+  }
+  if (Array.isArray(raw.planSteps)) {
+    payload.planSteps = raw.planSteps;
+  }
+  if (Array.isArray(raw.sqlBlocks)) {
+    payload.sqlBlocks = raw.sqlBlocks;
   }
   if (typeof raw.rawResponse === 'string') {
     payload.rawResponse = raw.rawResponse;
@@ -148,9 +174,7 @@ export function parseCallingSubAgentArgs(
 }
 
 /**
- * Extract a one-line summary from the exploreSchema/generateSqlPlan TOOL_RESULT.
- * For Explorer: "Found N tables, M columns"
- * For SQL Planner: "Generated SQL (N steps)"
+ * Extract the real summaryText from the SubAgent TOOL_RESULT when present.
  */
 export function getSubAgentResultSummary(agentType: string, responseData: string): string {
   return resolveSubAgentResult(agentType, responseData).summaryText ?? '';
@@ -223,17 +247,17 @@ export function resolveSubAgentResult(
     }
 
     if (normalized === 'SQL_PLANNER' || agentType === 'sql_planner') {
-      const sql = typeof inner.sql === 'string' ? inner.sql : '';
-      const steps = Array.isArray(inner.steps) ? inner.steps : [];
-      const hasOptimized = inner.optimizedSql != null;
-      let summary = `Generated SQL`;
-      if (steps.length > 0) summary += ` (${steps.length} step${steps.length !== 1 ? 's' : ''})`;
-      if (hasOptimized) summary += ' + optimization';
-      if (!steps.length && sql) summary += ` (${sql.length} chars)`;
-      return {
-        summaryText: summary,
-        resultJson: responseData,
-      };
+      if (
+        typeof inner.summaryText === 'string'
+        || Array.isArray(inner.planSteps)
+        || Array.isArray(inner.sqlBlocks)
+        || typeof inner.rawResponse === 'string'
+      ) {
+        return {
+          summaryText: typeof inner.summaryText === 'string' ? inner.summaryText : undefined,
+          resultJson: buildPlannerPayload(inner),
+        };
+      }
     }
   } catch {
     // Parse failed

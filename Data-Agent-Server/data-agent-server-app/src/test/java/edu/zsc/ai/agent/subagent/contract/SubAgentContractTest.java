@@ -137,24 +137,47 @@ class SubAgentContractTest {
         @Test
         void basicPlan() {
             SqlPlan plan = SqlPlan.builder()
-                    .rawResponse("SELECT c.name, SUM(o.total) FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name")
-                    .tokenUsage(200)
+                    .summaryText("Aggregate customer revenue.")
+                    .planSteps(List.of(
+                            SqlPlanStep.builder()
+                                    .title("Join customers and orders")
+                                    .content("Use customer_id to join orders to customers.")
+                                    .build()
+                    ))
+                    .sqlBlocks(List.of(
+                            SqlPlanBlock.builder()
+                                    .title("Final SQL")
+                                    .sql("SELECT c.name, SUM(o.total) FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name")
+                                    .kind(SqlPlanBlockKind.FINAL)
+                                    .build()
+                    ))
+                    .rawResponse("Join customers and orders, then aggregate by customer name.")
                     .build();
 
+            assertEquals("Aggregate customer revenue.", plan.getSummaryText());
+            assertEquals(1, plan.getPlanSteps().size());
+            assertEquals(1, plan.getSqlBlocks().size());
             assertNotNull(plan.getRawResponse());
-            assertEquals(200, plan.getTokenUsage());
         }
 
         @Test
         void serializable() {
             SqlPlan plan = SqlPlan.builder()
-                    .rawResponse("SELECT 1")
-                    .tokenUsage(10)
+                    .summaryText("Select one.")
+                    .sqlBlocks(List.of(
+                            SqlPlanBlock.builder()
+                                    .title("Final SQL")
+                                    .sql("SELECT 1")
+                                    .kind(SqlPlanBlockKind.FINAL)
+                                    .build()
+                    ))
+                    .rawResponse("Use SELECT 1.")
                     .build();
 
             String json = JsonUtil.object2json(plan);
             assertTrue(json.contains("SELECT 1"));
-            assertTrue(json.contains("tokenUsage"));
+            assertTrue(json.contains("summaryText"));
+            assertTrue(json.contains("sqlBlocks"));
         }
     }
 }

@@ -149,6 +149,20 @@ export function useConversationRuntime(
     const [renderTick, setRenderTick] = useState(0);
     const forceUpdate = useCallback(() => setRenderTick((t) => t + 1), []);
 
+    const closeSubAgentTabsForConversation = useCallback((conversationId: number | null) => {
+        const workspace = useWorkspaceStore.getState();
+        const relatedSubAgentTabs = workspace.tabs
+            .filter((tab) =>
+                tab.type === 'subagent-console'
+                && (tab.metadata as import('../types/tab').SubAgentConsoleTabMetadata | undefined)?.conversationId === conversationId
+            )
+            .map((tab) => tab.id);
+
+        relatedSubAgentTabs.forEach((tabId) => {
+            workspace.closeTab(tabId);
+        });
+    }, []);
+
     const getRuntimeKey = useCallback((id: number | null): string => {
         return id === null ? '__new__' : String(id);
     }, []);
@@ -495,29 +509,20 @@ export function useConversationRuntime(
         const current = activeConversationIdRef.current;
         if (current !== id) {
             previousActiveConversationIdRef.current = current;
+            closeSubAgentTabsForConversation(current);
         }
         activeConversationIdRef.current = id;
         setActiveConversationId(id);
         const runtime = getOrCreateRuntime(id);
         touchRuntime(runtime);
         forceUpdate();
-    }, [getOrCreateRuntime, touchRuntime, forceUpdate]);
+    }, [closeSubAgentTabsForConversation, getOrCreateRuntime, touchRuntime, forceUpdate]);
 
     const closeConversationTab = useCallback((id: number | null) => {
         const key = getRuntimeKey(id);
         const wasActive = activeConversationIdRef.current === id;
 
-        const workspace = useWorkspaceStore.getState();
-        const relatedSubAgentTabs = workspace.tabs
-            .filter((tab) =>
-                tab.type === 'subagent-console'
-                && (tab.metadata as import('../types/tab').SubAgentConsoleTabMetadata | undefined)?.conversationId === id
-            )
-            .map((tab) => tab.id);
-
-        relatedSubAgentTabs.forEach((tabId) => {
-            workspace.closeTab(tabId);
-        });
+        closeSubAgentTabsForConversation(id);
 
         runtimesRef.current.delete(key);
 
@@ -545,7 +550,7 @@ export function useConversationRuntime(
         }
 
         forceUpdate();
-    }, [forceUpdate, getRuntimeKey]);
+    }, [closeSubAgentTabsForConversation, forceUpdate, getRuntimeKey]);
 
     const setConversationTabTitle = useCallback((id: number, title: string | null) => {
         const runtime = getOrCreateRuntime(id);

@@ -49,6 +49,10 @@
     - 用户要求优化已有 SQL 语句
     - 用户要求修改此前生成的 SQL 计划
   </when-to-call>
+  <result-shape>
+    - 返回结构化 JSON，核心字段是 `summaryText`、`sqlBlocks`、`planSteps`、`rawResponse`
+    - 优先读取 `summaryText` 和 `sqlBlocks` 组织对用户的回复
+  </result-shape>
 </agent>
 
 </sub-agents>

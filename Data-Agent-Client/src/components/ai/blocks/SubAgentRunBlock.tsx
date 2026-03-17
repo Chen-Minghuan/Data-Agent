@@ -37,6 +37,7 @@ interface TaskViewModel {
   nestedToolRuns?: Segment[];
   resultSummary?: string;
   resultJson?: string;
+  errorMessage?: string;
   invocation: SubAgentInvocation;
 }
 
@@ -176,8 +177,10 @@ function buildTaskViewModels(options: {
     const taskLabel = orderedKeys.length > 1
       ? `${agentLabel} #${index + 1}${connectionId != null ? ` (connId: ${connectionId})` : ''}`
       : agentLabel;
-    const taskError = isError
-      || taskProgress.some((event) => event.phase === 'error')
+    const taskErrorEvent = [...taskProgress].reverse().find((event) => event.phase === 'error');
+    const taskErrorMessage = taskErrorEvent?.message;
+    const taskError = (orderedKeys.length === 1 && isError)
+      || !!taskErrorEvent
       || (taskNested?.some((segment) => segment.kind === SegmentKind.TOOL_RUN && !!segment.responseError) ?? false);
     const completionEvent = [...taskProgress].reverse().find((event) => event.phase === 'complete');
     const fallbackResult = responseData && (taskId || orderedKeys.length === 1)
@@ -190,7 +193,8 @@ function buildTaskViewModels(options: {
     const taskResultJson = completionEvent?.resultJson ?? fallbackResult.resultJson;
     const hasRenderableConsoleContent = (taskNested?.length ?? 0) > 0
       || !!taskResultSummary
-      || !!taskResultJson;
+      || !!taskResultJson
+      || !!taskErrorMessage;
     const consoleTaskKey = getStableTaskKey({
       taskId,
       taskCount,
@@ -216,6 +220,7 @@ function buildTaskViewModels(options: {
       taskLabel,
       agentType,
       status: taskError ? 'error' : taskComplete ? 'complete' : 'running',
+      errorMessage: taskErrorMessage,
       params: {},
       progressEvents: taskProgress,
       nestedToolCalls: buildNestedToolCalls(taskNested),
@@ -254,7 +259,7 @@ function TaskSubAgentCard({
   conversationId: number | null;
   task: TaskViewModel;
 }) {
-  const { handleViewConsole } = useSubAgentConsoleTab({
+  const { handleOpenConsole } = useSubAgentConsoleTab({
     enabled: task.isConsoleReady,
     toolCallId,
     taskKey: task.consoleTaskKey,
@@ -277,7 +282,7 @@ function TaskSubAgentCard({
       isComplete={task.isComplete}
       isError={task.isError}
       elapsedText={task.elapsedText}
-      onViewConsole={task.isConsoleReady ? handleViewConsole : undefined}
+      onOpenConsole={task.isConsoleReady ? handleOpenConsole : undefined}
     />
   );
 }

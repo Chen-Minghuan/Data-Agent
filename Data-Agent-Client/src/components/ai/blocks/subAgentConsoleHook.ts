@@ -36,11 +36,12 @@ export function useSubAgentConsoleTab(options: UseSubAgentConsoleTabOptions) {
     invocations,
   } = options;
 
-  const consoleOpenedRef = useRef(false);
   const lastMetadataKeyRef = useRef('');
   const fallbackToolCallIdRef = useRef(`subagent-${Date.now()}`);
   const stableToolCallId = toolCallId ?? fallbackToolCallIdRef.current;
   const tabId = subAgentConsoleTabId(stableToolCallId, taskKey);
+  const metadataRef = useRef<SubAgentConsoleTabMetadata | null>(null);
+  const autoOpenedRef = useRef(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -57,6 +58,7 @@ export function useSubAgentConsoleTab(options: UseSubAgentConsoleTabOptions) {
       resultJson,
       invocations,
     };
+    metadataRef.current = metadata;
 
     const metadataKey = [
       status,
@@ -88,8 +90,11 @@ export function useSubAgentConsoleTab(options: UseSubAgentConsoleTabOptions) {
     const existingTab = ws.tabs.find((tab) => tab.id === tabId);
     if (existingTab) {
       ws.updateSubAgentConsole(tabId, metadata);
-    } else if (!consoleOpenedRef.current) {
-      consoleOpenedRef.current = true;
+      return;
+    }
+
+    if (status === 'running' && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
       ws.openTab({
         id: tabId,
         name: `${taskLabel} Console`,
@@ -99,13 +104,22 @@ export function useSubAgentConsoleTab(options: UseSubAgentConsoleTabOptions) {
     }
   }, [agentType, completedAt, conversationId, enabled, invocations, params, resultJson, stableToolCallId, startedAt, status, summary, tabId, taskKey, taskLabel]);
 
-  const handleViewConsole = () => {
+  const handleOpenConsole = () => {
+    if (!enabled || !metadataRef.current) return;
     const ws = useWorkspaceStore.getState();
     const existingTab = ws.tabs.find((tab) => tab.id === tabId);
     if (existingTab) {
+      ws.updateSubAgentConsole(tabId, metadataRef.current);
       ws.switchTab(tabId);
+      return;
     }
+    ws.openTab({
+      id: tabId,
+      name: `${taskLabel} Console`,
+      type: 'subagent-console',
+      metadata: metadataRef.current,
+    });
   };
 
-  return { tabId, handleViewConsole };
+  return { tabId, handleOpenConsole };
 }

@@ -83,14 +83,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function formatJson(value: string): string {
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2);
-  } catch {
-    return value;
-  }
-}
-
 interface ExplorerObjectPreview {
   catalog?: string;
   schema?: string;
@@ -101,7 +93,10 @@ interface ExplorerObjectPreview {
 }
 
 interface ExplorerResultPayload {
+  status?: 'SUCCESS' | 'ERROR';
+  summaryText?: string;
   objects: ExplorerObjectPreview[];
+  errorMessage?: string;
   rawResponse?: string;
 }
 
@@ -129,6 +124,9 @@ function parseExplorerResult(resultJson?: string): ExplorerResultPayload {
     const parsed = JSON.parse(resultJson) as Record<string, unknown>;
     const objects = Array.isArray(parsed.objects) ? parsed.objects : [];
     return {
+      status: parsed.status === 'SUCCESS' || parsed.status === 'ERROR' ? parsed.status : undefined,
+      summaryText: typeof parsed.summaryText === 'string' ? parsed.summaryText : undefined,
+      errorMessage: typeof parsed.errorMessage === 'string' ? parsed.errorMessage : undefined,
       objects: objects
         .filter((object): object is Record<string, unknown> => !!object && typeof object === 'object')
         .map((object) => ({
@@ -146,6 +144,66 @@ function parseExplorerResult(resultJson?: string): ExplorerResultPayload {
   }
 }
 
+interface PlannerStepPreview {
+  title?: string;
+  content?: string;
+}
+
+type PlannerSqlBlockKind = 'FINAL' | 'CHECK' | 'ALTERNATIVE';
+
+interface PlannerSqlBlockPreview {
+  title?: string;
+  sql: string;
+  kind?: PlannerSqlBlockKind;
+}
+
+interface PlannerResultPayload {
+  summaryText?: string;
+  planSteps: PlannerStepPreview[];
+  sqlBlocks: PlannerSqlBlockPreview[];
+  rawResponse?: string;
+}
+
+function parsePlannerSqlBlockKind(value: unknown): PlannerSqlBlockKind | undefined {
+  if (value === 'FINAL' || value === 'CHECK' || value === 'ALTERNATIVE') {
+    return value;
+  }
+  return undefined;
+}
+
+function parsePlannerResult(resultJson?: string): PlannerResultPayload {
+  if (!resultJson) return { planSteps: [], sqlBlocks: [] };
+  try {
+    const parsed = JSON.parse(resultJson) as Record<string, unknown>;
+    const planSteps = Array.isArray(parsed.planSteps) ? parsed.planSteps : [];
+    const sqlBlocks = Array.isArray(parsed.sqlBlocks) ? parsed.sqlBlocks : [];
+    return {
+      summaryText: typeof parsed.summaryText === 'string' ? parsed.summaryText : undefined,
+      planSteps: planSteps
+        .filter((step): step is Record<string, unknown> => !!step && typeof step === 'object')
+        .map((step) => ({
+          title: typeof step.title === 'string' ? step.title : undefined,
+          content: typeof step.content === 'string' ? step.content : undefined,
+        })),
+      sqlBlocks: sqlBlocks
+        .filter((block): block is Record<string, unknown> => !!block && typeof block === 'object')
+        .map((block) => ({
+          title: typeof block.title === 'string' ? block.title : undefined,
+          sql: typeof block.sql === 'string' ? block.sql : '',
+          kind: parsePlannerSqlBlockKind(block.kind),
+        }))
+        .filter((block) => block.sql.trim().length > 0),
+      rawResponse: typeof parsed.rawResponse === 'string' ? parsed.rawResponse : undefined,
+    };
+  } catch {
+    return { planSteps: [], sqlBlocks: [] };
+  }
+}
+
+function shouldExpandSqlBlock(kind?: PlannerSqlBlockKind): boolean {
+  return kind === 'FINAL';
+}
+
 function ExplorerResultPreview({
   resultJson,
   rawResponseNode,
@@ -154,10 +212,15 @@ function ExplorerResultPreview({
   rawResponseNode?: ReactNode;
 }) {
   const result = parseExplorerResult(resultJson);
-  if (result.objects.length === 0 && !result.rawResponse) return null;
+  if (result.objects.length === 0 && !result.rawResponse && !result.errorMessage) return null;
 
   return (
     <div className="mt-4 space-y-5">
+      {result.errorMessage && (
+        <div className="rounded-md border border-red-300 bg-red-50/50 px-3 py-2 text-[12px] text-red-700 dark:border-red-700 dark:bg-red-900/10 dark:text-red-300">
+          {result.errorMessage}
+        </div>
+      )}
       {result.objects.map((object, index) => (
         <div key={`${object.catalog ?? ''}-${object.schema ?? ''}-${object.objectName}-${index}`}>
           {object.objectDdl ? (
@@ -200,6 +263,81 @@ function ExplorerResultPreview({
   );
 }
 
+function PlannerResultPreview({
+  resultJson,
+  rawResponseNode,
+  markdownComponents,
+}: {
+  resultJson?: string;
+  rawResponseNode?: ReactNode;
+  markdownComponents: ReturnType<typeof useMarkdownComponents>;
+}) {
+  const result = parsePlannerResult(resultJson);
+  if (result.sqlBlocks.length === 0 && result.planSteps.length === 0 && !result.rawResponse) return null;
+
+  return (
+    <div className="mt-4 space-y-5">
+      {result.sqlBlocks.length > 0 && (
+        <div className="space-y-3">
+          {result.sqlBlocks.map((block, index) => (
+            <details
+              key={`${block.kind ?? ''}-${block.title ?? ''}-${index}`}
+              className="group"
+              open={shouldExpandSqlBlock(block.kind)}
+            >
+              <summary
+                className={cn(
+                  'list-none cursor-pointer rounded-md border px-3 py-2 transition-colors',
+                  'flex items-center gap-2 theme-border theme-bg-tertiary hover:opacity-90',
+                )}
+              >
+                <ChevronRight className="h-4 w-4 shrink-0 theme-text-secondary transition-transform group-open:rotate-90" />
+                <span className="text-[12px] font-medium theme-text-primary">
+                  {block.title ?? 'SQL'}
+                </span>
+                {block.kind && (
+                  <span className="text-[10px] uppercase tracking-[0.08em] theme-text-secondary">
+                    {block.kind}
+                  </span>
+                )}
+              </summary>
+              <div className="mt-2">
+                <SqlCodeBlock
+                  variant="block"
+                  language="sql"
+                  sql={block.sql}
+                  wrapLongLines={true}
+                />
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
+
+      {result.planSteps.length > 0 && (
+        <div className="space-y-2">
+          {result.planSteps.map((step, index) => (
+            <div key={`${step.title ?? ''}-${index}`} className="rounded-md border theme-border theme-bg-tertiary px-3 py-2">
+              <p className="text-[12px] font-medium theme-text-primary">
+                {step.title ?? `Step ${index + 1}`}
+              </p>
+              {step.content && (
+                <div className="mt-1 text-[12px] theme-text-primary">
+                  <ReactMarkdown components={markdownComponents} remarkPlugins={markdownRemarkPlugins}>
+                    {step.content}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {result.rawResponse && rawResponseNode}
+    </div>
+  );
+}
+
 export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
   const markdownComponents = useMarkdownComponents();
   const invocation = metadata.invocations[0];
@@ -210,10 +348,13 @@ export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
   const title = invocation?.taskLabel ?? SUB_AGENT_LABELS[agentType] ?? agentType;
   const status = invocation?.status ?? metadata.status;
   const statusText = invocation ? getInvocationStatusText(invocation) : 'Starting Agent...';
-  const resultSummary = invocation?.resultSummary ?? metadata.summary;
   const resultJson = invocation?.resultJson ?? metadata.resultJson;
-  const startedAt = invocation?.startedAt ?? metadata.startedAt;
-  const completedAt = invocation?.completedAt ?? metadata.completedAt;
+  const explorerResult = isExplorer ? parseExplorerResult(resultJson) : null;
+  const plannerResult = isExplorer ? null : parsePlannerResult(resultJson);
+  const errorMessage = invocation?.errorMessage ?? explorerResult?.errorMessage;
+  const resultSummary = invocation?.resultSummary
+    ?? metadata.summary
+    ?? (isExplorer ? explorerResult?.summaryText : plannerResult?.summaryText);
 
   return (
     <div className="flex-1 overflow-auto theme-bg-main p-6">
@@ -235,8 +376,13 @@ export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
           <ToolCalls invocation={invocation} />
         </Section>
 
-        {(resultSummary || resultJson) && (
+        {(resultSummary || resultJson || (status === 'error' && errorMessage)) && (
           <Section title="Result">
+            {status === 'error' && errorMessage && !resultSummary && (
+              <div className="mb-3 rounded-md border border-red-300 bg-red-50/50 px-3 py-2 text-[12px] text-red-700 dark:border-red-700 dark:bg-red-900/10 dark:text-red-300">
+                {errorMessage}
+              </div>
+            )}
             {resultSummary && (
               <div className="text-[12px] theme-text-primary">
                 <ReactMarkdown components={markdownComponents} remarkPlugins={markdownRemarkPlugins}>
@@ -250,18 +396,26 @@ export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
                 rawResponseNode={resultJson ? (
                   <div className="text-[12px] theme-text-primary">
                     <ReactMarkdown components={markdownComponents} remarkPlugins={markdownRemarkPlugins}>
-                      {parseExplorerResult(resultJson).rawResponse ?? ''}
+                      {explorerResult?.rawResponse ?? ''}
                     </ReactMarkdown>
                   </div>
                 ) : undefined}
               />
-            ) : resultJson && (
-              <details className="mt-3 rounded-md theme-bg-tertiary px-3 py-2">
-                <summary className="cursor-pointer text-[11px] theme-text-secondary">Show Raw JSON</summary>
-                <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap break-words theme-text-primary">
-                  {formatJson(resultJson)}
-                </pre>
-              </details>
+            ) : (
+              <PlannerResultPreview
+                resultJson={resultJson}
+                markdownComponents={markdownComponents}
+                rawResponseNode={plannerResult?.rawResponse ? (
+                  <details className="mt-3 rounded-md theme-bg-tertiary px-3 py-2">
+                    <summary className="cursor-pointer text-[11px] theme-text-secondary">Show Full Response</summary>
+                    <div className="mt-2 text-[12px] theme-text-primary">
+                      <ReactMarkdown components={markdownComponents} remarkPlugins={markdownRemarkPlugins}>
+                        {plannerResult.rawResponse}
+                      </ReactMarkdown>
+                    </div>
+                  </details>
+                ) : undefined}
+              />
             )}
           </Section>
         )}

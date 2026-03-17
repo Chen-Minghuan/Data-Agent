@@ -18,9 +18,13 @@ public class ExplorerTaskResult {
 
     private String taskId;
 
+    private ExplorerTaskStatus status;
+
     private String summaryText;
 
     private List<ExploreObject> objects;
 
     private String rawResponse;
+
+    private String errorMessage;
 }

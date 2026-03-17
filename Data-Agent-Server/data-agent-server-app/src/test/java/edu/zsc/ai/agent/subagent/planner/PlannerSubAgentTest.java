@@ -206,6 +206,15 @@ class PlannerSubAgentTest {
         }
 
         @Test
+        void promptFile_requiresStructuredJsonOutput() {
+            String content = PromptConfig.getPrompt(PromptEnum.PLANNER);
+            assertTrue(content.contains("summaryText"), "Should mention summaryText output");
+            assertTrue(content.contains("planSteps"), "Should mention planSteps output");
+            assertTrue(content.contains("sqlBlocks"), "Should mention sqlBlocks output");
+            assertTrue(content.contains("rawResponse"), "Should mention rawResponse output");
+        }
+
+        @Test
         void promptFile_noToolMasteryBlock() {
             String content = PromptConfig.getPrompt(PromptEnum.PLANNER);
             assertFalse(content.contains("<tool-mastery>"), "Planner should NOT have tool-mastery");
