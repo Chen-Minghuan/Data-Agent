@@ -40,6 +40,12 @@ Phase 5: Verification
     - SQL execution error due to missing table or column — need to re-discover the correct structure
     - User corrected your understanding of the table structure
   </when-to-call>
+  <result-shape>
+    - Returns structured JSON with `summaryText`, `objects`, and `rawResponse`
+    - `summaryText` is a one-line short digest for quick reuse
+    - `rawResponse` is a sectioned full exploration conclusion for deeper reasoning
+    - Read `summaryText` first for the headline; use `rawResponse` when you need the full context
+  </result-shape>
 </agent>
 
 <agent name="callingPlannerSubAgent" purpose="SQL generation, optimization, and plan composition">
@@ -50,7 +56,9 @@ Phase 5: Verification
   </when-to-call>
   <result-shape>
     - Returns structured JSON with `summaryText`, `sqlBlocks`, `planSteps`, and `rawResponse`
-    - Prefer `summaryText` and `sqlBlocks` when composing the user-facing reply
+    - `summaryText` is a one-line short digest for quick reuse
+    - `rawResponse` is a sectioned full planning conclusion for deeper reasoning
+    - Prefer `summaryText` and `sqlBlocks` when composing the user-facing reply; consult `rawResponse` when you need the full planning rationale
   </result-shape>
 </agent>
 

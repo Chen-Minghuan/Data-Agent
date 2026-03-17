@@ -3,11 +3,11 @@ package edu.zsc.ai.agent.tool.sql;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
-import edu.zsc.ai.agent.tool.ToolContext;
+import edu.zsc.ai.agent.annotation.DisallowInPlanMode;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConsumeResult;
-import edu.zsc.ai.agent.guard.AgentModeGuard;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.agent.tool.sql.model.AgentSqlResult;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.domain.model.context.DbContext;
@@ -39,6 +39,7 @@ public class ExecuteSqlTool {
         "When to Use: after you have verified connection, database, and table structure via getObjectDetail.",
         "Relation: call getEnvironmentOverview and searchObjects to resolve target; getObjectDetail for every referenced table; then build SQL and call here. For large tables (>10000 rows) always include WHERE/LIMIT."
     })
+    @DisallowInPlanMode(ToolNameEnum.EXECUTE_SELECT_SQL)
     public AgentSqlResult executeSelectSql(
             @P("Connection id from current session context") Long connectionId,
             @P("Database (catalog) name from current session context") String databaseName,
@@ -46,24 +47,20 @@ public class ExecuteSqlTool {
             @P("List of read-only SQL statements to execute.")
             List<String> sqls,
             InvocationParameters parameters) {
-        try (var ctx = ToolContext.from(parameters)) {
-            log.info("{} executeSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
-                    "[Tool]", connectionId, databaseName, schemaName,
-                    Objects.nonNull(sqls) ? sqls.size() : 0);
-            AgentModeGuard.assertNotPlanMode(ToolNameEnum.EXECUTE_SELECT_SQL);
-            if (!allReadOnly(sqls, connectionId)) {
-                return AgentSqlResult.fail("Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed in executeSelectSql. "
-                        + "For INSERT/UPDATE/DELETE/DDL, use executeNonSelectSql instead (requires askUserConfirm first).");
-            }
-            DbContext db = new DbContext(connectionId, databaseName, schemaName);
-            List<ExecuteSqlResponse> responses = sqlExecutionService.executeBatchSql(db, sqls);
-            log.info("{} executeSelectSql", "[Tool done]");
-            return AgentSqlResult.fromBatch(responses);
-        } catch (Exception e) {
-            log.error("{} executeSelectSql", "[Tool error]", e);
-            return AgentSqlResult.fail("executeSelectSql failed for connectionId=" + connectionId
-                    + ", database='" + databaseName + "', schema='" + schemaName + "': " + e.getMessage());
+        log.info("{} executeSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
+                "[Tool]", connectionId, databaseName, schemaName,
+                Objects.nonNull(sqls) ? sqls.size() : 0);
+        if (!allReadOnly(sqls, connectionId)) {
+            throw AgentToolExecuteException.preconditionFailed(
+                    ToolNameEnum.EXECUTE_SELECT_SQL,
+                    "Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed in executeSelectSql. "
+                            + "For INSERT/UPDATE/DELETE/DDL, use executeNonSelectSql instead (requires askUserConfirm first)."
+            );
         }
+        DbContext db = new DbContext(connectionId, databaseName, schemaName);
+        List<ExecuteSqlResponse> responses = sqlExecutionService.executeBatchSql(db, sqls);
+        log.info("{} executeSelectSql", "[Tool done]");
+        return AgentSqlResult.fromBatch(responses);
     }
 
     @Tool({
@@ -74,6 +71,7 @@ public class ExecuteSqlTool {
         "When to Use: only after askUserConfirm has been called and the user approved the same SQL.",
         "Relation: (1) finalize SQL, (2) call askUserConfirm with impact explanation, (3) after approval call here with the exact same SQL. Accepts a list; results in 'results' array."
     })
+    @DisallowInPlanMode(ToolNameEnum.EXECUTE_NON_SELECT_SQL)
     public AgentSqlResult executeNonSelectSql(
             @P("Connection id from current session context") Long connectionId,
             @P("Database (catalog) name from current session context") String databaseName,
@@ -81,28 +79,24 @@ public class ExecuteSqlTool {
             @P("List of non-SELECT SQL statements to execute (INSERT, UPDATE, DELETE, DDL, etc.).")
             List<String> sqls,
             InvocationParameters parameters) {
-        try (var ctx = ToolContext.from(parameters)) {
-            log.info("{} executeNonSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
-                    "[Tool]", connectionId, databaseName, schemaName,
-                    Objects.nonNull(sqls) ? sqls.size() : 0);
-            AgentModeGuard.assertNotPlanMode(ToolNameEnum.EXECUTE_NON_SELECT_SQL);
+        log.info("{} executeNonSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
+                "[Tool]", connectionId, databaseName, schemaName,
+                Objects.nonNull(sqls) ? sqls.size() : 0);
 
-            DbContext db = new DbContext(connectionId, databaseName, schemaName);
-            String joinedSql = String.join(";\n", sqls);
-            WriteConsumeResult consumeResult = writeConfirmationStore.consumeConfirmedBySql(db, joinedSql);
-            if (!consumeResult.success()) {
-                log.warn("[Tool] executeNonSelectSql rejected: reason={}", consumeResult.reason());
-                return AgentSqlResult.fail(consumeResult.detail());
-            }
-
-            List<ExecuteSqlResponse> responses = sqlExecutionService.executeBatchSql(db, sqls);
-            log.info("{} executeNonSelectSql", "[Tool done]");
-            return AgentSqlResult.fromBatch(responses);
-        } catch (Exception e) {
-            log.error("{} executeNonSelectSql", "[Tool error]", e);
-            return AgentSqlResult.fail("executeNonSelectSql failed for connectionId=" + connectionId
-                    + ", database='" + databaseName + "', schema='" + schemaName + "': " + e.getMessage());
+        DbContext db = new DbContext(connectionId, databaseName, schemaName);
+        String joinedSql = String.join(";\n", sqls);
+        WriteConsumeResult consumeResult = writeConfirmationStore.consumeConfirmedBySql(db, joinedSql);
+        if (!consumeResult.success()) {
+            log.warn("[Tool] executeNonSelectSql rejected: reason={}", consumeResult.reason());
+            throw AgentToolExecuteException.preconditionFailed(
+                    ToolNameEnum.EXECUTE_NON_SELECT_SQL,
+                    consumeResult.detail()
+            );
         }
+
+        List<ExecuteSqlResponse> responses = sqlExecutionService.executeBatchSql(db, sqls);
+        log.info("{} executeNonSelectSql", "[Tool done]");
+        return AgentSqlResult.fromBatch(responses);
     }
 
     private boolean allReadOnly(List<String> sqls, Long connectionId) {

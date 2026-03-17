@@ -49,7 +49,7 @@ class SubAgentMemoryTest {
 
     @Test
     void buildContext_instructionOnly() {
-        String result = SubAgentContextBuilder.builder()
+        String result = SubAgentPromptBuilder.builder()
                 .instruction("show me all orders")
                 .connectionId(1L)
                 .build();
@@ -60,7 +60,7 @@ class SubAgentMemoryTest {
 
     @Test
     void buildContext_withContext() {
-        String result = SubAgentContextBuilder.builder()
+        String result = SubAgentPromptBuilder.builder()
                 .instruction("filter by last month")
                 .connectionId(1L)
                 .context("User was exploring the orders table. Previous query returned 500 rows.")
@@ -73,7 +73,7 @@ class SubAgentMemoryTest {
 
     @Test
     void buildContext_withErrorInContext() {
-        String result = SubAgentContextBuilder.builder()
+        String result = SubAgentPromptBuilder.builder()
                 .instruction("show me all orders")
                 .connectionId(1L)
                 .context("Previous error: column \"amount\" does not exist")

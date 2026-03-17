@@ -8,6 +8,7 @@ import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.ask.model.UserQuestion;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 
 /**
  * Tool for asking the user structured clarification questions.
@@ -32,7 +33,7 @@ public class AskUserQuestionTool {
             @P("List of questions to ask the user. Each question should have 2-3 options (maximum 3).")
             List<UserQuestion> questions) {
 
-        int count = questions == null ? 0 : questions.size();
+        int count = CollectionUtils.size(questions);
         log.info("[Tool] askUserQuestion, {} question(s)", count);
         return count + " question(s) presented to user.";
     }

@@ -7,6 +7,9 @@ import edu.zsc.ai.agent.tool.sql.model.ObjectDetail;
 import edu.zsc.ai.agent.tool.sql.model.ObjectQueryItem;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchResponse;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchResult;
+import edu.zsc.ai.agent.guard.ExplorerConnectionScopeGuard;
+import edu.zsc.ai.context.AgentRequestContext;
+import edu.zsc.ai.context.AgentRequestContextInfo;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
 import edu.zsc.ai.util.ConnectionIdUtil;
@@ -90,18 +93,15 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         if (CollectionUtils.isEmpty(connections)) {
             return Collections.emptyList();
         }
-        RequestContextInfo contextSnapshot = RequestContext.get();
+        RequestContextInfo requestContextSnapshot = RequestContext.snapshot();
+        AgentRequestContextInfo agentRequestContextSnapshot = AgentRequestContext.snapshot();
         List<CompletableFuture<ConnectionOverview>> futures = connections.stream()
                 .map(conn -> CompletableFuture.supplyAsync(() -> {
-                    if (contextSnapshot != null) {
-                        RequestContext.set(contextSnapshot);
-                    }
+                    applyContextSnapshots(requestContextSnapshot, agentRequestContextSnapshot);
                     try {
                         return buildConnectionOverview(conn);
                     } finally {
-                        if (contextSnapshot != null) {
-                            RequestContext.clear();
-                        }
+                        clearContextSnapshots();
                     }
                 }, sharedExecutor))
                 .toList();
@@ -141,18 +141,15 @@ public class DiscoveryServiceImpl implements DiscoveryService {
             return searchConnectionAcrossDatabases(connections.get(0), pattern, typesToSearch, catalog, schema);
         }
 
-        RequestContextInfo contextSnapshot = RequestContext.get();
+        RequestContextInfo requestContextSnapshot = RequestContext.snapshot();
+        AgentRequestContextInfo agentRequestContextSnapshot = AgentRequestContext.snapshot();
         List<CompletableFuture<ObjectSearchResponse>> futures = connections.stream()
                 .map(conn -> CompletableFuture.supplyAsync(() -> {
-                    if (contextSnapshot != null) {
-                        RequestContext.set(contextSnapshot);
-                    }
+                    applyContextSnapshots(requestContextSnapshot, agentRequestContextSnapshot);
                     try {
                         return searchConnectionAcrossDatabases(conn, pattern, typesToSearch, catalog, schema);
                     } finally {
-                        if (contextSnapshot != null) {
-                            RequestContext.clear();
-                        }
+                        clearContextSnapshots();
                     }
                 }, sharedExecutor))
                 .toList();
@@ -221,6 +218,17 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     }
 
     private List<ConnectionResponse> resolveConnections(Long connectionId) {
+        if (AgentRequestContext.isExplorerScope()) {
+            List<Long> allowedConnectionIds = AgentRequestContext.requireAllowedConnectionIds();
+            if (Objects.nonNull(connectionId)) {
+                ExplorerConnectionScopeGuard.validateConnectionAllowed(connectionId);
+                return List.of(dbConnectionService.getConnectionById(connectionId));
+            }
+            return allowedConnectionIds.stream()
+                    .distinct()
+                    .map(dbConnectionService::getConnectionById)
+                    .toList();
+        }
         if (Objects.nonNull(connectionId)) {
             return List.of(dbConnectionService.getConnectionById(connectionId));
         }
@@ -301,7 +309,11 @@ public class DiscoveryServiceImpl implements DiscoveryService {
             try {
                 DatabaseObjectTypeEnum type = DatabaseObjectTypeEnum.parseQueryable(item.getObjectType());
                 Long connId = ConnectionIdUtil.toLong(item.getConnectionId());
+                if (connId != null) {
+                    ExplorerConnectionScopeGuard.validateConnectionAllowed(connId);
+                }
                 if (connId == null) connId = RequestContext.getConnectionId();
+                ExplorerConnectionScopeGuard.validateConnectionAllowed(connId);
                 DbContext db = new DbContext(connId, item.getDatabaseName(), item.getSchemaName());
                 ObjectDetail detail = getObjectDetail(type, item.getObjectName(), db);
                 results.add(new NamedObjectDetail(
@@ -322,5 +334,24 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private List<String> getSchemas(Long connectionId, String catalog) {
         List<String> schemas = schemaService.listSchemas(connectionId, catalog);
         return CollectionUtils.isEmpty(schemas) ? Collections.emptyList() : schemas;
+    }
+
+    private void applyContextSnapshots(RequestContextInfo requestContextSnapshot,
+                                       AgentRequestContextInfo agentRequestContextSnapshot) {
+        if (requestContextSnapshot != null) {
+            RequestContext.set(requestContextSnapshot);
+        } else {
+            RequestContext.clear();
+        }
+        if (agentRequestContextSnapshot != null) {
+            AgentRequestContext.set(agentRequestContextSnapshot);
+        } else {
+            AgentRequestContext.clear();
+        }
+    }
+
+    private void clearContextSnapshots() {
+        AgentRequestContext.clear();
+        RequestContext.clear();
     }
 }

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Braces, CheckCircle, ChevronRight, Database, Loader2, XCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
@@ -7,6 +9,8 @@ import type { SubAgentConsoleTabMetadata, SubAgentInvocation } from '../../types
 import { ToolRunBlock, markdownRemarkPlugins, useMarkdownComponents } from '../ai/blocks';
 import { SegmentKind, ToolExecutionState } from '../ai/messageListLib/types';
 import { SqlCodeBlock } from '../common/SqlCodeBlock';
+import { connectionService } from '../../services/connection.service';
+import { QUERY_KEY_CONNECTIONS } from '../../constants/explorer';
 
 export interface SubAgentConsoleProps {
   tabId: string;
@@ -204,10 +208,57 @@ function shouldExpandSqlBlock(kind?: PlannerSqlBlockKind): boolean {
   return kind === 'FINAL';
 }
 
+function inferConnectionId(metadata: SubAgentConsoleTabMetadata): number | undefined {
+  const invocation = metadata.invocations[0];
+  const eventConnectionId = invocation?.progressEvents.find((event) => event.connectionId != null)?.connectionId;
+  if (eventConnectionId != null) {
+    return eventConnectionId;
+  }
+  if (invocation?.params.connectionIds?.length === 1) {
+    return invocation.params.connectionIds[0];
+  }
+  if (metadata.params?.connectionIds?.length === 1) {
+    return metadata.params.connectionIds[0];
+  }
+  return undefined;
+}
+
+function ExplorerObjectLabel({
+  connectionName,
+  catalog,
+  schema,
+  objectName,
+  className,
+}: {
+  connectionName?: string;
+  catalog?: string;
+  schema?: string;
+  objectName: string;
+  className?: string;
+}) {
+  const namespace = [catalog, schema].filter(Boolean).join('.');
+  const scopeLabel = [connectionName, namespace].filter(Boolean).join(' · ');
+
+  return (
+    <span className={cn('flex min-w-0 flex-col', className)}>
+      {scopeLabel && (
+        <span className="theme-text-secondary text-[10px] leading-4 opacity-70">
+          {scopeLabel}
+        </span>
+      )}
+      <span className="min-w-0 whitespace-normal break-keep leading-5">
+        {objectName}
+      </span>
+    </span>
+  );
+}
+
 function ExplorerResultPreview({
+  connectionName,
   resultJson,
   rawResponseNode,
 }: {
+  connectionName?: string;
   resultJson?: string;
   rawResponseNode?: ReactNode;
 }) {
@@ -231,14 +282,18 @@ function ExplorerResultPreview({
               <summary
                 className={cn(
                   'list-none cursor-pointer rounded-md border px-3 py-2 transition-colors',
-                  'flex items-center gap-2',
+                  'flex items-start gap-2',
                   relevanceBlockClass(object.relevance),
                 )}
               >
-                <ChevronRight className="h-4 w-4 shrink-0 theme-text-secondary transition-transform group-open:rotate-90" />
-                <span className={cn('text-[12px] font-mono', relevanceClass(object.relevance))}>
-                  {[object.catalog, object.schema, object.objectName].filter(Boolean).join('.')}
-                </span>
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 theme-text-secondary transition-transform group-open:rotate-90" />
+                <ExplorerObjectLabel
+                  connectionName={connectionName}
+                  catalog={object.catalog}
+                  schema={object.schema}
+                  objectName={object.objectName}
+                  className={cn('text-[12px] font-mono', relevanceClass(object.relevance))}
+                />
               </summary>
               <div className="mt-2">
                 <SqlCodeBlock
@@ -251,9 +306,13 @@ function ExplorerResultPreview({
             </details>
           ) : (
             <div className={cn('rounded-md border px-3 py-2', relevanceBlockClass(object.relevance))}>
-              <p className={cn('text-[12px] font-mono', relevanceClass(object.relevance))}>
-                {[object.catalog, object.schema, object.objectName].filter(Boolean).join('.')}
-              </p>
+              <ExplorerObjectLabel
+                connectionName={connectionName}
+                catalog={object.catalog}
+                schema={object.schema}
+                objectName={object.objectName}
+                className={cn('text-[12px] font-mono', relevanceClass(object.relevance))}
+              />
             </div>
           )}
         </div>
@@ -343,9 +402,22 @@ export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
   const invocation = metadata.invocations[0];
   const agentType = invocation?.agentType ?? metadata.agentType;
   const isExplorer = agentType === 'explorer';
+  const connectionId = inferConnectionId(metadata);
+  const { data: connections = [] } = useQuery({
+    queryKey: QUERY_KEY_CONNECTIONS,
+    queryFn: () => connectionService.getConnections(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const connectionName = useMemo(
+    () => (connectionId != null ? connections.find((connection) => connection.id === connectionId)?.name : undefined),
+    [connectionId, connections]
+  );
   const AgentIcon = isExplorer ? Database : Braces;
   const accentColor = isExplorer ? 'text-cyan-600 dark:text-cyan-400' : 'text-purple-600 dark:text-purple-400';
   const title = invocation?.taskLabel ?? SUB_AGENT_LABELS[agentType] ?? agentType;
+  const displayTitle = isExplorer && connectionName
+    ? `${SUB_AGENT_LABELS[agentType] ?? agentType} ${connectionName}`
+    : title;
   const status = invocation?.status ?? metadata.status;
   const statusText = invocation ? getInvocationStatusText(invocation) : 'Starting Agent...';
   const resultJson = invocation?.resultJson ?? metadata.resultJson;
@@ -364,7 +436,7 @@ export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
             <AgentIcon className={cn('w-5 h-5 mt-0.5', accentColor)} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-[15px] font-semibold theme-text-primary">{title}</span>
+                <span className="text-[15px] font-semibold theme-text-primary">{displayTitle}</span>
                 {getStatusIcon(status)}
               </div>
               <p className="mt-2 text-[12px] theme-text-primary">{statusText}</p>
@@ -392,6 +464,7 @@ export function SubAgentConsole({ metadata }: SubAgentConsoleProps) {
             )}
             {isExplorer ? (
               <ExplorerResultPreview
+                connectionName={connectionName}
                 resultJson={resultJson}
                 rawResponseNode={resultJson ? (
                   <div className="text-[12px] theme-text-primary">

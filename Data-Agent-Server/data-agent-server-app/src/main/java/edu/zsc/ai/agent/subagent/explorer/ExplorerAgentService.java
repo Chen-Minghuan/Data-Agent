@@ -7,7 +7,7 @@ import dev.langchain4j.service.V;
 
 /**
  * LangChain4j AiService interface for Explorer SubAgent.
- * Discovers database schema using GetEnvironmentOverview, SearchObjects, GetObjectDetail tools.
+ * Discovers database schema using SearchObjects and GetObjectDetail tools.
  * Uses AiServices.builder() (not AgentBuilder) to avoid ThreadLocal NPE on streaming callbacks.
  */
 public interface ExplorerAgentService {

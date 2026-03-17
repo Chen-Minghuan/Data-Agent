@@ -11,13 +11,17 @@ import edu.zsc.ai.agent.subagent.contract.ExploreObject;
 import edu.zsc.ai.agent.subagent.contract.PlannerRequest;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
 import edu.zsc.ai.agent.subagent.contract.SqlPlan;
-import edu.zsc.ai.agent.tool.ToolContext;
+import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
+import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.config.ai.SubAgentManager;
 import edu.zsc.ai.util.JsonUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -42,31 +46,34 @@ public class CallingPlannerTool extends SubAgentToolSupport {
             @P("Task instruction - describe what SQL to generate, include optimization context if needed") String instruction,
             @P("SchemaSummary JSON from a previous callingExplorerSubAgent result") String schemaSummaryJson,
             InvocationParameters parameters) {
-
-        try (var ctx = ToolContext.from(parameters)) {
-            log.info("[Tool] callingPlannerSubAgent, instruction={}", instruction);
-            return invokePlanner(instruction, schemaSummaryJson);
-        } catch (Exception e) {
-            log.error("[Tool error] callingPlannerSubAgent", e);
-            return AgentToolResult.fail("callingPlannerSubAgent failed: " + e.getMessage());
-        }
+        log.info("[Tool] callingPlannerSubAgent, instruction={}", instruction);
+        return invokePlanner(instruction, schemaSummaryJson);
     }
 
     private AgentToolResult invokePlanner(String instruction, String schemaSummaryJson) {
-        if (schemaSummaryJson == null || schemaSummaryJson.isBlank()) {
-            return AgentToolResult.fail("schemaSummaryJson is required for callingPlannerSubAgent. Call callingExplorerSubAgent first to get schema.");
+        if (StringUtils.isBlank(schemaSummaryJson)) {
+            throw AgentToolExecuteException.preconditionFailed(
+                    ToolNameEnum.CALLING_PLANNER_SUB_AGENT,
+                    "schemaSummaryJson is required for callingPlannerSubAgent. Call callingExplorerSubAgent first to get schema."
+            );
         }
 
         SchemaSummary schemaSummary;
         try {
             schemaSummary = parseSchemaSummary(schemaSummaryJson);
         } catch (Exception e) {
-            return AgentToolResult.fail("Failed to parse schemaSummaryJson: " + e.getMessage());
+            throw AgentToolExecuteException.invalidInput(
+                    ToolNameEnum.CALLING_PLANNER_SUB_AGENT,
+                    "Failed to parse schemaSummaryJson: " + StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName())
+            );
         }
-        if ((schemaSummary.getObjects() == null || schemaSummary.getObjects().isEmpty())
-                && (schemaSummary.getRawResponse() == null || schemaSummary.getRawResponse().isBlank())
-                && (schemaSummary.getSummaryText() == null || schemaSummary.getSummaryText().isBlank())) {
-            return AgentToolResult.fail("schemaSummaryJson does not contain any successful explorer task results. Call callingExplorerSubAgent again or fix the failed tasks first.");
+        if (CollectionUtils.isEmpty(schemaSummary.getObjects())
+                && StringUtils.isBlank(schemaSummary.getRawResponse())
+                && StringUtils.isBlank(schemaSummary.getSummaryText())) {
+            throw AgentToolExecuteException.preconditionFailed(
+                    ToolNameEnum.CALLING_PLANNER_SUB_AGENT,
+                    "schemaSummaryJson does not contain any successful explorer task results. Call callingExplorerSubAgent again or fix the failed tasks first."
+            );
         }
 
         PlannerRequest request = PlannerRequest.builder()
@@ -79,29 +86,29 @@ public class CallingPlannerTool extends SubAgentToolSupport {
         SqlPlan plan = subAgentManager.getPlannerSubAgent().invoke(request);
 
         log.info("[Tool done] callingPlannerSubAgent: response length={}",
-                plan.getRawResponse() != null ? plan.getRawResponse().length() : 0);
+                StringUtils.length(plan.getRawResponse()));
         return AgentToolResult.success(JsonUtil.object2json(plan));
     }
 
     private SchemaSummary parseSchemaSummary(String schemaSummaryJson) {
         try {
             ExplorerResultEnvelope envelope = JsonUtil.json2Object(schemaSummaryJson, ExplorerResultEnvelope.class);
-            if (envelope != null && envelope.getTaskResults() != null && !envelope.getTaskResults().isEmpty()) {
-                List<ExploreObject> mergedObjects = new java.util.ArrayList<>();
+            if (envelope != null && CollectionUtils.isNotEmpty(envelope.getTaskResults())) {
+                List<ExploreObject> mergedObjects = new ArrayList<>();
                 StringBuilder summaryText = new StringBuilder();
                 StringBuilder rawResponse = new StringBuilder();
                 for (ExplorerTaskResult taskResult : envelope.getTaskResults()) {
                     if (taskResult.getStatus() == ExplorerTaskStatus.ERROR) {
                         continue;
                     }
-                    if (taskResult.getObjects() != null) {
+                    if (CollectionUtils.isNotEmpty(taskResult.getObjects())) {
                         mergedObjects.addAll(taskResult.getObjects());
                     }
-                    if (taskResult.getSummaryText() != null && !taskResult.getSummaryText().isBlank()) {
+                    if (StringUtils.isNotBlank(taskResult.getSummaryText())) {
                         if (summaryText.length() > 0) summaryText.append("\n");
                         summaryText.append(taskResult.getSummaryText());
                     }
-                    if (taskResult.getRawResponse() != null && !taskResult.getRawResponse().isBlank()) {
+                    if (StringUtils.isNotBlank(taskResult.getRawResponse())) {
                         if (rawResponse.length() > 0) rawResponse.append("\n\n");
                         rawResponse.append(taskResult.getRawResponse());
                     }

@@ -4,7 +4,7 @@ import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.service.TokenStream;
 import edu.zsc.ai.agent.subagent.explorer.ExplorerAgentService;
 import edu.zsc.ai.agent.subagent.planner.PlannerAgentService;
-import edu.zsc.ai.common.constant.RequestContextConstant;
+import edu.zsc.ai.common.constant.InvocationContextConstant;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -19,42 +19,53 @@ class SubAgentInvocationTest {
 
     @Test
     void explorerAgentService_hasCorrectMethodSignature() throws Exception {
-        var method = ExplorerAgentService.class.getMethod("explore", String.class);
+        var method = ExplorerAgentService.class.getMethod("explore", String.class, InvocationParameters.class);
         assertNotNull(method);
-        assertEquals(1, method.getParameterCount());
+        assertEquals(2, method.getParameterCount());
         assertEquals(TokenStream.class, method.getReturnType());
     }
 
     @Test
     void plannerAgentService_hasCorrectMethodSignature() throws Exception {
-        var method = PlannerAgentService.class.getMethod("plan", String.class);
+        var method = PlannerAgentService.class.getMethod("plan", String.class, InvocationParameters.class);
         assertNotNull(method);
-        assertEquals(1, method.getParameterCount());
+        assertEquals(2, method.getParameterCount());
         assertEquals(TokenStream.class, method.getReturnType());
     }
 
     @Test
     void invocationParameters_canBeBuiltFromRequestContext() {
         Map<String, Object> contextMap = new HashMap<>();
-        contextMap.put(RequestContextConstant.USER_ID, "42");
-        contextMap.put(RequestContextConstant.CONVERSATION_ID, "100");
-        contextMap.put(RequestContextConstant.CONNECTION_ID, "5");
+        contextMap.put(InvocationContextConstant.USER_ID, "42");
+        contextMap.put(InvocationContextConstant.CONVERSATION_ID, "100");
+        contextMap.put(InvocationContextConstant.CONNECTION_ID, "5");
 
         InvocationParameters params = InvocationParameters.from(contextMap);
-        assertEquals("42", params.get(RequestContextConstant.USER_ID));
-        assertEquals("100", params.get(RequestContextConstant.CONVERSATION_ID));
-        assertEquals("5", params.get(RequestContextConstant.CONNECTION_ID));
+        assertEquals("42", params.get(InvocationContextConstant.USER_ID));
+        assertEquals("100", params.get(InvocationContextConstant.CONVERSATION_ID));
+        assertEquals("5", params.get(InvocationContextConstant.CONNECTION_ID));
     }
 
     @Test
     void invocationParameters_preservesDatabaseContext() {
         Map<String, Object> contextMap = new HashMap<>();
-        contextMap.put(RequestContextConstant.CONNECTION_ID, "5");
-        contextMap.put(RequestContextConstant.DATABASE_NAME, "mydb");
-        contextMap.put(RequestContextConstant.SCHEMA_NAME, "public");
+        contextMap.put(InvocationContextConstant.CONNECTION_ID, "5");
+        contextMap.put(InvocationContextConstant.DATABASE_NAME, "mydb");
+        contextMap.put(InvocationContextConstant.SCHEMA_NAME, "public");
 
         InvocationParameters params = InvocationParameters.from(contextMap);
-        assertEquals("mydb", params.get(RequestContextConstant.DATABASE_NAME));
-        assertEquals("public", params.get(RequestContextConstant.SCHEMA_NAME));
+        assertEquals("mydb", params.get(InvocationContextConstant.DATABASE_NAME));
+        assertEquals("public", params.get(InvocationContextConstant.SCHEMA_NAME));
+    }
+
+    @Test
+    void invocationParameters_preservesExplorerScopeContext() {
+        Map<String, Object> contextMap = new HashMap<>();
+        contextMap.put(InvocationContextConstant.AGENT_TYPE, "explorer");
+        contextMap.put(InvocationContextConstant.ALLOWED_CONNECTION_IDS, "5,7");
+
+        InvocationParameters params = InvocationParameters.from(contextMap);
+        assertEquals("explorer", params.get(InvocationContextConstant.AGENT_TYPE));
+        assertEquals("5,7", params.get(InvocationContextConstant.ALLOWED_CONNECTION_IDS));
     }
 }

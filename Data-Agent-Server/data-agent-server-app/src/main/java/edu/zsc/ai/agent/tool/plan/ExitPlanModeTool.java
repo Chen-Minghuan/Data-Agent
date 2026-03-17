@@ -8,6 +8,7 @@ import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.plan.model.PlanStep;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 
 /**
  * Plan-mode exit tool: presents the structured execution plan to the user.
@@ -34,7 +35,7 @@ public class ExitPlanModeTool {
             @P("Plan title / summary") String title,
             @P("List of planned steps, each with order, description, SQL, and objectName") List<PlanStep> steps) {
 
-        int stepCount = steps != null ? steps.size() : 0;
+        int stepCount = CollectionUtils.size(steps);
         log.info("[Tool] exitPlanMode, title='{}', steps={}", title, stepCount);
 
         // Minimal result for memory — full plan data is in the tool call arguments

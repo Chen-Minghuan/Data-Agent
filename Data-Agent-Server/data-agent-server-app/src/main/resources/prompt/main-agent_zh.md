@@ -41,6 +41,12 @@
     - SQL 执行报错表或列不存在 — 需要重新发现正确的结构
     - 用户纠正了你对表结构的理解
   </when-to-call>
+  <result-shape>
+    - 返回结构化 JSON，核心字段是 `summaryText`、`objects`、`rawResponse`
+    - `summaryText` 是一行短摘要，适合快速复用
+    - `rawResponse` 是分章节的完整探索结论，适合继续推理
+    - 优先读取 `summaryText` 抓主结论；需要完整上下文时再读取 `rawResponse`
+  </result-shape>
 </agent>
 
 <agent name="callingPlannerSubAgent" purpose="SQL 生成、优化与方案组织">
@@ -51,7 +57,9 @@
   </when-to-call>
   <result-shape>
     - 返回结构化 JSON，核心字段是 `summaryText`、`sqlBlocks`、`planSteps`、`rawResponse`
-    - 优先读取 `summaryText` 和 `sqlBlocks` 组织对用户的回复
+    - `summaryText` 是一行短摘要，适合快速复用
+    - `rawResponse` 是分章节的完整规划结论，适合继续推理
+    - 优先读取 `summaryText` 和 `sqlBlocks` 组织对用户的回复；需要完整规划语义时再读取 `rawResponse`
   </result-shape>
 </agent>
 

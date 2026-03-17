@@ -3,7 +3,6 @@ package edu.zsc.ai.agent.tool.sql;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.ToolContext;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.ConnectionOverview;
 import edu.zsc.ai.domain.service.db.DiscoveryService;
@@ -34,19 +33,13 @@ public class GetEnvironmentOverviewTool {
             "Response includes elapsedMs — if > 2000ms, narrow scope in later calls."
     })
     public AgentToolResult getEnvironmentOverview(InvocationParameters parameters) {
-        try (var ctx = ToolContext.from(parameters)) {
-            log.info("[Tool] getEnvironmentOverview");
-            List<ConnectionOverview> overview = discoveryService.getEnvironmentOverview();
-            if (CollectionUtils.isEmpty(overview)) {
-                log.info("[Tool done] getEnvironmentOverview -> empty");
-                return ctx.timed(AgentToolResult.empty());
-            }
-            log.info("[Tool done] getEnvironmentOverview, connections={}", overview.size());
-            return ctx.timed(AgentToolResult.success(overview));
-        } catch (Exception e) {
-            log.error("[Tool error] getEnvironmentOverview", e);
-            String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
-            return AgentToolResult.fail("Failed to get environment overview: " + errorMsg);
+        log.info("[Tool] getEnvironmentOverview");
+        List<ConnectionOverview> overview = discoveryService.getEnvironmentOverview();
+        if (CollectionUtils.isEmpty(overview)) {
+            log.info("[Tool done] getEnvironmentOverview -> empty");
+            return AgentToolResult.empty();
         }
+        log.info("[Tool done] getEnvironmentOverview, connections={}", overview.size());
+        return AgentToolResult.success(overview);
     }
 }

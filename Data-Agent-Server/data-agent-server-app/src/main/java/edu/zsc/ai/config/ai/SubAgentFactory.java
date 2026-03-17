@@ -45,7 +45,7 @@ public class SubAgentFactory {
                 .streamingChatModel(model)
                 .systemMessage(systemPrompt)
                 .chatMemory(memory)
-                .tools(tools)
+                .tools(agentToolConfig.buildToolExecutors(tools))
                 .build();
     }
 
@@ -63,7 +63,7 @@ public class SubAgentFactory {
                 .streamingChatModel(model)
                 .systemMessage(systemPrompt)
                 .chatMemory(memory)
-                .tools(tools)
+                .tools(agentToolConfig.buildToolExecutors(tools))
                 .build();
     }
 

@@ -61,7 +61,7 @@ public class AgentManager {
                 .streamingChatModel(model)
                 .systemMessage(systemPrompt)
                 .chatMemoryProvider(chatMemoryProvider)
-                .tools(tools)
+                .tools(agentToolConfig.buildToolExecutors(tools))
                 .build();
     }
 

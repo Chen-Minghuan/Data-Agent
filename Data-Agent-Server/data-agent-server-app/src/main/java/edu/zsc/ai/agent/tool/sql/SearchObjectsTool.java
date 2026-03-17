@@ -4,9 +4,12 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.ToolContext;
+import edu.zsc.ai.agent.guard.ExplorerConnectionScopeGuard;
+import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
+import edu.zsc.ai.context.AgentRequestContext;
 import edu.zsc.ai.context.RequestContext;
+import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.util.ConnectionIdUtil;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchQuery;
 import edu.zsc.ai.agent.tool.sql.model.ObjectSearchResponse;
@@ -39,43 +42,59 @@ public class SearchObjectsTool {
     public AgentToolResult searchObjects(
             @P("Search query parameters") ObjectSearchQuery query,
             InvocationParameters parameters) {
-        try (var ctx = ToolContext.from(parameters)) {
-            String objectNamePattern = query.getObjectNamePattern();
-            String objectType = query.getObjectType();
-            Long connectionId = ConnectionIdUtil.toLong(query.getConnectionId());
-            if (connectionId == null) connectionId = RequestContext.getConnectionId();
-            String databaseName = query.getDatabaseName();
-            String schemaName = query.getSchemaName();
-
-            log.info("[Tool] searchObjects, pattern={}, type={}, connectionId={}, database={}, schema={}",
-                    objectNamePattern, objectType, connectionId, databaseName, schemaName);
-
-            if (StringUtils.isNotBlank(schemaName) && StringUtils.isBlank(databaseName)) {
-                return AgentToolResult.fail("schemaName requires databaseName to be specified.");
+        String objectNamePattern = query.getObjectNamePattern();
+        String objectType = query.getObjectType();
+        boolean explorerScope = AgentRequestContext.isExplorerScope();
+        Long connectionId = ConnectionIdUtil.toLong(query.getConnectionId());
+        String databaseName = query.getDatabaseName();
+        String schemaName = query.getSchemaName();
+        if (connectionId == null) {
+            boolean useDefaultConnection = !explorerScope
+                    || StringUtils.isNotBlank(databaseName)
+                    || StringUtils.isNotBlank(schemaName);
+            if (useDefaultConnection) {
+                connectionId = RequestContext.getConnectionId();
             }
-            if (StringUtils.isNotBlank(databaseName) && connectionId == null) {
-                return AgentToolResult.fail("databaseName requires connectionId to be specified.");
-            }
-
-            DatabaseObjectTypeEnum normalizedType = StringUtils.isNotBlank(objectType)
-                    ? DatabaseObjectTypeEnum.parseQueryable(objectType)
-                    : null;
-
-            ObjectSearchResponse response = discoveryService.searchObjects(
-                    objectNamePattern, normalizedType, connectionId, databaseName, schemaName);
-
-            if (CollectionUtils.isEmpty(response.results())) {
-                log.info("[Tool done] searchObjects -> empty");
-                return ctx.timed(AgentToolResult.empty());
-            }
-
-            log.info("[Tool done] searchObjects, resultCount={}, truncated={}",
-                    response.totalCount(), response.truncated());
-            return ctx.timed(AgentToolResult.success(response));
-        } catch (Exception e) {
-            log.error("[Tool error] searchObjects, pattern={}", query.getObjectNamePattern(), e);
-            String errorMsg = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
-            return AgentToolResult.fail("Failed to search objects with pattern '" + query.getObjectNamePattern() + "': " + errorMsg);
         }
+
+        if (explorerScope) {
+            if (connectionId != null) {
+                ExplorerConnectionScopeGuard.validateConnectionAllowed(connectionId);
+            } else {
+                AgentRequestContext.requireAllowedConnectionIds();
+            }
+        }
+
+        log.info("[Tool] searchObjects, pattern={}, type={}, connectionId={}, database={}, schema={}",
+                objectNamePattern, objectType, connectionId, databaseName, schemaName);
+
+        if (StringUtils.isNotBlank(schemaName) && StringUtils.isBlank(databaseName)) {
+            throw AgentToolExecuteException.invalidInput(
+                    ToolNameEnum.SEARCH_OBJECTS,
+                    "schemaName requires databaseName to be specified."
+            );
+        }
+        if (StringUtils.isNotBlank(databaseName) && connectionId == null) {
+            throw AgentToolExecuteException.invalidInput(
+                    ToolNameEnum.SEARCH_OBJECTS,
+                    "databaseName requires connectionId to be specified."
+            );
+        }
+
+        DatabaseObjectTypeEnum normalizedType = StringUtils.isNotBlank(objectType)
+                ? DatabaseObjectTypeEnum.parseQueryable(objectType)
+                : null;
+
+        ObjectSearchResponse response = discoveryService.searchObjects(
+                objectNamePattern, normalizedType, connectionId, databaseName, schemaName);
+
+        if (CollectionUtils.isEmpty(response.results())) {
+            log.info("[Tool done] searchObjects -> empty");
+            return AgentToolResult.empty();
+        }
+
+        log.info("[Tool done] searchObjects, resultCount={}, truncated={}",
+                response.totalCount(), response.truncated());
+        return AgentToolResult.success(response);
     }
 }

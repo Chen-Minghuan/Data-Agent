@@ -4,6 +4,7 @@ import edu.zsc.ai.agent.subagent.SubAgentRequest;
 import edu.zsc.ai.agent.subagent.contract.*;
 import edu.zsc.ai.agent.subagent.explorer.ExplorerSubAgent;
 import edu.zsc.ai.agent.subagent.planner.PlannerSubAgent;
+import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.config.ai.SubAgentManager;
 import edu.zsc.ai.config.ai.SubAgentProperties;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
@@ -64,14 +65,20 @@ class CallingExplorerToolTest {
 
     @Test
     void nullTasks_fails() {
-        AgentToolResult result = tool.callingExplorerSubAgent(null, null, null);
-        assertFalse(result.isSuccess());
+        AgentToolExecuteException exception = assertThrows(
+                AgentToolExecuteException.class,
+                () -> tool.callingExplorerSubAgent(null, null, null)
+        );
+        assertTrue(exception.getMessageForModel().contains("tasks is required"));
     }
 
     @Test
     void emptyArray_fails() {
-        AgentToolResult result = tool.callingExplorerSubAgent("[]", null, null);
-        assertFalse(result.isSuccess());
+        AgentToolExecuteException exception = assertThrows(
+                AgentToolExecuteException.class,
+                () -> tool.callingExplorerSubAgent("[]", null, null)
+        );
+        assertTrue(exception.getMessageForModel().contains("tasks is required"));
     }
 
     @Test

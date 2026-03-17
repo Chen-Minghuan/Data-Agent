@@ -1,16 +1,12 @@
-package edu.zsc.ai.agent.subagent;
+package edu.zsc.ai.context;
 
-/**
- * ThreadLocal context for the current SubAgent invocation.
- * Used to pass parentToolCallId from ChatStreamBridge (when emitting callingSubAgent)
- * to SubAgentStreamBridge (when emitting SubAgent's internal tool calls/results).
- */
-public final class SubAgentContext {
+public final class AgentExecutionContext {
 
     private static final ThreadLocal<String> PARENT_TOOL_CALL_ID = new ThreadLocal<>();
     private static final ThreadLocal<String> TASK_ID = new ThreadLocal<>();
 
-    private SubAgentContext() {}
+    private AgentExecutionContext() {
+    }
 
     public static void setParentToolCallId(String id) {
         if (id == null) {

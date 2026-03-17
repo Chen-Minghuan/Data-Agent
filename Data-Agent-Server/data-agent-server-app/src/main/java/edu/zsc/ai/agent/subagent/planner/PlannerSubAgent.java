@@ -3,15 +3,17 @@ package edu.zsc.ai.agent.subagent.planner;
 import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.service.TokenStream;
 import edu.zsc.ai.agent.subagent.SubAgent;
-import edu.zsc.ai.agent.subagent.SubAgentContext;
 import edu.zsc.ai.agent.subagent.SubAgentObservabilityListener;
 import edu.zsc.ai.agent.subagent.SubAgentStreamBridge;
 import edu.zsc.ai.agent.subagent.contract.*;
+import edu.zsc.ai.common.constant.InvocationContextConstant;
 import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
 import edu.zsc.ai.common.enums.ai.PromptEnum;
 import edu.zsc.ai.config.ai.SubAgentFactory;
 import edu.zsc.ai.config.ai.PromptConfig;
 import edu.zsc.ai.config.ai.SubAgentProperties;
+import edu.zsc.ai.context.AgentExecutionContext;
+import edu.zsc.ai.context.AgentRequestContext;
 import edu.zsc.ai.context.RequestContext;
 import org.apache.commons.lang3.StringUtils;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
@@ -23,8 +25,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Planner SubAgent implementation.
@@ -51,8 +55,8 @@ public class PlannerSubAgent implements SubAgent<PlannerRequest, SqlPlan> {
     public SqlPlan invoke(PlannerRequest request) {
         Long conversationId = resolveConversationId();
 
-        String parentToolCallId = SubAgentContext.getParentToolCallId();
-        String taskId = SubAgentContext.getTaskId();
+        String parentToolCallId = AgentExecutionContext.getParentToolCallId();
+        String taskId = AgentExecutionContext.getTaskId();
 
         // SSE progress emitter (replaces AgentListener-based observability)
         SubAgentObservabilityListener observer = new SubAgentObservabilityListener(
@@ -72,12 +76,15 @@ public class PlannerSubAgent implements SubAgent<PlannerRequest, SqlPlan> {
             PlannerAgentService agentService = subAgentFactory.buildPlannerAgent(
                     resolveModelName(), systemPrompt);
 
-            InvocationParameters invocationParams = InvocationParameters.from(RequestContext.toMap());
+            HashMap<String, Object> invocationContext = new HashMap<>(RequestContext.toMap());
+            invocationContext.putAll(AgentRequestContext.toMap());
+            invocationContext.put(InvocationContextConstant.AGENT_TYPE, AgentTypeEnum.PLANNER.getCode());
+            InvocationParameters invocationParams = InvocationParameters.from(invocationContext);
             TokenStream tokenStream = agentService.plan(message, invocationParams);
             log.info("[Planner] starting TokenStream, messageLength={}, model={}", message.length(), resolveModelName());
 
             StringBuilder fullResponse = new StringBuilder();
-            String parentId = SubAgentContext.getParentToolCallId();
+            String parentId = AgentExecutionContext.getParentToolCallId();
             Sinks.Many<ChatResponseBlock> sink = sseEmitterRegistry.get(conversationId).orElse(null);
             streamBridge.bridge(tokenStream, sink, parentId, null, fullResponse::append);
 
@@ -95,7 +102,7 @@ public class PlannerSubAgent implements SubAgent<PlannerRequest, SqlPlan> {
                     CollectionUtils.size(plan.getPlanSteps()));
             return plan;
 
-        } catch (java.util.concurrent.TimeoutException e) {
+        } catch (TimeoutException e) {
             observer.emitError(e.getMessage());
             log.warn("[Planner] timed out after {}s", properties.getPlanner().getTimeoutSeconds(), e);
             throw new RuntimeException("Planner SubAgent timed out: " + e.getMessage(), e);
@@ -168,11 +175,11 @@ public class PlannerSubAgent implements SubAgent<PlannerRequest, SqlPlan> {
     }
 
     private String resolveModelName() {
-        String modelName = RequestContext.getModelName();
+        String modelName = AgentRequestContext.getModelName();
         if (StringUtils.isNotBlank(modelName)) {
             return modelName;
         }
-        log.warn("No modelName in RequestContext, falling back to default");
+        log.warn("No modelName in AgentRequestContext, falling back to default");
         return "qwen3-max";
     }
 }

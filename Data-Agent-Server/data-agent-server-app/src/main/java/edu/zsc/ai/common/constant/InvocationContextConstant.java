@@ -1,11 +1,11 @@
 package edu.zsc.ai.common.constant;
 
 /**
- * Keys for request context map (e.g. when passing to AI Service InvocationParameters).
+ * Keys used in InvocationParameters when propagating request and agent context.
  */
-public final class RequestContextConstant {
+public final class InvocationContextConstant {
 
-    private RequestContextConstant() {
+    private InvocationContextConstant() {
     }
 
     public static final String USER_ID = "userId";
@@ -14,5 +14,7 @@ public final class RequestContextConstant {
     public static final String DATABASE_NAME = "databaseName";
     public static final String SCHEMA_NAME = "schemaName";
     public static final String AGENT_MODE = "agentMode";
+    public static final String AGENT_TYPE = "agentType";
+    public static final String ALLOWED_CONNECTION_IDS = "allowedConnectionIds";
     public static final String MODEL_NAME = "modelName";
 }

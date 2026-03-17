@@ -1,7 +1,13 @@
 package edu.zsc.ai.config.ai;
 
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.service.tool.ToolExecutor;
 import edu.zsc.ai.agent.tool.ask.AskUserConfirmTool;
 import edu.zsc.ai.agent.tool.ask.AskUserQuestionTool;
+import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.chart.ChartTool;
 import edu.zsc.ai.agent.tool.plan.EnterPlanModeTool;
 import edu.zsc.ai.agent.tool.plan.ExitPlanModeTool;
@@ -13,9 +19,14 @@ import edu.zsc.ai.agent.tool.sql.ExecuteSqlTool;
 import edu.zsc.ai.agent.tool.todo.TodoTool;
 import edu.zsc.ai.common.enums.ai.AgentModeEnum;
 import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
+import org.aopalliance.intercept.MethodInterceptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.ProxyFactory;
+
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import java.util.List;
 
@@ -127,8 +138,8 @@ class AgentToolConfigTest {
         void explorer_hasDiscoveryTools() {
             List<Object> tools = config.filterToolsByAgentType(allTools, AgentTypeEnum.EXPLORER);
 
-            assertEquals(3, tools.size(), "Explorer should have 3 discovery tools");
-            assertTrue(tools.contains(getEnvironmentOverviewTool), "Explorer should have GetEnvironmentOverviewTool");
+            assertEquals(2, tools.size(), "Explorer should have 2 scoped discovery tools");
+            assertFalse(tools.contains(getEnvironmentOverviewTool), "Explorer should NOT have GetEnvironmentOverviewTool");
             assertTrue(tools.contains(searchObjectsTool), "Explorer should have SearchObjectsTool");
             assertTrue(tools.contains(getObjectDetailTool), "Explorer should have GetObjectDetailTool");
         }
@@ -167,6 +178,46 @@ class AgentToolConfigTest {
 
             // TodoTool stays
             assertTrue(planTools.contains(todoTool), "MAIN+PLAN should keep TodoTool");
+        }
+    }
+
+    @Test
+    void buildToolExecutors_supportsCglibProxyAndInvokesProxyMethod() {
+        AtomicInteger adviceCounter = new AtomicInteger();
+        EchoTool target = new EchoTool();
+        ProxyFactory proxyFactory = new ProxyFactory(target);
+        proxyFactory.setProxyTargetClass(true);
+        proxyFactory.addAdvice((MethodInterceptor) invocation -> {
+            adviceCounter.incrementAndGet();
+            return invocation.proceed();
+        });
+        Object proxy = proxyFactory.getProxy();
+
+        Map<ToolSpecification, ToolExecutor> executors = config.buildToolExecutors(List.of(proxy));
+
+        assertEquals(1, executors.size());
+
+        Map.Entry<ToolSpecification, ToolExecutor> registration = executors.entrySet().iterator().next();
+        assertEquals("echo", registration.getKey().name());
+
+        String result = registration.getValue().execute(
+                ToolExecutionRequest.builder()
+                        .name("echo")
+                        .arguments("{\"value\":\"hello\"}")
+                        .build(),
+                null
+        );
+
+        assertEquals("echo:hello", result);
+        assertEquals(1, adviceCounter.get(), "tool execution should still go through proxy advice");
+    }
+
+    @AgentTool
+    static class EchoTool {
+
+        @Tool
+        public String echo(@P("Echo value") String value) {
+            return "echo:" + value;
         }
     }
 }

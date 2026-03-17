@@ -3,6 +3,9 @@ package edu.zsc.ai.common.enums.ai;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Optional;
+import java.util.Set;
+
 /**
  * Canonical tool names — the method names that LangChain4j exposes to the model.
  * Use these constants wherever tool names are referenced to avoid string literals.
@@ -44,10 +47,22 @@ public enum ToolNameEnum {
 
     private final String toolName;
 
-    private static final java.util.Set<String> SUB_AGENT_TOOLS = java.util.Set.of(
+    private static final Set<String> SUB_AGENT_TOOLS = Set.of(
             CALLING_EXPLORER_SUB_AGENT.toolName,
             CALLING_PLANNER_SUB_AGENT.toolName
     );
+
+    public static Optional<ToolNameEnum> fromToolName(String name) {
+        if (name == null || name.isBlank()) {
+            return Optional.empty();
+        }
+        for (ToolNameEnum tool : values()) {
+            if (tool.toolName.equals(name)) {
+                return Optional.of(tool);
+            }
+        }
+        return Optional.empty();
+    }
 
     public static boolean isSubAgentTool(String name) {
         return name != null && SUB_AGENT_TOOLS.contains(name);

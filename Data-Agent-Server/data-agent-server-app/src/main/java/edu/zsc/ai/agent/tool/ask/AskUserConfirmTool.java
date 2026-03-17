@@ -7,7 +7,6 @@ import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationEntry;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.annotation.AgentTool;
-import edu.zsc.ai.agent.tool.ToolContext;
 import edu.zsc.ai.domain.model.context.DbContext;
 import lombok.Builder;
 import lombok.Data;
@@ -48,19 +47,17 @@ public class AskUserConfirmTool {
             @P("Brief explanation of what this operation does and its potential impact")
             String explanation,
             InvocationParameters parameters) {
-        try (var ctx = ToolContext.from(parameters)) {
-            log.info("[Tool] askUserConfirm, connectionId={}, database={}, schema={}, sqlLength={}",
-                    connectionId, databaseName, schemaName, sql != null ? sql.length() : 0);
+        log.info("[Tool] askUserConfirm, connectionId={}, database={}, schema={}, sqlLength={}",
+                connectionId, databaseName, schemaName, sql != null ? sql.length() : 0);
 
-            DbContext db = new DbContext(connectionId, databaseName, schemaName);
-            WriteConfirmationEntry entry = confirmationStore.create(db, sql);
+        DbContext db = new DbContext(connectionId, databaseName, schemaName);
+        WriteConfirmationEntry entry = confirmationStore.create(db, sql);
 
-            log.info("[Tool done] askUserConfirm, token={}", entry.getToken());
-            return WriteConfirmationResult.builder()
-                    .confirmationToken(entry.getToken())
-                    .expiresInSeconds(300)
-                    .build();
-        }
+        log.info("[Tool done] askUserConfirm, token={}", entry.getToken());
+        return WriteConfirmationResult.builder()
+                .confirmationToken(entry.getToken())
+                .expiresInSeconds(300)
+                .build();
     }
 
     /**

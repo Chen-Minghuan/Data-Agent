@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { parseCallingSubAgentArgs, resolveSubAgentResult } from './subAgentTypes';
 import type { SubAgentProgressEvent } from './subAgentTypes';
 import { SUB_AGENT_LABELS } from '../../../constants/chat';
@@ -10,6 +11,8 @@ import { SingleSubAgentCard } from './SingleSubAgentCard';
 import type { SubAgentInvocation } from '../../../types/tab';
 import { useAIAssistantContext } from '../AIAssistantContext';
 import { useWorkspaceStore } from '../../../store/workspaceStore';
+import { connectionService } from '../../../services/connection.service';
+import { QUERY_KEY_CONNECTIONS } from '../../../constants/explorer';
 
 export interface SubAgentRunBlockProps {
   toolName: string;
@@ -56,6 +59,7 @@ function buildTaskViewModels(options: {
   toolCallId: string;
   agentType: 'explorer' | 'sql_planner';
   agentLabel: string;
+  connectionNameById: Map<number, string>;
   args: ReturnType<typeof parseCallingSubAgentArgs>;
   startedAt: number;
   completedAt?: number;
@@ -72,6 +76,7 @@ function buildTaskViewModels(options: {
     toolCallId,
     agentType,
     agentLabel,
+    connectionNameById,
     args,
     startedAt,
     completedAt,
@@ -174,9 +179,12 @@ function buildTaskViewModels(options: {
       }
       return taskIdToConnectionId.get(taskId ?? orderedTaskIds[index] ?? '') ?? connectionIds[index];
     })();
-    const taskLabel = orderedKeys.length > 1
-      ? `${agentLabel} #${index + 1}${connectionId != null ? ` (connId: ${connectionId})` : ''}`
-      : agentLabel;
+    const connectionName = connectionId != null ? connectionNameById.get(connectionId) : undefined;
+    const taskLabel = connectionName
+      ? `${agentLabel} ${connectionName}`
+      : orderedKeys.length > 1
+        ? `${agentLabel} #${index + 1}${connectionId != null ? ` (connId: ${connectionId})` : ''}`
+        : agentLabel;
     const taskErrorEvent = [...taskProgress].reverse().find((event) => event.phase === 'error');
     const taskErrorMessage = taskErrorEvent?.message;
     const taskError = (orderedKeys.length === 1 && isError)
@@ -221,7 +229,7 @@ function buildTaskViewModels(options: {
       agentType,
       status: taskError ? 'error' : taskComplete ? 'complete' : 'running',
       errorMessage: taskErrorMessage,
-      params: {},
+      params: connectionId != null ? { connectionIds: [connectionId], taskCount: 1 } : {},
       progressEvents: taskProgress,
       nestedToolCalls: buildNestedToolCalls(taskNested),
       nestedToolRuns: taskNested,
@@ -269,6 +277,7 @@ function TaskSubAgentCard({
     status: task.isError ? 'error' : task.isComplete ? 'complete' : 'running',
     startedAt: task.invocation.startedAt,
     completedAt: task.invocation.completedAt,
+    params: task.invocation.params,
     summary: task.resultSummary,
     resultJson: task.resultJson,
     invocations: [task.invocation],
@@ -313,6 +322,11 @@ export function SubAgentRunBlock({
   const stableToolCallId = toolCallId ?? fallbackToolCallIdRef.current;
   const hasResult = responseData != null && responseData !== '';
   const isComplete = hasResult || responseError;
+  const { data: connections = [] } = useQuery({
+    queryKey: QUERY_KEY_CONNECTIONS,
+    queryFn: () => connectionService.getConnections(),
+    staleTime: 5 * 60 * 1000,
+  });
 
   if (isComplete && completedAtRef.current == null) {
     completedAtRef.current = Date.now();
@@ -348,11 +362,17 @@ export function SubAgentRunBlock({
     }
   }, [args?.taskCount, progressEvents]);
 
+  const connectionNameById = useMemo(
+    () => new Map(connections.map((connection) => [connection.id, connection.name])),
+    [connections]
+  );
+
   const tasks = useMemo(
     () => buildTaskViewModels({
       toolCallId: stableToolCallId,
       agentType,
       agentLabel,
+      connectionNameById,
       args,
       startedAt: startTimeRef.current,
       completedAt: completedAtRef.current,
@@ -365,7 +385,7 @@ export function SubAgentRunBlock({
       taskStartedAt: taskStartedAtRef.current,
       taskCompletedAt: taskCompletedAtRef.current,
     }),
-    [agentLabel, agentType, args, elapsed, isComplete, nestedToolRuns, progressEvents, responseData, responseError, stableToolCallId]
+    [agentLabel, agentType, args, connectionNameById, elapsed, isComplete, nestedToolRuns, progressEvents, responseData, responseError, stableToolCallId]
   );
 
   useEffect(() => {

@@ -2,6 +2,7 @@ package edu.zsc.ai.agent.subagent;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.service.TokenStream;
+import edu.zsc.ai.context.AgentExecutionContext;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -55,7 +56,7 @@ public class SubAgentStreamBridge {
                        Consumer<String> onPartialResponseCallback) {
         if (sink == null && onToolExecutedCallback == null && onPartialResponseCallback == null) return;
         String parentId = StringUtils.isNotBlank(parentToolCallId) ? parentToolCallId : null;
-        String taskId = SubAgentContext.getTaskId();
+        String taskId = AgentExecutionContext.getTaskId();
         Set<String> streamedToolCallIds = new HashSet<>();
         AtomicBoolean firstPartial = new AtomicBoolean(false);
 

@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
  * Agent types in the multi-agent architecture.
  * <ul>
  *   <li>MAIN — the orchestrator agent that talks to the user, executes SQL, and delegates to sub-agents</li>
- *   <li>EXPLORER — schema discovery sub-agent (GetEnvironmentOverviewTool, SearchObjectsTool, GetObjectDetailTool)</li>
+ *   <li>EXPLORER — schema discovery sub-agent (SearchObjectsTool, GetObjectDetailTool)</li>
  *   <li>PLANNER — SQL plan generation sub-agent (TodoTool + ActivateSkillTool)</li>
  * </ul>
  */

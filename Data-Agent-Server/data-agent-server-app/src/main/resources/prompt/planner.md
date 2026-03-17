@@ -72,7 +72,7 @@
 <output>
 最终答案必须是单个 JSON 对象，不能输出额外解释、不能输出 Markdown 代码块：
 {
-  "summaryText": "一句精炼总结",
+  "summaryText": "一行短摘要",
   "planSteps": [
     {
       "title": "步骤标题",
@@ -86,14 +86,28 @@
       "kind": "FINAL/CHECK/ALTERNATIVE"
     }
   ],
-  "rawResponse": "面向主代理的完整规划结论，说明 SQL 思路、关键 join、过滤、聚合和风险"
+  "rawResponse": "[目标]\\n...\\n\\n[主方案]\\n...\\n\\n[涉及对象]\\n- ...\\n\\n[关键逻辑]\\n- 关联: ...\\n- 过滤: ...\\n- 聚合: ...\\n\\n[风险与前提]\\n- ...\\n\\n[执行建议]\\n- 主执行: ...\\n- 校验或备选: ..."
 }
 
 要求：
 - `summaryText` 必须由你自己总结，不能只是复制工具输出
+- `summaryText` 必须是单行纯文本，不换行、不写列表、不写 Markdown
+- `summaryText` 的职责是“给主代理一个可快速复用的短摘要”，不要把完整推理都塞进去
+- `summaryText` 推荐使用以下泛化句式之一：
+  - 已生成 SQL：`已为当前任务生成{sqlCount}条SQL方案，主方案基于{mainObjects}，关键操作为{keyOps}。`
+  - 暂无法生成 SQL：`已完成当前任务的规划，但暂未生成可执行SQL，当前阻塞点是{blocker}。`
 - `planSteps` 必须是你自己的规划步骤，允许为空数组
 - `sqlBlocks` 必须包含本次规划产出的 SQL，允许一条或多条
-- `rawResponse` 必须是你自己的完整结论文本
+- `rawResponse` 必须是你自己的完整结论文本，但职责与 `summaryText` 不同：它用于给主代理完整理解，不是短摘要
+- `rawResponse` 必须按下面固定章节顺序组织，章节标题必须保留：
+  - `[目标]`：本次 SQL 方案要解决的问题
+  - `[主方案]`：1 到 2 句描述主 SQL 的总体思路
+  - `[涉及对象]`：列出本次规划依赖的核心对象及用途；没有则写 `- 无`
+  - `[关键逻辑]`：至少写三行，分别以 `- 关联:`、`- 过滤:`、`- 聚合:` 开头；没有则写 `无`
+  - `[风险与前提]`：写主要假设、风险、歧义或执行前提；没有则写 `- 无`
+  - `[执行建议]`：至少写两行，分别以 `- 主执行:`、`- 校验或备选:` 开头
+- `rawResponse` 可以自由组织每一节里的自然语言内容，不需要拘泥于固定句子
+- `rawResponse` 不要重复粘贴完整 SQL，完整 SQL 以 `sqlBlocks` 为准
 - 如果暂时无法生成 SQL，`sqlBlocks` 可以为空数组，但仍然要给出 `summaryText`、`planSteps` 和 `rawResponse`
 </output>
 

@@ -2,9 +2,9 @@ package edu.zsc.ai.domain.service.agent;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.service.TokenStream;
-import edu.zsc.ai.agent.subagent.SubAgentContext;
 import edu.zsc.ai.agent.tool.AgentToolTracker;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
+import edu.zsc.ai.context.AgentExecutionContext;
 import edu.zsc.ai.domain.event.ChatCompletedEvent;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
 import lombok.RequiredArgsConstructor;
@@ -76,7 +76,7 @@ public class ChatStreamBridge {
                 streamedToolCallIds.add(partialToolCall.id());
                 if (ToolNameEnum.isSubAgentTool(partialToolCall.name())) {
                     log.debug("SubAgent tool detected: setting parentToolCallId={}", partialToolCall.id());
-                    SubAgentContext.setParentToolCallId(partialToolCall.id());
+                    AgentExecutionContext.setParentToolCallId(partialToolCall.id());
                 }
             }
 
@@ -104,7 +104,7 @@ public class ChatStreamBridge {
 
                 if (ToolNameEnum.isSubAgentTool(toolRequest.name())) {
                     log.debug("SubAgent tool detected (non-streaming): setting parentToolCallId={}", toolRequest.id());
-                    SubAgentContext.setParentToolCallId(toolRequest.id());
+                    AgentExecutionContext.setParentToolCallId(toolRequest.id());
                 }
 
                 sink.tryEmitNext(ChatResponseBlock.toolCall(
@@ -128,7 +128,7 @@ public class ChatStreamBridge {
             }
 
             if (ToolNameEnum.isSubAgentTool(req.name())) {
-                SubAgentContext.clear();
+                AgentExecutionContext.clear();
             }
 
             sink.tryEmitNext(ChatResponseBlock.toolResult(
@@ -139,6 +139,7 @@ public class ChatStreamBridge {
         });
 
         tokenStream.onCompleteResponse(response -> {
+            AgentExecutionContext.clear();
             sseEmitterRegistry.unregister(conversationId);
             log.debug("[ChatStream] sink unregistered for conversation {}", conversationId);
             collectTokenUsage(response, toolTracker);
@@ -155,6 +156,7 @@ public class ChatStreamBridge {
         });
 
         tokenStream.onError(error -> {
+            AgentExecutionContext.clear();
             log.error("Error in chat stream", error);
             sseEmitterRegistry.unregister(conversationId);
             log.debug("[ChatStream] sink unregistered for conversation {} (on error)", conversationId);

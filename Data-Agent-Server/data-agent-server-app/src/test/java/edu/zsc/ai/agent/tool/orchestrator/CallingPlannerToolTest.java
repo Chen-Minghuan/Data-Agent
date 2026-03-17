@@ -3,6 +3,7 @@ package edu.zsc.ai.agent.tool.orchestrator;
 import edu.zsc.ai.agent.subagent.contract.*;
 import edu.zsc.ai.agent.subagent.explorer.ExplorerSubAgent;
 import edu.zsc.ai.agent.subagent.planner.PlannerSubAgent;
+import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.config.ai.SubAgentManager;
 import edu.zsc.ai.config.ai.SubAgentProperties;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
@@ -71,18 +72,20 @@ class CallingPlannerToolTest {
 
     @Test
     void missingSchemaSummary_fails() {
-        AgentToolResult result = tool.callingPlannerSubAgent(
-                "generate query", null, null);
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("schemaSummaryJson"));
+        AgentToolExecuteException exception = assertThrows(
+                AgentToolExecuteException.class,
+                () -> tool.callingPlannerSubAgent("generate query", null, null)
+        );
+        assertTrue(exception.getMessageForModel().contains("schemaSummaryJson"));
     }
 
     @Test
     void invalidSchemaJson_fails() {
-        AgentToolResult result = tool.callingPlannerSubAgent(
-                "generate query", "invalid json{{{", null);
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("parse"));
+        AgentToolExecuteException exception = assertThrows(
+                AgentToolExecuteException.class,
+                () -> tool.callingPlannerSubAgent("generate query", "invalid json{{{", null)
+        );
+        assertTrue(exception.getMessageForModel().contains("parse"));
     }
 
     @Test
