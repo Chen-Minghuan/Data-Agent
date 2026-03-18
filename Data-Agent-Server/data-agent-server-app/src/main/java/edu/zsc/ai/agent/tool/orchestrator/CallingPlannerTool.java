@@ -4,6 +4,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.subagent.SubAgentTimeoutPolicy;
 import edu.zsc.ai.agent.subagent.contract.PlannerRequest;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
 import edu.zsc.ai.agent.subagent.contract.SqlPlan;
@@ -14,8 +15,9 @@ import edu.zsc.ai.config.ai.SubAgentManager;
 import edu.zsc.ai.context.AgentExecutionContext;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
+import edu.zsc.ai.observability.AgentLogFields;
+import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.JsonUtil;
-import edu.zsc.ai.util.SubAgentDebugWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -32,6 +34,7 @@ public class CallingPlannerTool extends SubAgentToolSupport {
 
     private final SubAgentManager subAgentManager;
     private final SchemaSummaryResolver schemaSummaryResolver;
+    private final AgentLogService agentLogService;
 
     @Tool({
             "Delegates SQL plan generation to Planner SubAgent.",
@@ -39,26 +42,32 @@ public class CallingPlannerTool extends SubAgentToolSupport {
             "Accepts either a SchemaSummary JSON or callingExplorerSubAgent taskResults envelope JSON.",
             "Returns: SqlPlan JSON with summaryText, planSteps, sqlBlocks, and rawResponse.",
             "Include optimization context (existing SQL, DDLs, indexes) in instruction if needed.",
-            "Optional timeoutSeconds overrides the planner sub-agent timeout for this invocation."
+            "Planner default timeout is 180 seconds. timeoutSeconds uses seconds; values below 120 are automatically raised to 120."
     })
     public AgentToolResult callingPlannerSubAgent(
             @P("Task instruction - describe what SQL to generate, include optimization context if needed") String instruction,
             @P("SchemaSummary JSON from a previous callingExplorerSubAgent result") String schemaSummaryJson,
-            @P(value = "Optional timeout in seconds for this planner sub-agent invocation.", required = false) Long timeoutSeconds,
+            @P(value = "Optional timeout in seconds for this planner sub-agent invocation. Default is 180 seconds. Values below 120 are automatically raised to 120.", required = false) Long timeoutSeconds,
             InvocationParameters parameters) {
         RequestContextInfo requestContextSnapshot = RequestContext.snapshot();
         String taskId = buildTaskId("plan", requestContextSnapshot);
-        log.info("[Tool] callingPlannerSubAgent start, conversationId={}, parentToolCallId={}, instructionLength={}, schemaSummaryJsonLength={}, instructionPreview={}, schemaSummaryPreview={}",
+        long effectiveTimeoutSeconds = resolveTimeoutSeconds(timeoutSeconds, subAgentManager.getProperties().getPlanner().getTimeoutSeconds());
+        log.info("[Tool] callingPlannerSubAgent start, conversationId={}, parentToolCallId={}, requestedTimeoutSeconds={}, effectiveTimeoutSeconds={}, instructionLength={}, schemaSummaryJsonLength={}, instructionPreview={}, schemaSummaryPreview={}",
                 requestContextSnapshot != null ? requestContextSnapshot.getConversationId() : null,
                 AgentExecutionContext.getParentToolCallId(),
+                timeoutSeconds,
+                effectiveTimeoutSeconds,
                 StringUtils.length(instruction),
                 StringUtils.length(schemaSummaryJson),
                 preview(instruction),
                 preview(schemaSummaryJson));
-        SubAgentDebugWriter.append("CallingPlannerTool", "tool_start", SubAgentDebugWriter.fields(
+        agentLogService.recordDebug("CallingPlannerTool", "tool_start", AgentLogFields.of(
                 "conversationId", requestContextSnapshot != null ? requestContextSnapshot.getConversationId() : null,
                 "parentToolCallId", AgentExecutionContext.getParentToolCallId(),
                 "taskId", taskId,
+                "requestedTimeoutSeconds", timeoutSeconds,
+                "effectiveTimeoutSeconds", effectiveTimeoutSeconds,
+                "minimumTimeoutSeconds", SubAgentTimeoutPolicy.MIN_TIMEOUT_SECONDS,
                 "instructionPreview", preview(instruction),
                 "schemaSummaryJsonLength", StringUtils.length(schemaSummaryJson),
                 "schemaSummaryPreview", preview(schemaSummaryJson)
@@ -89,7 +98,7 @@ public class CallingPlannerTool extends SubAgentToolSupport {
                 StringUtils.length(schemaSummary.getSummaryText()),
                 StringUtils.length(schemaSummary.getRawResponse()),
                 summarizeObjects(schemaSummary.getObjects()));
-        SubAgentDebugWriter.append("CallingPlannerTool", "schema_summary_normalized", SubAgentDebugWriter.fields(
+        agentLogService.recordDebug("CallingPlannerTool", "schema_summary_normalized", AgentLogFields.of(
                 "taskId", taskId,
                 "objectCount", CollectionUtils.size(schemaSummary.getObjects()),
                 "summaryLength", StringUtils.length(schemaSummary.getSummaryText()),
@@ -105,21 +114,26 @@ public class CallingPlannerTool extends SubAgentToolSupport {
             );
         }
 
+        long effectiveTimeoutSeconds = resolveTimeoutSeconds(timeoutSeconds, subAgentManager.getProperties().getPlanner().getTimeoutSeconds());
         PlannerRequest request = PlannerRequest.builder()
                 .instruction(instruction)
                 .schemaSummary(schemaSummary)
-                .timeoutSeconds(resolveTimeoutSeconds(timeoutSeconds, subAgentManager.getProperties().getPlanner().getTimeoutSeconds()))
+                .timeoutSeconds(effectiveTimeoutSeconds)
                 .build();
 
-        log.info("[Planner] request built, instructionLength={}, objectCount={}, summaryPreview={}",
+        log.info("[Planner] request built, instructionLength={}, objectCount={}, requestedTimeoutSeconds={}, effectiveTimeoutSeconds={}, summaryPreview={}",
                 StringUtils.length(instruction),
                 CollectionUtils.size(schemaSummary.getObjects()),
+                timeoutSeconds,
+                effectiveTimeoutSeconds,
                 preview(schemaSummary.getSummaryText()));
-        SubAgentDebugWriter.append("CallingPlannerTool", "request_built", SubAgentDebugWriter.fields(
+        agentLogService.recordDebug("CallingPlannerTool", "request_built", AgentLogFields.of(
                 "taskId", taskId,
                 "instructionLength", StringUtils.length(instruction),
                 "instructionPreview", preview(instruction),
                 "objectCount", CollectionUtils.size(schemaSummary.getObjects()),
+                "requestedTimeoutSeconds", timeoutSeconds,
+                "effectiveTimeoutSeconds", effectiveTimeoutSeconds,
                 "summaryPreview", preview(schemaSummary.getSummaryText())
         ));
 
@@ -138,7 +152,7 @@ public class CallingPlannerTool extends SubAgentToolSupport {
                     preview(instruction),
                     summarizeObjects(schemaSummary.getObjects()),
                     e);
-            SubAgentDebugWriter.append("CallingPlannerTool", "subagent_invoke_failed", SubAgentDebugWriter.fields(
+            agentLogService.recordDebug("CallingPlannerTool", "subagent_invoke_failed", AgentLogFields.of(
                     "taskId", taskId,
                     "elapsedMs", System.currentTimeMillis() - startTime,
                     "rootCauseClass", rootCause(e).getClass().getSimpleName(),
@@ -159,7 +173,7 @@ public class CallingPlannerTool extends SubAgentToolSupport {
                 StringUtils.length(plan.getSummaryText()),
                 StringUtils.length(plan.getRawResponse()),
                 preview(plan.getSummaryText()));
-        SubAgentDebugWriter.append("CallingPlannerTool", "tool_done", SubAgentDebugWriter.fields(
+        agentLogService.recordDebug("CallingPlannerTool", "tool_done", AgentLogFields.of(
                 "taskId", taskId,
                 "elapsedMs", System.currentTimeMillis() - startTime,
                 "sqlBlockCount", CollectionUtils.size(plan.getSqlBlocks()),

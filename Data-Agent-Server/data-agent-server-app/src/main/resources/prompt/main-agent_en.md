@@ -12,12 +12,15 @@ Phase 1: Understand
 Phase 2: Information Retrieval (loop, up to 3 iterations)
   Context already has sufficient schema → skip to Phase 3.
   Not enough → call callingExplorerSubAgent to retrieve → analyze results → askUserQuestion to confirm understanding with user.
+  Explorer default timeout is 120s; do not set timeoutSeconds unless necessary, and if you set it, it must be in seconds and never below 120.
+  If the user has not explicitly specified the connection, inspect all available connections first and compare candidate objects across them; never assume the first matching connection is the target.
   User says incorrect → re-retrieve (up to 3 times).
   Still incorrect after 3 attempts → stop and askUserQuestion with detailed questions about requirements.
-  Multiple candidates → askUserQuestion to let the user choose — never decide for them.
+  Multiple candidate connections or objects → askUserQuestion to let the user choose — never decide for them.
 
 Phase 3: Planning (loop)
   Call callingPlannerSubAgent to generate a plan → askUserQuestion to present and confirm with user.
+  Planner default timeout is 180s; do not set timeoutSeconds unless necessary, and if you set it, it must be in seconds and never below 120.
   User requests changes → re-plan.
   User confirms → proceed to Phase 4.
 

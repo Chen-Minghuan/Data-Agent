@@ -10,6 +10,7 @@ import edu.zsc.ai.context.AgentExecutionContext;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
+import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.JsonUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +33,7 @@ class CallingPlannerToolTest {
         mockPlanner = mock(PlannerSubAgent.class);
         SubAgentProperties properties = new SubAgentProperties();
         SubAgentManager subAgentManager = new SubAgentManager(mockExplorer, mockPlanner, properties);
-        tool = new CallingPlannerTool(subAgentManager, new DefaultSchemaSummaryResolver());
+        tool = new CallingPlannerTool(subAgentManager, new DefaultSchemaSummaryResolver(), mock(AgentLogService.class));
     }
 
     @AfterEach
@@ -288,7 +289,7 @@ class CallingPlannerToolTest {
                 .build();
         when(mockPlanner.invoke(any(PlannerRequest.class))).thenAnswer(invocation -> {
             PlannerRequest request = invocation.getArgument(0);
-            assertEquals(75L, request.getTimeoutSeconds());
+            assertEquals(120L, request.getTimeoutSeconds());
             return plan;
         });
 
@@ -297,6 +298,36 @@ class CallingPlannerToolTest {
                 "generate query",
                 schemaJson,
                 75L,
+                null);
+
+        assertTrue(result.isSuccess());
+        verify(mockPlanner).invoke(any(PlannerRequest.class));
+    }
+
+    @Test
+    void plannerUsesDefaultTimeoutWhenNotProvided() {
+        SqlPlan plan = SqlPlan.builder()
+                .summaryText("Query users.")
+                .sqlBlocks(List.of(
+                        SqlPlanBlock.builder()
+                                .title("Final SQL")
+                                .sql("SELECT * FROM users")
+                                .kind(SqlPlanBlockKind.FINAL)
+                                .build()
+                ))
+                .rawResponse("Use the users table directly.")
+                .build();
+        when(mockPlanner.invoke(any(PlannerRequest.class))).thenAnswer(invocation -> {
+            PlannerRequest request = invocation.getArgument(0);
+            assertEquals(180L, request.getTimeoutSeconds());
+            return plan;
+        });
+
+        String schemaJson = JsonUtil.object2json(buildTestSchema());
+        AgentToolResult result = tool.callingPlannerSubAgent(
+                "generate query",
+                schemaJson,
+                null,
                 null);
 
         assertTrue(result.isSuccess());

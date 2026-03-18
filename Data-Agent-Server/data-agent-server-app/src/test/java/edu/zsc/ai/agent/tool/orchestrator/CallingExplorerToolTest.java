@@ -8,6 +8,7 @@ import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.config.ai.SubAgentManager;
 import edu.zsc.ai.config.ai.SubAgentProperties;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
+import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.JsonUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +29,7 @@ class CallingExplorerToolTest {
     private CallingExplorerTool tool;
     private ExecutorService executorService;
     private Executor explorerExecutor;
+    private AgentLogService agentLogService;
 
     @BeforeEach
     void setUp() {
@@ -37,7 +39,8 @@ class CallingExplorerToolTest {
         SubAgentManager subAgentManager = new SubAgentManager(mockExplorer, mockPlanner, properties);
         executorService = Executors.newFixedThreadPool(3);
         explorerExecutor = executorService;
-        tool = new CallingExplorerTool(subAgentManager, explorerExecutor);
+        agentLogService = mock(AgentLogService.class);
+        tool = new CallingExplorerTool(subAgentManager, explorerExecutor, agentLogService);
     }
 
     @AfterEach
@@ -144,9 +147,14 @@ class CallingExplorerToolTest {
 
     @Test
     void multipleTasks_partialFailure_returnsSuccessEnvelope() {
-        when(mockExplorer.invoke(any(SubAgentRequest.class)))
-                .thenReturn(buildTestSchema("users"))
-                .thenThrow(new RuntimeException("connection timeout"));
+        when(mockExplorer.invoke(any(SubAgentRequest.class))).thenAnswer(invocation -> {
+            SubAgentRequest request = invocation.getArgument(0);
+            Long connectionId = request.connectionIds().get(0);
+            if (Long.valueOf(2L).equals(connectionId)) {
+                throw new RuntimeException("connection timeout");
+            }
+            return buildTestSchema("users");
+        });
 
         List<ExplorerTask> tasks = List.of(
                 new ExplorerTask(1L, "explore users", null, null),
@@ -198,12 +206,27 @@ class CallingExplorerToolTest {
     void taskTimeoutOverridesDefaultTimeout() {
         when(mockExplorer.invoke(any(SubAgentRequest.class))).thenAnswer(invocation -> {
             SubAgentRequest request = invocation.getArgument(0);
-            assertEquals(45L, request.timeoutSeconds());
+            assertEquals(120L, request.timeoutSeconds());
             return buildTestSchema("users");
         });
 
         List<ExplorerTask> tasks = List.of(new ExplorerTask(1L, "retry", null, 45L));
         AgentToolResult result = tool.callingExplorerSubAgent(tasks, 120L, null);
+
+        assertTrue(result.isSuccess());
+        verify(mockExplorer).invoke(any(SubAgentRequest.class));
+    }
+
+    @Test
+    void topLevelTimeoutBelowMinimum_isRaisedToMinimum() {
+        when(mockExplorer.invoke(any(SubAgentRequest.class))).thenAnswer(invocation -> {
+            SubAgentRequest request = invocation.getArgument(0);
+            assertEquals(120L, request.timeoutSeconds());
+            return buildTestSchema("users");
+        });
+
+        List<ExplorerTask> tasks = List.of(new ExplorerTask(1L, "retry", null, null));
+        AgentToolResult result = tool.callingExplorerSubAgent(tasks, 60L, null);
 
         assertTrue(result.isSuccess());
         verify(mockExplorer).invoke(any(SubAgentRequest.class));

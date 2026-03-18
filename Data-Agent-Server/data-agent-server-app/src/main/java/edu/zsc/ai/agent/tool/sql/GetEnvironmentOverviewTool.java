@@ -53,7 +53,11 @@ public class GetEnvironmentOverviewTool {
                 .filter(connection -> StringUtils.isNotBlank(connection.error()))
                 .toList();
         if (CollectionUtils.isEmpty(unavailableConnections)) {
-            return "All listed connections are currently available.";
+            return "All listed connections are currently available. "
+                    + "When the user has not explicitly specified the target connection, inspect all available connections "
+                    + "and compare candidate objects across them before choosing one. "
+                    + "If multiple connections contain plausible target objects, ask the user to confirm the intended "
+                    + "connection before planning or executing.";
         }
 
         String unavailableSummary = unavailableConnections.stream()

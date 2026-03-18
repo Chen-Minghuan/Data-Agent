@@ -52,6 +52,15 @@ interface TaskViewModel {
   invocation: SubAgentInvocation;
 }
 
+const MIN_SUB_AGENT_TIMEOUT_SECONDS = 120;
+
+function normalizePreviewTimeoutSeconds(timeoutSeconds?: number): number | undefined {
+  if (!timeoutSeconds || timeoutSeconds <= 0) {
+    return undefined;
+  }
+  return Math.max(timeoutSeconds, MIN_SUB_AGENT_TIMEOUT_SECONDS);
+}
+
 function parseStableExplorerArgs(parametersData: string, toolName?: string): CallingSubAgentArgs | null {
   if (toolName !== 'callingExplorerSubAgent' || !parametersData.trim()) {
     return null;
@@ -107,7 +116,7 @@ function buildRequestTaskSlots(args: CallingSubAgentArgs | null): RequestTaskSlo
       slotIndex: 0,
       connectionId: connectionIds[0],
       instruction: args?.userQuestion ?? taskInstructions[0],
-      timeoutSeconds: taskTimeoutSeconds[0] ?? args?.timeoutSeconds,
+      timeoutSeconds: normalizePreviewTimeoutSeconds(taskTimeoutSeconds[0] ?? args?.timeoutSeconds),
     }];
   }
 
@@ -116,7 +125,7 @@ function buildRequestTaskSlots(args: CallingSubAgentArgs | null): RequestTaskSlo
     slotIndex: index,
     connectionId: connectionIds[index],
     instruction: taskInstructions[index],
-    timeoutSeconds: taskTimeoutSeconds[index] ?? args?.timeoutSeconds,
+    timeoutSeconds: normalizePreviewTimeoutSeconds(taskTimeoutSeconds[index] ?? args?.timeoutSeconds),
   }));
 }
 

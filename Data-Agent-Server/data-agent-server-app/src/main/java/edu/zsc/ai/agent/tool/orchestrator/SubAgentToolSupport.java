@@ -1,6 +1,7 @@
 package edu.zsc.ai.agent.tool.orchestrator;
 
 import edu.zsc.ai.agent.subagent.SubAgentTextSupport;
+import edu.zsc.ai.agent.subagent.SubAgentTimeoutPolicy;
 import edu.zsc.ai.agent.subagent.contract.ExploreObject;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
@@ -40,9 +41,7 @@ abstract class SubAgentToolSupport {
     }
 
     protected long resolveTimeoutSeconds(Long requestedTimeoutSeconds, long defaultTimeoutSeconds) {
-        return requestedTimeoutSeconds != null && requestedTimeoutSeconds > 0
-                ? requestedTimeoutSeconds
-                : defaultTimeoutSeconds;
+        return SubAgentTimeoutPolicy.normalizeTimeoutSeconds(requestedTimeoutSeconds, defaultTimeoutSeconds);
     }
 
     protected String buildTaskId(String prefix, RequestContextInfo requestContextSnapshot) {

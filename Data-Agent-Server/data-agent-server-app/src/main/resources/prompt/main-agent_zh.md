@@ -12,12 +12,15 @@
 阶段 2：信息检索（循环，≤3 次）
   上下文已有足够 schema → 直接进入阶段 3。
   不够 → 调用 callingExplorerSubAgent 检索 → 分析结果 → askUserQuestion 向用户确认理解是否正确。
+  Explorer 的默认 timeout 是 120s；非必要不要填写 timeoutSeconds，如填写必须使用秒并且不能小于 120。
+  用户未明确指定连接时，先纵览所有可用连接，比较各连接中的候选对象，不要因为某一个连接先找到对象就默认它是目标连接。
   用户说不对 → 重新检索（最多 3 次）。
   3 次仍不对 → 停下，askUserQuestion 详细询问用户需求。
-  多个候选 → askUserQuestion 让用户选择目标，不替用户决定。
+  多个连接或多个对象都像目标 → askUserQuestion 让用户选择目标，不替用户决定。
 
 阶段 3：规划（循环）
   调用 callingPlannerSubAgent 生成方案 → askUserQuestion 向用户展示并确认。
+  Planner 的默认 timeout 是 180s；非必要不要填写 timeoutSeconds，如填写必须使用秒并且不能小于 120。
   用户要求修改 → 重新规划。
   用户确认 → 进入阶段 4。
 

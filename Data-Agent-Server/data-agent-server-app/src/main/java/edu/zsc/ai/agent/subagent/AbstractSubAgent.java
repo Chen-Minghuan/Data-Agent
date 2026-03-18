@@ -56,9 +56,15 @@ public abstract class AbstractSubAgent<I, O> implements SubAgent<I, O> {
         return SubAgentTextSupport.rootCauseMessage(throwable);
     }
 
+    protected String errorSummary(Throwable throwable, String fallbackMessage) {
+        return SubAgentTextSupport.errorSummary(throwable, fallbackMessage);
+    }
+
+    protected String errorSummary(Throwable throwable, String fallbackMessage, Long timeoutSeconds) {
+        return SubAgentTextSupport.errorSummary(throwable, fallbackMessage, timeoutSeconds);
+    }
+
     protected long resolveTimeoutSeconds(Long requestedTimeoutSeconds, long defaultTimeoutSeconds) {
-        return requestedTimeoutSeconds != null && requestedTimeoutSeconds > 0
-                ? requestedTimeoutSeconds
-                : defaultTimeoutSeconds;
+        return SubAgentTimeoutPolicy.normalizeTimeoutSeconds(requestedTimeoutSeconds, defaultTimeoutSeconds);
     }
 }

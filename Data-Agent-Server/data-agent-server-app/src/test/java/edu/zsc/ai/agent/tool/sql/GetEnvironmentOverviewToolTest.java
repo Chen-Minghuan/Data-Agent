@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,7 +29,10 @@ class GetEnvironmentOverviewToolTest {
         AgentToolResult result = tool.getEnvironmentOverview(InvocationParameters.from(Map.of()));
 
         assertTrue(result.isSuccess());
-        assertEquals("All listed connections are currently available.", result.getMessage());
+        assertTrue(result.getMessage().contains("All listed connections are currently available."));
+        assertTrue(result.getMessage().contains("inspect all available connections"));
+        assertTrue(result.getMessage().contains("compare candidate objects across them"));
+        assertTrue(result.getMessage().contains("ask the user to confirm the intended connection"));
     }
 
     @Test

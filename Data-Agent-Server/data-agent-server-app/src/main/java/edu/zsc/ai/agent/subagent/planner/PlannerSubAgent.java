@@ -21,8 +21,9 @@ import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
 import edu.zsc.ai.domain.service.agent.SseEmitterRegistry;
+import edu.zsc.ai.observability.AgentLogFields;
+import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.JsonUtil;
-import edu.zsc.ai.util.SubAgentDebugWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -49,6 +50,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
     private final SubAgentProperties properties;
     private final SubAgentStreamBridge streamBridge;
     private final SseEmitterRegistry sseEmitterRegistry;
+    private final AgentLogService agentLogService;
 
     @Override
     public AgentTypeEnum getAgentType() {
@@ -58,7 +60,8 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
     @Override
     public SqlPlan invoke(PlannerRequest request) {
         long startTime = System.currentTimeMillis();
-        long timeoutSeconds = resolveTimeoutSeconds(request.getTimeoutSeconds(), properties.getPlanner().getTimeoutSeconds());
+        Long requestedTimeoutSeconds = request.getTimeoutSeconds();
+        long timeoutSeconds = resolveTimeoutSeconds(requestedTimeoutSeconds, properties.getPlanner().getTimeoutSeconds());
         Long conversationId = resolveConversationId();
         RequestContextInfo requestContextSnapshot = RequestContext.snapshot();
         String parentToolCallId = AgentExecutionContext.getParentToolCallId();
@@ -68,12 +71,14 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
 
         // SSE progress emitter (replaces AgentListener-based observability)
         SubAgentObservabilityListener observer = new SubAgentObservabilityListener(
-                AgentTypeEnum.PLANNER, conversationId, sseEmitterRegistry, null, taskId, parentToolCallId, null, timeoutSeconds);
-        log.info("[Planner] invoke start, conversationId={}, taskId={}, parentToolCallId={}, modelName={}, hasRequestContext={}, hasAgentContext={}, instructionLength={}, objectCount={}, rawResponsePresent={}, instructionPreview={}, objectPreview={}",
+                AgentTypeEnum.PLANNER, conversationId, sseEmitterRegistry, null, taskId, parentToolCallId, null, timeoutSeconds, agentLogService);
+        log.info("[Planner] invoke start, conversationId={}, taskId={}, parentToolCallId={}, modelName={}, requestedTimeoutSeconds={}, effectiveTimeoutSeconds={}, hasRequestContext={}, hasAgentContext={}, instructionLength={}, objectCount={}, rawResponsePresent={}, instructionPreview={}, objectPreview={}",
                 requestContextSnapshot != null ? requestContextSnapshot.getConversationId() : conversationId,
                 taskId,
                 parentToolCallId,
                 modelName,
+                requestedTimeoutSeconds,
+                timeoutSeconds,
                 requestContextSnapshot != null,
                 AgentRequestContext.hasContext(),
                 StringUtils.length(request.getInstruction()),
@@ -81,11 +86,13 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                 schemaSummary != null && StringUtils.isNotBlank(schemaSummary.getRawResponse()),
                 preview(request.getInstruction()),
                 schemaSummary != null ? summarizeObjects(schemaSummary.getObjects()) : "[]");
-        SubAgentDebugWriter.append("PlannerSubAgent", "invoke_start", SubAgentDebugWriter.fields(
+        agentLogService.recordDebug("PlannerSubAgent", "invoke_start", AgentLogFields.of(
                 "conversationId", requestContextSnapshot != null ? requestContextSnapshot.getConversationId() : conversationId,
                 "taskId", taskId,
                 "parentToolCallId", parentToolCallId,
                 "modelName", modelName,
+                "requestedTimeoutSeconds", requestedTimeoutSeconds,
+                "effectiveTimeoutSeconds", timeoutSeconds,
                 "instructionPreview", preview(request.getInstruction()),
                 "objectPreview", schemaSummary != null ? summarizeObjects(schemaSummary.getObjects()) : "[]",
                 "rawResponsePresent", schemaSummary != null && StringUtils.isNotBlank(schemaSummary.getRawResponse())
@@ -116,7 +123,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
             log.info("[Planner] invocation context built, taskId={}, invocationKeys={}",
                     taskId,
                     invocationContext.keySet());
-            SubAgentDebugWriter.append("PlannerSubAgent", "model_request_ready", SubAgentDebugWriter.fields(
+            agentLogService.recordDebug("PlannerSubAgent", "model_request_ready", AgentLogFields.of(
                     "taskId", taskId,
                     "conversationId", conversationId,
                     "parentToolCallId", parentToolCallId,
@@ -137,7 +144,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                     taskId,
                     parentToolCallId,
                     timeoutSeconds);
-            SubAgentDebugWriter.append("PlannerSubAgent", "token_stream_start", SubAgentDebugWriter.fields(
+            agentLogService.recordDebug("PlannerSubAgent", "token_stream_start", AgentLogFields.of(
                     "taskId", taskId,
                     "conversationId", conversationId,
                     "parentToolCallId", parentToolCallId,
@@ -166,7 +173,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                         preview(fullResponse.toString()),
                         System.currentTimeMillis() - startTime,
                         e);
-                SubAgentDebugWriter.append("PlannerSubAgent", "timeout", SubAgentDebugWriter.fields(
+                agentLogService.recordDebug("PlannerSubAgent", "timeout", AgentLogFields.of(
                         "taskId", taskId,
                         "conversationId", conversationId,
                         "timeoutSeconds", timeoutSeconds,
@@ -180,7 +187,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                     taskId,
                     StringUtils.length(responseText),
                     preview(responseText));
-            SubAgentDebugWriter.append("PlannerSubAgent", "response_received", SubAgentDebugWriter.fields(
+            agentLogService.recordDebug("PlannerSubAgent", "response_received", AgentLogFields.of(
                     "taskId", taskId,
                     "conversationId", conversationId,
                     "responseLength", StringUtils.length(responseText),
@@ -197,7 +204,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                     StringUtils.length(plan.getRawResponse()),
                     preview(plan.getSummaryText()),
                     System.currentTimeMillis() - startTime);
-            SubAgentDebugWriter.append("PlannerSubAgent", "parse_success", SubAgentDebugWriter.fields(
+            agentLogService.recordDebug("PlannerSubAgent", "parse_success", AgentLogFields.of(
                     "taskId", taskId,
                     "conversationId", conversationId,
                     "sqlBlockCount", CollectionUtils.size(plan.getSqlBlocks()),
@@ -210,8 +217,9 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
             return plan;
 
         } catch (TimeoutException e) {
-            observer.emitError(e.getMessage());
-            SubAgentDebugWriter.append("PlannerSubAgent", "invoke_failed", SubAgentDebugWriter.fields(
+            String errorSummary = errorSummary(e, "Planner SubAgent timed out", timeoutSeconds);
+            observer.emitError(errorSummary);
+            agentLogService.recordDebug("PlannerSubAgent", "invoke_failed", AgentLogFields.of(
                     "conversationId", conversationId,
                     "taskId", taskId,
                     "parentToolCallId", parentToolCallId,
@@ -220,9 +228,10 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                     "rootCauseMessage", rootCauseMessage(e),
                     "instructionPreview", preview(request.getInstruction())
             ));
-            throw new RuntimeException("Planner SubAgent timed out: " + e.getMessage(), e);
+            throw new RuntimeException("Planner SubAgent timed out: " + errorSummary, e);
         } catch (Exception e) {
-            observer.emitError(e.getMessage());
+            String errorSummary = errorSummary(e, "Planner SubAgent failed", timeoutSeconds);
+            observer.emitError(errorSummary);
             log.error("[Planner] invoke failed, conversationId={}, taskId={}, parentToolCallId={}, elapsedMs={}, rootCauseClass={}, rootCauseMessage={}, instructionPreview={}, objectPreview={}",
                     conversationId,
                     taskId,
@@ -233,7 +242,7 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
                     preview(request.getInstruction()),
                     schemaSummary != null ? summarizeObjects(schemaSummary.getObjects()) : "[]",
                     e);
-            SubAgentDebugWriter.append("PlannerSubAgent", "invoke_failed", SubAgentDebugWriter.fields(
+            agentLogService.recordDebug("PlannerSubAgent", "invoke_failed", AgentLogFields.of(
                     "conversationId", conversationId,
                     "taskId", taskId,
                     "parentToolCallId", parentToolCallId,
@@ -245,14 +254,14 @@ public class PlannerSubAgent extends AbstractSubAgent<PlannerRequest, SqlPlan> i
             ));
             if (StringUtils.containsIgnoreCase(rootCauseMessage(e), "tool_calls")
                     && StringUtils.containsIgnoreCase(rootCauseMessage(e), "tool_call_id")) {
-                SubAgentDebugWriter.append("PlannerSubAgent", "protocol_error_hint", SubAgentDebugWriter.fields(
+                agentLogService.recordDebug("PlannerSubAgent", "protocol_error_hint", AgentLogFields.of(
                         "taskId", taskId,
                         "conversationId", conversationId,
                         "hint", "assistant tool_calls were emitted but matching tool messages were not present in the next model request",
                         "nextCheck", "inspect planner-side message assembly or tool-result replay for this task"
                 ));
             }
-            throw new RuntimeException("Planner SubAgent failed: " + e.getMessage(), e);
+            throw new RuntimeException("Planner SubAgent failed: " + errorSummary, e);
         }
     }
 
