@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -34,7 +33,8 @@ class GetObjectDetailToolTest {
         );
 
         assertTrue(result.isSuccess());
-        assertEquals("ok", result.getMessage());
+        assertTrue(result.getMessage().contains("Object details are available for users"));
+        assertTrue(result.getMessage().contains("Use the returned DDL, row counts, and indexes"));
     }
 
     @Test
@@ -52,7 +52,9 @@ class GetObjectDetailToolTest {
         AgentToolResult result = tool.getObjectDetail(objects, InvocationParameters.from(Map.of()));
 
         assertTrue(result.isSuccess());
-        assertTrue(result.getMessage().contains("Object detail lookup failed for: orders_archive"));
+        assertTrue(result.getMessage().contains("Object detail lookup is only partially available."));
+        assertTrue(result.getMessage().contains("orders_archive (connection closed)"));
+        assertTrue(result.getMessage().contains("Do not assume the structure of failed objects"));
         assertTrue(result.getMessage().contains("Ask the user whether these objects are still required before continuing"));
         assertTrue(result.getMessage().contains("Do not continue object discovery until the user replies"));
     }
@@ -70,7 +72,7 @@ class GetObjectDetailToolTest {
         AgentToolResult result = tool.getObjectDetail(objects, InvocationParameters.from(Map.of()));
 
         assertTrue(result.isSuccess());
-        assertTrue(result.getMessage().contains("Object detail lookup failed for all requested objects: users_backup"));
+        assertTrue(result.getMessage().contains("Object detail lookup failed for all requested objects: users_backup (timeout)"));
         assertTrue(result.getMessage().contains("Ask the user whether to retry with another object or connection"));
         assertTrue(result.getMessage().contains("Do not continue object discovery until the user replies"));
     }

@@ -3,6 +3,7 @@ package edu.zsc.ai.agent.tool.sql;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.ConnectionOverview;
 import edu.zsc.ai.domain.service.db.DiscoveryService;
@@ -38,14 +39,14 @@ public class GetEnvironmentOverviewTool {
         List<ConnectionOverview> overview = discoveryService.getEnvironmentOverview();
         if (CollectionUtils.isEmpty(overview)) {
             log.info("[Tool done] getEnvironmentOverview -> empty");
-            return AgentToolResult.empty();
+            return AgentToolResult.empty(ToolMessageSupport.sentence(
+                    "Environment overview returned no available connections.",
+                    ToolMessageSupport.askUserWhether("verify the connection configuration or retry later"),
+                    ToolMessageSupport.DO_NOT_PROCEED_WITH_DISCOVERY_PLANNING_OR_EXECUTION_UNTIL_CONNECTION_IS_AVAILABLE
+            ));
         }
         log.info("[Tool done] getEnvironmentOverview, connections={}", overview.size());
-        return AgentToolResult.builder()
-                .success(true)
-                .message(buildOverviewMessage(overview))
-                .result(overview)
-                .build();
+        return AgentToolResult.success(overview, buildOverviewMessage(overview));
     }
 
     private String buildOverviewMessage(List<ConnectionOverview> overview) {
@@ -53,28 +54,34 @@ public class GetEnvironmentOverviewTool {
                 .filter(connection -> StringUtils.isNotBlank(connection.error()))
                 .toList();
         if (CollectionUtils.isEmpty(unavailableConnections)) {
-            return "All listed connections are currently available. "
-                    + "When the user has not explicitly specified the target connection, inspect all available connections "
-                    + "and compare candidate objects across them before choosing one. "
-                    + "If multiple connections contain plausible target objects, ask the user to confirm the intended "
-                    + "connection before planning or executing.";
+            return ToolMessageSupport.sentence(
+                    "Environment overview is available for " + overview.size() + " connection(s).",
+                    "Compare candidate objects across available connections before choosing one.",
+                    "If multiple connections remain plausible, ask the user to confirm the target connection before proceeding to discovery, planning, or execution."
+            );
         }
 
         String unavailableSummary = unavailableConnections.stream()
-                .map(connection -> String.format("%s(id=%s)",
+                .map(connection -> String.format("%s(id=%s): %s",
                         connection.name(),
-                        connection.id()))
+                        connection.id(),
+                        connection.error()))
                 .collect(Collectors.joining("; "));
 
         long availableCount = overview.size() - unavailableConnections.size();
         if (availableCount > 0) {
-            return "Unavailable connections found: "
-                    + unavailableSummary
-                    + ". Ask the user whether to switch to an available connection or retry later. Do not continue object discovery until the user replies.";
+            return ToolMessageSupport.sentence(
+                    "Environment overview is only partially available. Failed connections: " + unavailableSummary + ".",
+                    ToolMessageSupport.continueOnlyWith("the remaining available connections"),
+                    ToolMessageSupport.askUserWhether("switch to an available connection or retry later"),
+                    ToolMessageSupport.DO_NOT_CONTINUE_OBJECT_DISCOVERY_UNTIL_USER_REPLIES
+            );
         }
 
-        return "No available connections: "
-                + unavailableSummary
-                + ". Ask the user whether to retry later or check the connection configuration. Do not continue object discovery until the user replies.";
+        return ToolMessageSupport.sentence(
+                "Environment overview could not find any usable connection. Failed connections: " + unavailableSummary + ".",
+                ToolMessageSupport.askUserWhether("retry later or check the connection configuration"),
+                ToolMessageSupport.DO_NOT_CONTINUE_OBJECT_DISCOVERY_UNTIL_USER_REPLIES
+        );
     }
 }

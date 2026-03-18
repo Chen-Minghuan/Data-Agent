@@ -5,6 +5,7 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.NamedObjectDetail;
 import edu.zsc.ai.agent.tool.sql.model.ObjectQueryItem;
@@ -41,7 +42,8 @@ public class GetObjectDetailTool {
         if (CollectionUtils.isEmpty(objects)) {
             throw AgentToolExecuteException.invalidInput(
                     ToolNameEnum.GET_OBJECT_DETAIL,
-                    "objects list must not be empty."
+                    "objects list must not be empty. Provide at least one object before retrying getObjectDetail. "
+                            + "Do not continue planning until the required object details are available."
             );
         }
 
@@ -56,22 +58,41 @@ public class GetObjectDetailTool {
                     .result(results)
                     .build();
         }
-        return AgentToolResult.success(results);
+        return AgentToolResult.success(results, buildObjectDetailSuccessMessage(results));
     }
 
     private String buildObjectDetailMessage(List<NamedObjectDetail> results) {
         List<String> failedObjects = results.stream()
                 .filter(detail -> !detail.success())
-                .map(detail -> StringUtils.defaultIfBlank(detail.objectName(), "unknown_object"))
+                .map(detail -> StringUtils.defaultIfBlank(detail.objectName(), "unknown_object")
+                        + " (" + StringUtils.defaultIfBlank(detail.error(), "unknown error") + ")")
                 .toList();
         String failedSummary = String.join(", ", failedObjects);
         if (failedObjects.size() < results.size()) {
-            return "Object detail lookup failed for: "
-                    + failedSummary
-                    + ". Ask the user whether these objects are still required before continuing. Do not continue object discovery until the user replies.";
+            return ToolMessageSupport.sentence(
+                    "Object detail lookup is only partially available. Failed objects: " + failedSummary + ".",
+                    "Do not assume the structure of failed objects.",
+                    "Ask the user whether these objects are still required before continuing.",
+                    ToolMessageSupport.DO_NOT_CONTINUE_OBJECT_DISCOVERY_UNTIL_USER_REPLIES
+            );
         }
-        return "Object detail lookup failed for all requested objects: "
-                + failedSummary
-                + ". Ask the user whether to retry with another object or connection. Do not continue object discovery until the user replies.";
+        return ToolMessageSupport.sentence(
+                "Object detail lookup failed for all requested objects: " + failedSummary + ".",
+                ToolMessageSupport.askUserWhether("retry with another object or connection"),
+                ToolMessageSupport.DO_NOT_CONTINUE_OBJECT_DISCOVERY_UNTIL_USER_REPLIES
+        );
+    }
+
+    private String buildObjectDetailSuccessMessage(List<NamedObjectDetail> results) {
+        List<String> successfulObjects = results.stream()
+                .filter(NamedObjectDetail::success)
+                .map(detail -> StringUtils.defaultIfBlank(detail.objectName(), "unknown_object"))
+                .limit(3)
+                .toList();
+        String suffix = results.size() > successfulObjects.size() ? ", ..." : "";
+        return ToolMessageSupport.sentence(
+                "Object details are available for " + String.join(", ", successfulObjects) + suffix + ".",
+                "Use the returned DDL, row counts, and indexes to verify object structure before generating or executing SQL."
+        );
     }
 }

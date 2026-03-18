@@ -3,6 +3,7 @@ package edu.zsc.ai.agent.tool.skill;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.common.enums.ai.SkillEnum;
 import edu.zsc.ai.config.ai.PromptConfig;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +26,12 @@ public class ActivateSkillTool {
             @P("Skill to load. MUST be one of: chart, sql-optimization") String skillName) {
         SkillEnum skill = SkillEnum.fromName(skillName);
         if (skill == null) {
-            return "Unknown skill: " + skillName
-                    + ". Valid values: " + SkillEnum.validNames();
+            return ToolMessageSupport.sentence(
+                    "Skill '" + skillName + "' is not available.",
+                    "Valid values: " + SkillEnum.validNames() + ".",
+                    "Do not assume the skill is loaded.",
+                    "Choose a valid skill and retry only if the task still needs it."
+            );
         }
         log.info("Skill activated: {}", skill.getSkillName());
         return PromptConfig.loadClassPathResource(skill.getResourcePath());

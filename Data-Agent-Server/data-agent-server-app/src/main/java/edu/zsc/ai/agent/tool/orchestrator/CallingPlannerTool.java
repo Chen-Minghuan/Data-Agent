@@ -9,6 +9,7 @@ import edu.zsc.ai.agent.subagent.contract.PlannerRequest;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
 import edu.zsc.ai.agent.subagent.contract.SqlPlan;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.config.ai.SubAgentManager;
@@ -80,7 +81,11 @@ public class CallingPlannerTool extends SubAgentToolSupport {
         if (StringUtils.isBlank(schemaSummaryJson)) {
             throw AgentToolExecuteException.preconditionFailed(
                     ToolNameEnum.CALLING_PLANNER_SUB_AGENT,
-                    "schemaSummaryJson is required for callingPlannerSubAgent. Call callingExplorerSubAgent first to get schema."
+                    ToolMessageSupport.sentence(
+                            "schemaSummaryJson is required for callingPlannerSubAgent.",
+                            "Call callingExplorerSubAgent first to gather schema context.",
+                            "Do not generate SQL plans until the required schema summary is available."
+                    )
             );
         }
 
@@ -90,7 +95,10 @@ public class CallingPlannerTool extends SubAgentToolSupport {
         } catch (Exception e) {
             throw AgentToolExecuteException.invalidInput(
                     ToolNameEnum.CALLING_PLANNER_SUB_AGENT,
-                    "Failed to parse schemaSummaryJson: " + StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName())
+                    ToolMessageSupport.sentence(
+                            "Failed to parse schemaSummaryJson: " + StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName()) + ".",
+                            "Fix the schema summary payload before retrying callingPlannerSubAgent."
+                    )
             );
         }
         log.info("[Planner] schemaSummary normalized, objectCount={}, summaryLength={}, rawResponseLength={}, objectPreview={}",
@@ -110,7 +118,11 @@ public class CallingPlannerTool extends SubAgentToolSupport {
                 && StringUtils.isBlank(schemaSummary.getSummaryText())) {
             throw AgentToolExecuteException.preconditionFailed(
                     ToolNameEnum.CALLING_PLANNER_SUB_AGENT,
-                    "schemaSummaryJson does not contain any successful explorer task results. Call callingExplorerSubAgent again or fix the failed tasks first."
+                    ToolMessageSupport.sentence(
+                            "schemaSummaryJson does not contain any successful explorer task results.",
+                            "Call callingExplorerSubAgent again or fix the failed tasks first.",
+                            "Do not continue to SQL planning until successful explorer output is available."
+                    )
             );
         }
 
@@ -182,7 +194,24 @@ public class CallingPlannerTool extends SubAgentToolSupport {
                 "rawResponseLength", StringUtils.length(plan.getRawResponse()),
                 "summaryPreview", preview(plan.getSummaryText())
         ));
-        return AgentToolResult.success(JsonUtil.object2json(plan));
+        return AgentToolResult.success(JsonUtil.object2json(plan), buildPlannerSuccessMessage(plan));
+    }
+
+    private String buildPlannerSuccessMessage(SqlPlan plan) {
+        int sqlBlockCount = CollectionUtils.size(plan.getSqlBlocks());
+        int planStepCount = CollectionUtils.size(plan.getPlanSteps());
+        if (sqlBlockCount == 0) {
+            return ToolMessageSupport.sentence(
+                    "SQL planning completed, but the planner did not return executable SQL blocks.",
+                    "Review the plan summary and gather more schema context before attempting execution."
+            );
+        }
+        return ToolMessageSupport.sentence(
+                "SQL plan is available with " + planStepCount + " plan step(s) and " + sqlBlockCount + " SQL block(s).",
+                "Review the plan against the user's goal before executing it.",
+                "For write SQL, wait for user confirmation before executeNonSelectSql.",
+                "For read SQL, execute only after the target objects and filters are verified."
+        );
     }
 
 }

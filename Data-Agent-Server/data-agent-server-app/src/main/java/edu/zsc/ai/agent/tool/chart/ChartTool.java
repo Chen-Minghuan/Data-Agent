@@ -6,6 +6,7 @@ import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.annotation.DisallowInPlanMode;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.enums.ai.ChartTypeEnum;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
@@ -47,7 +48,8 @@ public class ChartTool {
             throw AgentToolExecuteException.invalidInput(
                     ToolNameEnum.RENDER_CHART,
                     "Invalid renderChart input: " + e.getMessage()
-                            + ". chartType must be one of LINE/BAR/PIE/SCATTER/AREA, and optionJson must be valid ECharts JSON."
+                            + ". chartType must be one of LINE/BAR/PIE/SCATTER/AREA, and optionJson must be valid ECharts JSON. "
+                            + "Fix the chart input and retry; do not invent chart conclusions without a rendered chart."
             );
         }
 
@@ -60,6 +62,9 @@ public class ChartTool {
 
         log.info("[Tool done] renderChart, chartType={}, optionKeys={}",
                 normalizedType, optionNode.size());
-        return AgentToolResult.success(result);
+        return AgentToolResult.success(result, ToolMessageSupport.sentence(
+                "Chart rendering payload is ready.",
+                "Use this chart as the final visual answer and keep any additional narrative consistent with the rendered chart."
+        ));
     }
 }

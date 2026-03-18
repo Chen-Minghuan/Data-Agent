@@ -7,6 +7,7 @@ import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationEntry;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.message.WriteConfirmationMessageSupport;
 import edu.zsc.ai.domain.model.context.DbContext;
 import lombok.Builder;
 import lombok.Data;
@@ -56,6 +57,11 @@ public class AskUserConfirmTool {
         log.info("[Tool done] askUserConfirm, token={}", entry.getToken());
         return WriteConfirmationResult.builder()
                 .confirmationToken(entry.getToken())
+                .sqlPreview(sql)
+                .explanation(explanation)
+                .connectionId(connectionId)
+                .databaseName(databaseName)
+                .schemaName(schemaName)
                 .expiresInSeconds(300)
                 .build();
     }
@@ -80,7 +86,7 @@ public class AskUserConfirmTool {
         public static WriteConfirmationResult error(String message) {
             return WriteConfirmationResult.builder()
                     .error(true)
-                    .errorMessage(message)
+                    .errorMessage(WriteConfirmationMessageSupport.writeConfirmationFailed(message))
                     .build();
         }
     }

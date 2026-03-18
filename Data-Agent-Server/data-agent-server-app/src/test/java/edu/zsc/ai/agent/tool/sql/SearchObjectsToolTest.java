@@ -122,9 +122,11 @@ class SearchObjectsToolTest {
         );
 
         assertTrue(result.isSuccess());
-        assertTrue(result.getMessage().contains("Search completed with scope errors"));
+        assertTrue(result.getMessage().contains("Object search returned partial results"));
+        assertTrue(result.getMessage().contains("pattern=%user%"));
         assertTrue(result.getMessage().contains("connectionId=7 timeout"));
-        assertTrue(result.getMessage().contains("Ask the user whether to continue with the available matches or change the connection/scope"));
+        assertTrue(result.getMessage().contains("Continue only with the currently returned matches"));
+        assertTrue(result.getMessage().contains("Ask the user whether to keep these matches or adjust the connection or scope"));
         assertTrue(result.getMessage().contains("Do not continue object discovery until the user replies"));
     }
 
@@ -139,7 +141,8 @@ class SearchObjectsToolTest {
         );
 
         assertTrue(result.isSuccess());
-        assertTrue(result.getMessage().contains("Search could not reliably complete"));
+        assertTrue(result.getMessage().contains("Object search could not return reliable matches"));
+        assertTrue(result.getMessage().contains("pattern=%user%, connectionId=5"));
         assertTrue(result.getMessage().contains("connectionId=5 closed"));
         assertTrue(result.getMessage().contains("Ask the user whether to retry with another connection or scope"));
         assertTrue(result.getMessage().contains("Do not continue object discovery until the user replies"));

@@ -78,6 +78,8 @@ class CallingPlannerToolTest {
                 "generate revenue query", schemaJson, null, null);
 
         assertTrue(result.isSuccess());
+        assertTrue(result.getMessage().contains("SQL plan is available"));
+        assertTrue(result.getMessage().contains("wait for user confirmation before executeNonSelectSql"));
         verify(mockPlanner).invoke(any(PlannerRequest.class));
     }
 

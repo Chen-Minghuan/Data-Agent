@@ -8,6 +8,7 @@ import edu.zsc.ai.agent.tool.ask.confirm.WriteConfirmationStore;
 import edu.zsc.ai.agent.tool.ask.confirm.WriteConsumeResult;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
+import edu.zsc.ai.agent.tool.message.SqlToolMessageSupport;
 import edu.zsc.ai.agent.tool.sql.model.AgentSqlResult;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.domain.model.context.DbContext;
@@ -18,6 +19,7 @@ import edu.zsc.ai.plugin.capability.SqlValidator;
 import edu.zsc.ai.plugin.manager.DefaultPluginManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 import java.util.Objects;
@@ -50,15 +52,21 @@ public class ExecuteSqlTool {
         log.info("{} executeSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
                 "[Tool]", connectionId, databaseName, schemaName,
                 Objects.nonNull(sqls) ? sqls.size() : 0);
+        if (Objects.isNull(sqls) || sqls.isEmpty()) {
+            throw AgentToolExecuteException.preconditionFailed(
+                    ToolNameEnum.EXECUTE_SELECT_SQL,
+                    SqlToolMessageSupport.requireReadStatements(connectionId, databaseName, schemaName)
+            );
+        }
         if (!allReadOnly(sqls, connectionId)) {
             throw AgentToolExecuteException.preconditionFailed(
                     ToolNameEnum.EXECUTE_SELECT_SQL,
-                    "Only read-only statements (SELECT, WITH, SHOW, EXPLAIN) are allowed in executeSelectSql. "
-                            + "For INSERT/UPDATE/DELETE/DDL, use executeNonSelectSql instead (requires askUserConfirm first)."
+                    SqlToolMessageSupport.requireReadOnlyStatements(connectionId, databaseName, schemaName)
             );
         }
         DbContext db = new DbContext(connectionId, databaseName, schemaName);
         List<ExecuteSqlResponse> responses = sqlExecutionService.executeBatchSql(db, sqls);
+        annotateSqlFailures(responses, connectionId, databaseName, schemaName, sqls, false);
         log.info("{} executeSelectSql", "[Tool done]");
         return AgentSqlResult.fromBatch(responses);
     }
@@ -82,6 +90,12 @@ public class ExecuteSqlTool {
         log.info("{} executeNonSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
                 "[Tool]", connectionId, databaseName, schemaName,
                 Objects.nonNull(sqls) ? sqls.size() : 0);
+        if (Objects.isNull(sqls) || sqls.isEmpty()) {
+            throw AgentToolExecuteException.preconditionFailed(
+                    ToolNameEnum.EXECUTE_NON_SELECT_SQL,
+                    SqlToolMessageSupport.requireWriteStatements(connectionId, databaseName, schemaName)
+            );
+        }
 
         DbContext db = new DbContext(connectionId, databaseName, schemaName);
         String joinedSql = String.join(";\n", sqls);
@@ -90,11 +104,12 @@ public class ExecuteSqlTool {
             log.warn("[Tool] executeNonSelectSql rejected: reason={}", consumeResult.reason());
             throw AgentToolExecuteException.preconditionFailed(
                     ToolNameEnum.EXECUTE_NON_SELECT_SQL,
-                    consumeResult.detail()
+                    SqlToolMessageSupport.confirmationBlocked(connectionId, databaseName, schemaName, consumeResult.detail())
             );
         }
 
         List<ExecuteSqlResponse> responses = sqlExecutionService.executeBatchSql(db, sqls);
+        annotateSqlFailures(responses, connectionId, databaseName, schemaName, sqls, true);
         log.info("{} executeNonSelectSql", "[Tool done]");
         return AgentSqlResult.fromBatch(responses);
     }
@@ -107,5 +122,45 @@ public class ExecuteSqlTool {
         SqlValidator validator = DefaultPluginManager.getInstance()
                 .getSqlValidatorByPluginId(Objects.nonNull(pluginId) ? pluginId : "");
         return sqls.stream().allMatch(stmt -> validator.classifySql(stmt).isReadOnly());
+    }
+
+    private void annotateSqlFailures(List<ExecuteSqlResponse> responses,
+                                     Long connectionId,
+                                     String databaseName,
+                                     String schemaName,
+                                     List<String> sqls,
+                                     boolean writeOperation) {
+        if (responses == null || responses.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < responses.size(); i++) {
+            ExecuteSqlResponse response = responses.get(i);
+            if (response == null || response.isSuccess()) {
+                continue;
+            }
+            String sqlPreview = buildSqlPreview(sqls, i);
+            String currentError = StringUtils.defaultIfBlank(response.getErrorMessage(), "unknown database error");
+            response.setErrorMessage(SqlToolMessageSupport.failureMessage(
+                    writeOperation,
+                    connectionId,
+                    databaseName,
+                    schemaName,
+                    i,
+                    responses.size(),
+                    sqlPreview,
+                    currentError
+            ));
+        }
+    }
+
+    private String buildSqlPreview(List<String> sqls, int index) {
+        if (sqls == null || index < 0 || index >= sqls.size()) {
+            return "";
+        }
+        String sql = StringUtils.normalizeSpace(sqls.get(index));
+        if (StringUtils.isBlank(sql)) {
+            return "";
+        }
+        return sql.length() > 80 ? sql.substring(0, 77) + "..." : sql;
     }
 }

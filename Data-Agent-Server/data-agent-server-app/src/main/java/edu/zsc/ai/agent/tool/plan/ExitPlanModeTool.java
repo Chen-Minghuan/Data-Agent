@@ -6,6 +6,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.plan.model.PlanStep;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -38,6 +39,9 @@ public class ExitPlanModeTool {
         log.info("[Tool] exitPlanMode, title='{}', steps={}", title, stepCount);
 
         // Minimal result for memory — full plan data is in the tool call arguments
-        return "Plan presented to user: " + title + " (" + stepCount + " steps).";
+        return ToolMessageSupport.sentence(
+                "Plan '" + title + "' was presented to the user with " + stepCount + " step(s).",
+                "Wait for the user's decision before executing the plan or changing its scope."
+        );
     }
 }

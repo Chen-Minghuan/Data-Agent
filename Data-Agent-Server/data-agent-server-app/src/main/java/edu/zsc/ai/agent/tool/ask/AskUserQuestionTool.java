@@ -6,6 +6,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.ask.model.UserQuestion;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -35,6 +36,10 @@ public class AskUserQuestionTool {
 
         int count = CollectionUtils.size(questions);
         log.info("[Tool] askUserQuestion, {} question(s)", count);
-        return count + " question(s) presented to user.";
+        return ToolMessageSupport.sentence(
+                count + " question(s) were sent to the user.",
+                ToolMessageSupport.waitForUserReply("making any decision that depends on these answers"),
+                "Do not proceed with discovery, planning, or execution on the user's behalf."
+        );
     }
 }

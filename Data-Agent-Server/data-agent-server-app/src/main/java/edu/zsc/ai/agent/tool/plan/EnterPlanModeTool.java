@@ -4,6 +4,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.Tool;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -33,6 +34,10 @@ public class EnterPlanModeTool {
                     "UNEXPECTED_COMPLEXITY | IRREVERSIBLE_OPERATION | MULTI_TABLE_WRITE")
             String triggerSignal) {
         log.info("[Tool] enterPlanMode, reason='{}', trigger='{}'", reason, triggerSignal);
-        return "Entering Plan mode [" + triggerSignal + "]: " + reason;
+        return ToolMessageSupport.sentence(
+                "Plan mode was activated for trigger " + triggerSignal + ".",
+                "Reason: " + reason + ".",
+                "Stop direct execution and continue by producing a decision-ready plan for the user."
+        );
     }
 }

@@ -2,6 +2,7 @@ package edu.zsc.ai.agent.tool.error;
 
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.tool.ask.AskUserConfirmTool;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.AgentSqlResult;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
@@ -25,7 +26,7 @@ public class ToolErrorMapper {
         Class<?> returnType = method.getReturnType();
         String toolName = resolveToolName(method, cause);
         String sanitizedArgs = resolveSanitizedArgs(args, cause);
-        String messageForModel = resolveMessageForModel(toolName, cause);
+        String messageForModel = resolveMessageForModel(toolName, sanitizedArgs, cause);
 
         logFailure(toolName, sanitizedArgs, cause, messageForModel);
         return buildFailurePayload(returnType, messageForModel, toolName);
@@ -42,7 +43,7 @@ public class ToolErrorMapper {
             return AskUserConfirmTool.WriteConfirmationResult.error(messageForModel);
         }
         if (String.class.equals(returnType)) {
-            return "error: " + messageForModel;
+            return messageForModel;
         }
         throw new IllegalStateException("No tool error mapping registered for return type "
                 + returnType.getName() + " (tool=" + toolName + ")");
@@ -78,14 +79,14 @@ public class ToolErrorMapper {
         return builder.toString();
     }
 
-    private String resolveMessageForModel(String toolName, Throwable cause) {
+    private String resolveMessageForModel(String toolName, String sanitizedArgs, Throwable cause) {
         if (cause instanceof AgentToolExecuteException toolException) {
             return StringUtils.defaultIfBlank(toolException.getMessageForModel(), defaultUnexpectedMessage(toolName));
         }
         if (cause instanceof IllegalArgumentException || cause instanceof IllegalStateException) {
-            return StringUtils.defaultIfBlank(cause.getMessage(), defaultUnexpectedMessage(toolName));
+            return buildValidationMessage(toolName, cause.getMessage(), sanitizedArgs);
         }
-        return defaultUnexpectedMessage(toolName);
+        return buildExecutionMessage(toolName, cause, sanitizedArgs);
     }
 
     private void logFailure(String toolName, String sanitizedArgs, Throwable cause, String messageForModel) {
@@ -114,7 +115,44 @@ public class ToolErrorMapper {
     }
 
     private String defaultUnexpectedMessage(String toolName) {
-        return "Tool " + toolName + " failed unexpectedly. Revise the parameters or try again.";
+        return ToolMessageSupport.sentence(
+                "Tool " + toolName + " failed before it could return a usable result.",
+                "Review the current inputs and context, then retry.",
+                ToolMessageSupport.IF_THE_TARGET_IS_STILL_UNCLEAR_ASK_THE_USER_BEFORE_PROCEEDING
+        );
+    }
+
+    private String buildValidationMessage(String toolName, String rawMessage, String sanitizedArgs) {
+        String detail = StringUtils.defaultIfBlank(rawMessage, "invalid input or missing context");
+        String context = formatArgsForModel(sanitizedArgs);
+        return ToolMessageSupport.sentence(
+                "Tool " + toolName + " rejected the current input" + context + ".",
+                "Error: " + detail + ".",
+                "Fix the parameters or missing context before retrying.",
+                "Do not continue with dependent steps until this is resolved."
+        );
+    }
+
+    private String buildExecutionMessage(String toolName, Throwable cause, String sanitizedArgs) {
+        String detail = StringUtils.defaultIfBlank(cause != null ? cause.getMessage() : null,
+                cause != null ? cause.getClass().getSimpleName() : null);
+        String context = formatArgsForModel(sanitizedArgs);
+        if (StringUtils.isBlank(detail)) {
+            return defaultUnexpectedMessage(toolName);
+        }
+        return ToolMessageSupport.sentence(
+                "Tool " + toolName + " failed" + context + ".",
+                "Error: " + detail + ".",
+                "Review the current scope and retry.",
+                ToolMessageSupport.IF_THE_TARGET_IS_STILL_UNCLEAR_ASK_THE_USER_BEFORE_PROCEEDING
+        );
+    }
+
+    private String formatArgsForModel(String sanitizedArgs) {
+        if (StringUtils.isBlank(sanitizedArgs)) {
+            return StringUtils.EMPTY;
+        }
+        return " while handling " + sanitizedArgs;
     }
 
     private String sanitizeValue(Object value) {

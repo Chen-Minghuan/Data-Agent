@@ -73,7 +73,8 @@ class CallingExplorerToolTest {
         AgentToolResult result = tool.callingExplorerSubAgent(tasks, null, null);
 
         assertTrue(result.isSuccess());
-        assertEquals("ok", result.getMessage());
+        assertTrue(result.getMessage().contains("Explorer results are available for 1 task(s)"));
+        assertTrue(result.getMessage().contains("Use the returned summaries and objects to continue planning"));
         ExplorerResultEnvelope envelope = JsonUtil.json2Object((String) result.getResult(), ExplorerResultEnvelope.class);
         assertEquals(1, envelope.getTaskResults().size());
         assertEquals("users", envelope.getTaskResults().get(0).getObjects().get(0).getObjectName());
@@ -163,7 +164,9 @@ class CallingExplorerToolTest {
         AgentToolResult result = tool.callingExplorerSubAgent(tasks, null, null);
 
         assertTrue(result.isSuccess());
-        assertTrue(result.getMessage().contains("Explorer failed for: connectionId=2 (connection timeout)"));
+        assertTrue(result.getMessage().contains("Explorer returned partial results."));
+        assertTrue(result.getMessage().contains("connectionId=2, instruction=\"explore orders\", error=connection timeout"));
+        assertTrue(result.getMessage().contains("Continue only with those successful results"));
         assertTrue(result.getMessage().contains("Ask the user whether to switch connections, narrow the scope, or retry later"));
         assertTrue(result.getMessage().contains("Do not continue object discovery until the user replies"));
         ExplorerResultEnvelope envelope = JsonUtil.json2Object((String) result.getResult(), ExplorerResultEnvelope.class);
@@ -181,7 +184,8 @@ class CallingExplorerToolTest {
         AgentToolResult result = tool.callingExplorerSubAgent(tasks, null, null);
 
         assertTrue(result.isSuccess());
-        assertTrue(result.getMessage().contains("Explorer failed for: connectionId=2 (connection timeout)"));
+        assertTrue(result.getMessage().contains("Explorer returned partial results."));
+        assertTrue(result.getMessage().contains("connectionId=2, instruction=\"explore orders\", error=connection timeout"));
         assertTrue(result.getMessage().contains("Do not continue object discovery until the user replies"));
         ExplorerResultEnvelope envelope = JsonUtil.json2Object((String) result.getResult(), ExplorerResultEnvelope.class);
         assertEquals(1, envelope.getTaskResults().size());

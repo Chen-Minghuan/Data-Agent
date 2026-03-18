@@ -12,6 +12,7 @@ import edu.zsc.ai.agent.subagent.contract.ExplorerTaskResult;
 import edu.zsc.ai.agent.subagent.contract.ExplorerTaskStatus;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
+import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.enums.ai.ToolNameEnum;
 import edu.zsc.ai.config.ai.ExplorerSubAgentExecutorConfig;
@@ -423,37 +424,63 @@ public class CallingExplorerTool extends SubAgentToolSupport {
     private AgentToolResult buildExplorerAgentResult(List<ExplorerTask> tasks, ExplorerResultEnvelope envelope) {
         String resultJson = JsonUtil.object2json(envelope);
         String message = buildExplorerMessage(tasks, envelope.getTaskResults());
-        if (StringUtils.isBlank(message)) {
-            return AgentToolResult.success(resultJson);
-        }
-        return AgentToolResult.builder()
-                .success(true)
-                .message(message)
-                .result(resultJson)
-                .build();
+        return AgentToolResult.success(resultJson, message);
     }
 
     private String buildExplorerMessage(List<ExplorerTask> tasks, List<ExplorerTaskResult> results) {
         if (CollectionUtils.isEmpty(results)) {
-            return null;
+            return ToolMessageSupport.sentence(
+                    "Explorer finished without returning any task results.",
+                    "Retry the exploration request before attempting SQL planning."
+            );
         }
         List<String> failedTasks = new ArrayList<>();
+        int successCount = 0;
+        int discoveredObjectCount = 0;
         for (int index = 0; index < results.size(); index++) {
             ExplorerTaskResult result = results.get(index);
-            if (result.getStatus() != ExplorerTaskStatus.ERROR) {
+            if (result.getStatus() == ExplorerTaskStatus.ERROR) {
+                ExplorerTask task = index < tasks.size() ? tasks.get(index) : null;
+                failedTasks.add(describeTaskFailure(task, result));
                 continue;
             }
-            ExplorerTask task = index < tasks.size() ? tasks.get(index) : null;
-            failedTasks.add("connectionId="
-                    + (task != null ? task.getConnectionId() : "unknown")
-                    + " (" + StringUtils.defaultIfBlank(result.getErrorMessage(), "unknown error") + ")");
+            successCount++;
+            discoveredObjectCount += CollectionUtils.size(result.getObjects());
         }
         if (failedTasks.isEmpty()) {
-            return null;
+            if (discoveredObjectCount == 0) {
+                return ToolMessageSupport.sentence(
+                        "Explorer completed for " + successCount + " task(s) but did not return any matching objects.",
+                        "Review the exploration scope and retry, or ask the user to clarify the target before planning SQL."
+                );
+            }
+            return ToolMessageSupport.sentence(
+                    "Explorer results are available for " + successCount + " task(s) with " + discoveredObjectCount + " discovered object(s).",
+                    "Use the returned summaries and objects to continue planning.",
+                    "If multiple targets remain plausible, ask the user to confirm the intended object before generating SQL."
+            );
         }
-        return "Explorer failed for: "
-                + String.join("; ", failedTasks)
-                + ". Ask the user whether to switch connections, narrow the scope, or retry later. Do not continue object discovery until the user replies.";
+        return ToolMessageSupport.sentence(
+                "Explorer returned partial results. Failed tasks: " + String.join("; ", failedTasks) + ".",
+                "Successful tasks returned " + discoveredObjectCount + " object(s).",
+                ToolMessageSupport.continueOnlyWith("those successful results"),
+                ToolMessageSupport.askUserWhether("switch connections, narrow the scope, or retry later"),
+                ToolMessageSupport.DO_NOT_CONTINUE_OBJECT_DISCOVERY_UNTIL_USER_REPLIES
+        );
+    }
+
+    private String describeTaskFailure(ExplorerTask task, ExplorerTaskResult result) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("connectionId=")
+                .append(task != null ? task.getConnectionId() : "unknown");
+        if (task != null && StringUtils.isNotBlank(task.getInstruction())) {
+            builder.append(", instruction=\"")
+                    .append(preview(task.getInstruction()))
+                    .append("\"");
+        }
+        builder.append(", error=")
+                .append(StringUtils.defaultIfBlank(result.getErrorMessage(), "unknown error"));
+        return builder.toString();
     }
 
 }
