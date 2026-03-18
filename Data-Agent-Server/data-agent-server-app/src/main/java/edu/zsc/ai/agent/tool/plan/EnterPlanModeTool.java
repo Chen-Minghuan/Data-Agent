@@ -19,11 +19,11 @@ public class EnterPlanModeTool {
 
     @Tool(
             value = {
-                    "Calling this tool greatly reduces risk on complex or write operations — you analyze ",
-                    "and plan without executing, avoiding costly mistakes. Use exitPlanMode to deliver the plan.",
+                    "Internal mode-switch tool for handing a complex request from execution flow into planning flow.",
+                    "Use only when the runtime explicitly exposes this tool for a plan handoff.",
                     "",
-                    "When to Use: write operations (DML/DDL), multi-step or multi-table tasks, vague goals, or when analysis suggests Plan mode.",
-                    "Relation: after entering, use getEnvironmentOverview/searchObjects/getObjectDetail for discovery; then exitPlanMode with title and steps. triggerSignal: CHECKLIST_RECOMMENDATION|MULTI_STEP_DISCOVERED|UNEXPECTED_COMPLEXITY|IRREVERSIBLE_OPERATION|MULTI_TABLE_WRITE."
+                    "When to Use: write operations (DML/DDL), multi-step or multi-table tasks, vague goals, or when analysis suggests a dedicated planning pass.",
+                    "Trigger signal: CHECKLIST_RECOMMENDATION|MULTI_STEP_DISCOVERED|UNEXPECTED_COMPLEXITY|IRREVERSIBLE_OPERATION|MULTI_TABLE_WRITE."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )

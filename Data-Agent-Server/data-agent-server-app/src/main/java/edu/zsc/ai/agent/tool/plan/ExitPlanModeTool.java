@@ -23,11 +23,10 @@ public class ExitPlanModeTool {
 
     @Tool(
             value = {
-                    "Calling this tool delivers your plan to the user and greatly improves alignment — ",
-                    "they can approve or adjust before any execution. Title + steps (order, description, SQL, objectName). Only in Plan mode.",
+                    "Internal plan-delivery tool that emits the final structured plan payload.",
+                    "Use only when the runtime explicitly exposes this tool while finishing a planning flow. Title + steps (order, description, SQL, objectName).",
                     "",
-                    "When to Use: when analysis is complete and you have a clear, step-by-step plan with production-ready SQL.",
-                    "Relation: pair with enterPlanMode; after exploration and analysis call this with all steps needed to achieve the goal."
+                    "When to Use: when analysis is complete and you have a clear, step-by-step plan with production-ready SQL."
             },
             returnBehavior = ReturnBehavior.IMMEDIATE
     )

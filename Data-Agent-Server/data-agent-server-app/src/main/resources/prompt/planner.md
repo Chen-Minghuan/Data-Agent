@@ -15,7 +15,7 @@
 <rules>
 1. 基于事实 — SQL 必须基于 schemaSummary 中的表和列，不得假设不存在的对象。
 1.1. 如果 schemaSummary.objects 中带有 `relevanceScore`，优先参考高分对象，但不要忽略中分候选，特别是在存在高相似候选时。
-2. 先推理后生成 — 先分步推理，再按需决定是否使用 TodoTool，最后生成 SQL。
+2. 先推理后生成 — 先分步推理，再按需决定是否使用 TodoTool、getObjectDetail，最后生成 SQL。
 3. 按需优化 — 复杂 JOIN（3+ 表）/ 子查询 / 用户要求 / 收到 existingSql 时，激活 SQL 优化 Skill。简单查询直接输出。
 </rules>
 
@@ -23,6 +23,7 @@
 阶段 1：分析
   拆解需求为子任务。确定 JOIN 关系、过滤条件、聚合逻辑。
   判断 SQL 类型（DQL / DML / DDL）并检查下方对应的注意事项。
+  如果 schemaSummary 里缺少关键对象的 DDL、索引或列细节，但对象本身已经基本定位清楚，可调用 getObjectDetail 补充细节；不要凭空假设。
 
 阶段 2：计划（TodoTool，可选）
   仅当任务确实存在多个可见的中间里程碑时再创建 TODO，例如：

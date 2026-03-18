@@ -206,6 +206,12 @@ class PlannerSubAgentTest {
         }
 
         @Test
+        void promptFile_mentionsGetObjectDetail() {
+            String content = PromptConfig.getPrompt(PromptEnum.PLANNER);
+            assertTrue(content.contains("getObjectDetail"), "Should mention getObjectDetail");
+        }
+
+        @Test
         void promptFile_requiresStructuredJsonOutput() {
             String content = PromptConfig.getPrompt(PromptEnum.PLANNER);
             assertTrue(content.contains("summaryText"), "Should mention summaryText output");

@@ -26,7 +26,7 @@ public final class AgentModeGuard {
                     tool,
                     ToolErrorCode.PLAN_MODE_DISABLED,
                     tool.getToolName() + " is disabled in Plan mode — execution tools cannot run during planning. "
-                            + "Include your SQL in the plan steps and call exitPlanMode to present the plan to the user.",
+                            + "Keep the SQL in the planning response instead of executing it.",
                     "Tool blocked in plan mode",
                     "agentMode=" + mode,
                     false

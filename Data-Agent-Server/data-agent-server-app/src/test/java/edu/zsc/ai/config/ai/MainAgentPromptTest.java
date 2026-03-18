@@ -84,6 +84,14 @@ class MainAgentPromptTest {
     }
 
     @Test
+    void doesNotMentionHiddenPlanTransitionTools() {
+        assertFalse(promptContent.contains("enterPlanMode"),
+                "Main prompt should not mention hidden enterPlanMode tool");
+        assertFalse(promptContent.contains("exitPlanMode"),
+                "Main prompt should not mention hidden exitPlanMode tool");
+    }
+
+    @Test
     void noOldRoleBlock() {
         long roleBlockLength = 0;
         if (promptContent.contains("<role>")) {

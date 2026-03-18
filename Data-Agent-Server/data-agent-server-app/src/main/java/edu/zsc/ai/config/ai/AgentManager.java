@@ -54,8 +54,7 @@ public class AgentManager {
     private ReActAgent buildMainAgent(StreamingChatModel model,
                                        AgentModeEnum mode,
                                        String systemPrompt) {
-        List<Object> tools = agentToolConfig.filterTools(agentTools, mode);
-        tools = agentToolConfig.filterToolsByAgentType(tools, AgentTypeEnum.MAIN);
+        List<Object> tools = agentToolConfig.resolveMainTools(agentTools, mode);
 
         return AiServices.builder(ReActAgent.class)
                 .streamingChatModel(model)

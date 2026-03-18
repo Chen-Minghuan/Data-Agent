@@ -6,14 +6,17 @@ import dev.langchain4j.agent.tool.ToolSpecifications;
 import dev.langchain4j.service.tool.DefaultToolExecutor;
 import dev.langchain4j.service.tool.ToolExecutor;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ask.AskUserQuestionTool;
 import edu.zsc.ai.agent.tool.ask.AskUserConfirmTool;
 import edu.zsc.ai.agent.tool.chart.ChartTool;
-import edu.zsc.ai.agent.tool.plan.ExitPlanModeTool;
+import edu.zsc.ai.agent.tool.orchestrator.CallingExplorerTool;
+import edu.zsc.ai.agent.tool.orchestrator.CallingPlannerTool;
+import edu.zsc.ai.agent.tool.skill.ActivateSkillTool;
+import edu.zsc.ai.agent.tool.sql.GetEnvironmentOverviewTool;
 import edu.zsc.ai.agent.tool.sql.GetObjectDetailTool;
 import edu.zsc.ai.agent.tool.sql.SearchObjectsTool;
 import edu.zsc.ai.agent.tool.sql.ExecuteSqlTool;
 import edu.zsc.ai.agent.tool.todo.TodoTool;
-import edu.zsc.ai.agent.tool.skill.ActivateSkillTool;
 import edu.zsc.ai.common.enums.ai.AgentModeEnum;
 import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
 import org.apache.commons.collections4.CollectionUtils;
@@ -33,47 +36,36 @@ import java.util.stream.Collectors;
 @Configuration
 public class AgentToolConfig {
 
-    // ── Mode-based filtering (existing) ──
-
-    private static final Set<Class<?>> PLAN_MODE_DISABLED = Set.of(
-            ExecuteSqlTool.class,
-            ChartTool.class,
-            AskUserConfirmTool.class
-    );
-
-    private static final Set<Class<?>> AGENT_MODE_DISABLED = Set.of(
-            ExitPlanModeTool.class
-    );
-
-    // ── AgentType-based filtering (multi-agent architecture) ──
-
-    /**
-     * Tools EXCLUDED for each agent type.
-     * MAIN: excludes SearchObjectsTool, GetObjectDetailTool — schema exploration via callingExplorerSubAgent.
-     *       Keeps GetEnvironmentOverviewTool for connection list.
-     * EXPLORER: uses allowlist (see EXPLORER_ALLOWED).
-     * PLANNER: uses allowlist (see PLANNER_ALLOWED).
-     */
-    private static final Set<Class<?>> MAIN_EXCLUDED = Set.of(
-            SearchObjectsTool.class,
-            GetObjectDetailTool.class
-    );
-
-    /** Explorer gets only scoped discovery tools for schema exploration. */
-    private static final Set<Class<?>> EXPLORER_ALLOWED = Set.of(
-            SearchObjectsTool.class,
-            GetObjectDetailTool.class
-    );
-
-    /** Planner only gets TodoTool + ActivateSkillTool. */
-    private static final Set<Class<?>> PLANNER_ALLOWED = Set.of(
-            TodoTool.class,
-            ActivateSkillTool.class
-    );
-
-    private static final Map<AgentTypeEnum, Set<Class<?>>> SUB_AGENT_ALLOWLISTS = Map.of(
-            AgentTypeEnum.EXPLORER, EXPLORER_ALLOWED,
-            AgentTypeEnum.PLANNER, PLANNER_ALLOWED
+    private static final Map<ToolScope, Set<Class<?>>> TOOL_SCOPE_ALLOWLISTS = Map.of(
+            ToolScope.MAIN_AGENT, Set.of(
+                    GetEnvironmentOverviewTool.class,
+                    ExecuteSqlTool.class,
+                    CallingExplorerTool.class,
+                    CallingPlannerTool.class,
+                    ChartTool.class,
+                    AskUserQuestionTool.class,
+                    AskUserConfirmTool.class,
+                    TodoTool.class,
+                    ActivateSkillTool.class
+            ),
+            ToolScope.MAIN_PLAN, Set.of(
+                    GetEnvironmentOverviewTool.class,
+                    CallingExplorerTool.class,
+                    CallingPlannerTool.class,
+                    AskUserQuestionTool.class,
+                    TodoTool.class,
+                    ActivateSkillTool.class
+            ),
+            ToolScope.EXPLORER, Set.of(
+                    TodoTool.class,
+                    SearchObjectsTool.class,
+                    GetObjectDetailTool.class
+            ),
+            ToolScope.PLANNER, Set.of(
+                    TodoTool.class,
+                    ActivateSkillTool.class,
+                    GetObjectDetailTool.class
+            )
     );
 
     @Bean
@@ -109,39 +101,24 @@ public class AgentToolConfig {
     }
 
     /**
-     * Filter tools by AgentMode (AGENT vs PLAN). Existing behavior, unchanged.
+     * Resolve the exact tool set exposed to the Main Agent.
+     * EnterPlanModeTool / ExitPlanModeTool are intentionally not exposed.
      */
-    public List<Object> filterTools(List<Object> agentTools, AgentModeEnum mode) {
-        Set<Class<?>> disabled = (mode == AgentModeEnum.PLAN)
-                ? PLAN_MODE_DISABLED
-                : AGENT_MODE_DISABLED;
-        return agentTools.stream()
-                .filter(tool -> !matchesAny(tool, disabled))
-                .toList();
+    public List<Object> resolveMainTools(List<Object> agentTools, AgentModeEnum mode) {
+        ToolScope scope = mode == AgentModeEnum.PLAN ? ToolScope.MAIN_PLAN : ToolScope.MAIN_AGENT;
+        return resolveTools(agentTools, scope);
     }
 
     /**
-     * Filter tools by AgentType (MAIN / EXPLORER / PLANNER).
-     * <ul>
-     *   <li>MAIN — all except SearchObjectsTool, GetObjectDetailTool (has GetEnvironmentOverviewTool)</li>
-     *   <li>EXPLORER — SearchObjectsTool, GetObjectDetailTool</li>
-     *   <li>PLANNER — only TodoTool + ActivateSkillTool</li>
-     * </ul>
+     * Resolve the exact tool set exposed to a sub-agent.
      */
-    public List<Object> filterToolsByAgentType(List<Object> agentTools, AgentTypeEnum agentType) {
-        if (agentType == AgentTypeEnum.MAIN) {
-            return agentTools.stream()
-                    .filter(tool -> !matchesAny(tool, MAIN_EXCLUDED))
-                    .toList();
-        }
-
-        Set<Class<?>> allowlist = SUB_AGENT_ALLOWLISTS.get(agentType);
-        if (allowlist == null) {
-            throw new IllegalArgumentException("Unknown agent type: " + agentType);
-        }
-        return agentTools.stream()
-                .filter(tool -> matchesAny(tool, allowlist))
-                .toList();
+    public List<Object> resolveSubAgentTools(List<Object> agentTools, AgentTypeEnum agentType) {
+        ToolScope scope = switch (agentType) {
+            case EXPLORER -> ToolScope.EXPLORER;
+            case PLANNER -> ToolScope.PLANNER;
+            case MAIN -> throw new IllegalArgumentException("MAIN is not a sub-agent");
+        };
+        return resolveTools(agentTools, scope);
     }
 
     /**
@@ -155,6 +132,19 @@ public class AgentToolConfig {
             }
         }
         return false;
+    }
+
+    private List<Object> resolveTools(List<Object> agentTools, ToolScope scope) {
+        if (CollectionUtils.isEmpty(agentTools)) {
+            return List.of();
+        }
+        Set<Class<?>> allowlist = TOOL_SCOPE_ALLOWLISTS.get(scope);
+        if (allowlist == null) {
+            throw new IllegalArgumentException("Unknown tool scope: " + scope);
+        }
+        return agentTools.stream()
+                .filter(tool -> matchesAny(tool, allowlist))
+                .toList();
     }
 
     private List<ToolRegistration> resolveToolRegistrations(Object toolBean) {
@@ -185,5 +175,12 @@ public class AgentToolConfig {
             Method originalMethod,
             Method invocableMethod
     ) {
+    }
+
+    private enum ToolScope {
+        MAIN_AGENT,
+        MAIN_PLAN,
+        EXPLORER,
+        PLANNER
     }
 }

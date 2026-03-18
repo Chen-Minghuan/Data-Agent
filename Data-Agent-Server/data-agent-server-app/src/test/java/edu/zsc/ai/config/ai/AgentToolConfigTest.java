@@ -9,6 +9,8 @@ import edu.zsc.ai.agent.tool.ask.AskUserConfirmTool;
 import edu.zsc.ai.agent.tool.ask.AskUserQuestionTool;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.tool.chart.ChartTool;
+import edu.zsc.ai.agent.tool.orchestrator.CallingExplorerTool;
+import edu.zsc.ai.agent.tool.orchestrator.CallingPlannerTool;
 import edu.zsc.ai.agent.tool.plan.EnterPlanModeTool;
 import edu.zsc.ai.agent.tool.plan.ExitPlanModeTool;
 import edu.zsc.ai.agent.tool.skill.ActivateSkillTool;
@@ -45,6 +47,8 @@ class AgentToolConfigTest {
     private ExecuteSqlTool executeSqlTool;
     private AskUserConfirmTool askUserConfirmTool;
     private AskUserQuestionTool askUserQuestionTool;
+    private CallingExplorerTool callingExplorerTool;
+    private CallingPlannerTool callingPlannerTool;
     private TodoTool todoTool;
     private EnterPlanModeTool enterPlanModeTool;
     private ExitPlanModeTool exitPlanModeTool;
@@ -61,6 +65,8 @@ class AgentToolConfigTest {
         executeSqlTool = mock(ExecuteSqlTool.class);
         askUserConfirmTool = mock(AskUserConfirmTool.class);
         askUserQuestionTool = mock(AskUserQuestionTool.class);
+        callingExplorerTool = mock(CallingExplorerTool.class);
+        callingPlannerTool = mock(CallingPlannerTool.class);
         todoTool = mock(TodoTool.class);
         enterPlanModeTool = mock(EnterPlanModeTool.class);
         exitPlanModeTool = mock(ExitPlanModeTool.class);
@@ -74,6 +80,8 @@ class AgentToolConfigTest {
                 executeSqlTool,
                 askUserConfirmTool,
                 askUserQuestionTool,
+                callingExplorerTool,
+                callingPlannerTool,
                 todoTool,
                 enterPlanModeTool,
                 exitPlanModeTool,
@@ -82,102 +90,98 @@ class AgentToolConfigTest {
         );
     }
 
-    // ==================== 原有行为保持不变 ====================
-
     @Nested
-    class LegacyModeFiltering {
+    class MainToolMatrix {
 
         @Test
-        void agentMode_disablesExitPlanModeTool() {
-            List<Object> tools = config.filterTools(allTools, AgentModeEnum.AGENT);
+        void agentMode_exposesOnlyExecutionFacingMainTools() {
+            List<Object> tools = config.resolveMainTools(allTools, AgentModeEnum.AGENT);
 
-            assertFalse(tools.contains(exitPlanModeTool),
-                    "AGENT mode should disable ExitPlanModeTool");
-            assertTrue(tools.contains(executeSqlTool),
-                    "AGENT mode should keep ExecuteSqlTool");
+            assertTrue(tools.contains(getEnvironmentOverviewTool));
+            assertTrue(tools.contains(executeSqlTool));
+            assertTrue(tools.contains(askUserConfirmTool));
+            assertTrue(tools.contains(askUserQuestionTool));
+            assertTrue(tools.contains(callingExplorerTool));
+            assertTrue(tools.contains(callingPlannerTool));
+            assertTrue(tools.contains(todoTool));
+            assertTrue(tools.contains(activateSkillTool));
+            assertTrue(tools.contains(chartTool));
+
+            assertFalse(tools.contains(searchObjectsTool));
+            assertFalse(tools.contains(getObjectDetailTool));
+            assertFalse(tools.contains(enterPlanModeTool));
+            assertFalse(tools.contains(exitPlanModeTool));
         }
 
         @Test
-        void planMode_disablesExecutionTools() {
-            List<Object> tools = config.filterTools(allTools, AgentModeEnum.PLAN);
+        void planMode_exposesOnlyPlanningFacingMainTools() {
+            List<Object> tools = config.resolveMainTools(allTools, AgentModeEnum.PLAN);
 
-            assertFalse(tools.contains(executeSqlTool),
-                    "PLAN mode should disable ExecuteSqlTool");
-            assertFalse(tools.contains(chartTool),
-                    "PLAN mode should disable ChartTool");
-            assertFalse(tools.contains(askUserConfirmTool),
-                    "PLAN mode should disable AskUserConfirmTool");
-            assertTrue(tools.contains(exitPlanModeTool),
-                    "PLAN mode should keep ExitPlanModeTool");
+            assertTrue(tools.contains(getEnvironmentOverviewTool));
+            assertTrue(tools.contains(askUserQuestionTool));
+            assertTrue(tools.contains(callingExplorerTool));
+            assertTrue(tools.contains(callingPlannerTool));
+            assertTrue(tools.contains(todoTool));
+            assertTrue(tools.contains(activateSkillTool));
+
+            assertFalse(tools.contains(executeSqlTool));
+            assertFalse(tools.contains(askUserConfirmTool));
+            assertFalse(tools.contains(chartTool));
+            assertFalse(tools.contains(searchObjectsTool));
+            assertFalse(tools.contains(getObjectDetailTool));
+            assertFalse(tools.contains(enterPlanModeTool));
+            assertFalse(tools.contains(exitPlanModeTool));
         }
     }
 
-    // ==================== 新增：按 AgentType 过滤 ====================
-
     @Nested
-    class AgentTypeFiltering {
-
-        @Test
-        void mainAgent_hasGetEnvironmentOverviewButNotSearchOrDetail() {
-            List<Object> tools = config.filterToolsByAgentType(allTools, AgentTypeEnum.MAIN);
-
-            assertTrue(tools.contains(executeSqlTool), "MAIN should have ExecuteSqlTool");
-            assertTrue(tools.contains(askUserConfirmTool), "MAIN should have AskUserConfirmTool");
-            assertTrue(tools.contains(askUserQuestionTool), "MAIN should have AskUserQuestionTool");
-            assertTrue(tools.contains(todoTool), "MAIN should have TodoTool");
-            assertTrue(tools.contains(chartTool), "MAIN should have ChartTool");
-            assertTrue(tools.contains(activateSkillTool), "MAIN should have ActivateSkillTool");
-            assertTrue(tools.contains(enterPlanModeTool), "MAIN should have EnterPlanModeTool");
-
-            assertTrue(tools.contains(getEnvironmentOverviewTool), "MAIN should have GetEnvironmentOverviewTool for connection list");
-            assertFalse(tools.contains(searchObjectsTool), "MAIN should NOT have SearchObjectsTool — via callingExplorerSubAgent");
-            assertFalse(tools.contains(getObjectDetailTool), "MAIN should NOT have GetObjectDetailTool — via callingExplorerSubAgent");
-        }
+    class SubAgentToolMatrix {
 
         @Test
         void explorer_hasDiscoveryTools() {
-            List<Object> tools = config.filterToolsByAgentType(allTools, AgentTypeEnum.EXPLORER);
+            List<Object> tools = config.resolveSubAgentTools(allTools, AgentTypeEnum.EXPLORER);
 
-            assertEquals(2, tools.size(), "Explorer should have 2 scoped discovery tools");
+            assertEquals(3, tools.size(), "Explorer should have 3 scoped discovery tools");
             assertFalse(tools.contains(getEnvironmentOverviewTool), "Explorer should NOT have GetEnvironmentOverviewTool");
+            assertTrue(tools.contains(todoTool), "Explorer should have TodoTool");
             assertTrue(tools.contains(searchObjectsTool), "Explorer should have SearchObjectsTool");
             assertTrue(tools.contains(getObjectDetailTool), "Explorer should have GetObjectDetailTool");
         }
 
         @Test
-        void planner_hasTodoAndSkill() {
-            List<Object> tools = config.filterToolsByAgentType(allTools, AgentTypeEnum.PLANNER);
+        void planner_hasTodoSkillAndObjectDetail() {
+            List<Object> tools = config.resolveSubAgentTools(allTools, AgentTypeEnum.PLANNER);
 
-            assertEquals(2, tools.size(), "Planner should have exactly 2 tools");
+            assertEquals(3, tools.size(), "Planner should have exactly 3 tools");
             assertTrue(tools.contains(todoTool), "Planner should have TodoTool");
             assertTrue(tools.contains(activateSkillTool), "Planner should have ActivateSkillTool");
+            assertTrue(tools.contains(getObjectDetailTool), "Planner should have GetObjectDetailTool");
         }
 
         @Test
         void planner_excludesExecutionAndDiscoveryTools() {
-            List<Object> tools = config.filterToolsByAgentType(allTools, AgentTypeEnum.PLANNER);
+            List<Object> tools = config.resolveSubAgentTools(allTools, AgentTypeEnum.PLANNER);
 
             assertFalse(tools.contains(executeSqlTool), "Planner should NOT have ExecuteSqlTool");
             assertFalse(tools.contains(getEnvironmentOverviewTool), "Planner should NOT have GetEnvironmentOverviewTool");
             assertFalse(tools.contains(searchObjectsTool), "Planner should NOT have SearchObjectsTool");
-            assertFalse(tools.contains(getObjectDetailTool), "Planner should NOT have GetObjectDetailTool");
             assertFalse(tools.contains(askUserConfirmTool), "Planner should NOT have AskUserConfirmTool");
+            assertFalse(tools.contains(askUserQuestionTool), "Planner should NOT have AskUserQuestionTool");
+            assertFalse(tools.contains(callingExplorerTool), "Planner should NOT have CallingExplorerTool");
+            assertFalse(tools.contains(callingPlannerTool), "Planner should NOT have CallingPlannerTool");
             assertFalse(tools.contains(chartTool), "Planner should NOT have ChartTool");
+            assertFalse(tools.contains(enterPlanModeTool), "Planner should NOT have EnterPlanModeTool");
+            assertFalse(tools.contains(exitPlanModeTool), "Planner should NOT have ExitPlanModeTool");
         }
 
         @Test
-        void mainAgent_planMode_combinesBothFilters() {
-            // First filter by AgentType, then by AgentMode
-            List<Object> mainTools = config.filterToolsByAgentType(allTools, AgentTypeEnum.MAIN);
-            List<Object> planTools = config.filterTools(mainTools, AgentModeEnum.PLAN);
+        void mainAgent_cannotBeResolvedThroughSubAgentApi() {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> config.resolveSubAgentTools(allTools, AgentTypeEnum.MAIN)
+            );
 
-            // PLAN mode should further disable ExecuteSql, Chart, AskUserConfirm
-            assertFalse(planTools.contains(executeSqlTool), "MAIN+PLAN should disable ExecuteSqlTool");
-            assertFalse(planTools.contains(chartTool), "MAIN+PLAN should disable ChartTool");
-            assertFalse(planTools.contains(askUserConfirmTool), "MAIN+PLAN should disable AskUserConfirmTool");
-
-            // TodoTool stays
-            assertTrue(planTools.contains(todoTool), "MAIN+PLAN should keep TodoTool");
+            assertEquals("MAIN is not a sub-agent", exception.getMessage());
         }
     }
 

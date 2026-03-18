@@ -37,7 +37,7 @@ class AgentModeGuardAspectTest {
         assertFalse(result.isSuccess());
         assertEquals(
                 "executeSelectSql is disabled in Plan mode — execution tools cannot run during planning. "
-                        + "Include your SQL in the plan steps and call exitPlanMode to present the plan to the user.",
+                        + "Keep the SQL in the planning response instead of executing it.",
                 result.getError()
         );
     }

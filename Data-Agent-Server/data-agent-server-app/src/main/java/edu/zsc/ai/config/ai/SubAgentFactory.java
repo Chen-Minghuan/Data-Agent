@@ -37,7 +37,7 @@ public class SubAgentFactory {
      */
     public ExplorerAgentService buildExplorerAgent(String modelName, String systemPrompt) {
         StreamingChatModel model = resolveModel(modelName);
-        List<Object> tools = agentToolConfig.filterToolsByAgentType(getAgentTools(), AgentTypeEnum.EXPLORER);
+        List<Object> tools = agentToolConfig.resolveSubAgentTools(getAgentTools(), AgentTypeEnum.EXPLORER);
         ChatMemory memory = SubAgentMemoryFactory.createTemporary();
 
         log.info("[SubAgentFactory] Building {} SubAgent, model={}, toolCount={}", AgentTypeEnum.EXPLORER, modelName, tools.size());
@@ -55,7 +55,7 @@ public class SubAgentFactory {
      */
     public PlannerAgentService buildPlannerAgent(String modelName, String systemPrompt) {
         StreamingChatModel model = resolveModel(modelName);
-        List<Object> tools = agentToolConfig.filterToolsByAgentType(getAgentTools(), AgentTypeEnum.PLANNER);
+        List<Object> tools = agentToolConfig.resolveSubAgentTools(getAgentTools(), AgentTypeEnum.PLANNER);
         ChatMemory memory = SubAgentMemoryFactory.createTemporary();
 
         log.info("[SubAgentFactory] Building {} SubAgent, model={}, toolCount={}", AgentTypeEnum.PLANNER, modelName, tools.size());
