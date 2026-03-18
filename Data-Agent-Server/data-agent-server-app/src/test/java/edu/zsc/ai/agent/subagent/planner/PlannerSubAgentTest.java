@@ -1,6 +1,10 @@
 package edu.zsc.ai.agent.subagent.planner;
 
-import edu.zsc.ai.agent.subagent.contract.*;
+import edu.zsc.ai.agent.subagent.SubAgent;
+import edu.zsc.ai.agent.subagent.contract.ExploreObject;
+import edu.zsc.ai.agent.subagent.contract.PlannerRequest;
+import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
+import edu.zsc.ai.agent.subagent.contract.SqlPlan;
 import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
 import edu.zsc.ai.common.enums.ai.PromptEnum;
 import edu.zsc.ai.config.ai.PromptConfig;
@@ -24,7 +28,7 @@ class PlannerSubAgentTest {
 
     @Test
     void implementsSubAgentInterface() {
-        assertTrue(edu.zsc.ai.agent.subagent.SubAgent.class.isAssignableFrom(PlannerSubAgent.class));
+        assertTrue(SubAgent.class.isAssignableFrom(PlannerSubAgent.class));
     }
 
     @Test

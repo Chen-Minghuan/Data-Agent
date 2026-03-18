@@ -1,7 +1,9 @@
 package edu.zsc.ai.agent.subagent.explorer;
 
+import edu.zsc.ai.common.enums.ai.PromptEnum;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
 import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
+import edu.zsc.ai.config.ai.PromptConfig;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,8 +21,7 @@ class ExplorerSubAgentTest {
 
     @Test
     void promptFile_isAccessible() {
-        String content = edu.zsc.ai.config.ai.PromptConfig.getPrompt(
-                edu.zsc.ai.common.enums.ai.PromptEnum.EXPLORER);
+        String content = PromptConfig.getPrompt(PromptEnum.EXPLORER);
         assertNotNull(content);
         assertTrue(content.contains("summaryText"));
         assertTrue(content.contains("objects"));
