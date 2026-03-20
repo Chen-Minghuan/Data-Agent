@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router-dom";
 import { RouteGuard } from "./components/auth/RouteGuard";
+import { ROUTES } from "./constants/routes";
 
 const Home = lazy(() => import("./pages/Home").then((m) => ({ default: m.default })));
 const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.default })));
@@ -8,6 +9,7 @@ const Profile = lazy(() => import("./pages/Profile").then((m) => ({ default: m.d
 const PasswordReset = lazy(() => import("./pages/PasswordReset").then((m) => ({ default: m.default })));
 const Sessions = lazy(() => import("./pages/Sessions").then((m) => ({ default: m.default })));
 const Memories = lazy(() => import("./pages/Memories").then((m) => ({ default: m.default })));
+const Permissions = lazy(() => import("./pages/Permissions").then((m) => ({ default: m.default })));
 
 interface RouterConfig {
     path?: string;
@@ -22,12 +24,21 @@ interface RouterConfig {
 
 const routes: RouterConfig[] = [
     {
-        path: "/",
+        path: ROUTES.HOME,
         element: (
             <Suspense fallback={null}>
                 <Home />
             </Suspense>
         ),
+    },
+    {
+        path: ROUTES.PERMISSIONS,
+        element: (
+            <Suspense fallback={null}>
+                <Permissions />
+            </Suspense>
+        ),
+        requiresAuth: true,
     },
     {
         path: "/profile",
