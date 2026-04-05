@@ -12,7 +12,7 @@ public interface ReActAgentProvider {
      * @param modelName model name (must be validated against the configured AI model catalog beforehand)
      * @param language  prompt language (e.g. en, zh). Unknown values should fallback to default.
      * @param agentMode agent mode code (e.g. "agent", "plan"). Null/blank defaults to agent.
-     * @return the agent for that combination
+     * @return the prepared agent and the exact rendered system prompt used for this chat
      */
-    ReActAgent getAgent(String modelName, String language, String agentMode);
+    PreparedReActAgent getAgent(String modelName, String language, String agentMode);
 }

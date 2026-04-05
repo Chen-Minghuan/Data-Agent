@@ -8,7 +8,6 @@ import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.config.ai.SubAgentManager;
 import edu.zsc.ai.config.ai.SubAgentProperties;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
-import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.JsonUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -29,7 +28,6 @@ class CallingExplorerToolTest {
     private CallingExplorerTool tool;
     private ExecutorService executorService;
     private Executor explorerExecutor;
-    private AgentLogService agentLogService;
 
     @BeforeEach
     void setUp() {
@@ -39,8 +37,7 @@ class CallingExplorerToolTest {
         SubAgentManager subAgentManager = new SubAgentManager(mockExplorer, mockPlanner, properties);
         executorService = Executors.newFixedThreadPool(3);
         explorerExecutor = executorService;
-        agentLogService = mock(AgentLogService.class);
-        tool = new CallingExplorerTool(subAgentManager, explorerExecutor, agentLogService);
+        tool = new CallingExplorerTool(subAgentManager, explorerExecutor);
     }
 
     @AfterEach

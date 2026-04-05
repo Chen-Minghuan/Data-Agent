@@ -120,9 +120,6 @@ public class RequestContext {
         Map<String, Object> map = new HashMap<>();
         putIfNotNull(map, InvocationContextConstant.USER_ID, getUserId());
         putIfNotNull(map, InvocationContextConstant.CONVERSATION_ID, getConversationId());
-        putIfNotNull(map, InvocationContextConstant.CONNECTION_ID, getConnectionId());
-        putIfNotNull(map, InvocationContextConstant.DATABASE_NAME, getCatalog());
-        putIfNotNull(map, InvocationContextConstant.SCHEMA_NAME, getSchema());
         return map;
     }
 

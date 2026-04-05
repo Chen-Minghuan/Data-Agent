@@ -38,12 +38,13 @@ public class SearchObjectsTool {
 
     @Tool({
             "Value: narrows candidate tables, views, and other database objects by name pattern so later steps work from likely targets instead of guesses.",
-            "Use When: useful when an approximate object name, keyword, or naming pattern can help discovery. If current context already provides connection, database, or schema, searching within that scope is often the cheapest next step. Use SQL wildcards such as %order% or %user_% for objectNamePattern, databaseNamePattern, and schemaNamePattern.",
+            "Scope defaults: if current context already provides connection, database, or schema, searching within that scope is often the cheapest next step.",
+            "Pattern syntax: use SQL wildcards such as %order% or %user_% for objectNamePattern, databaseNamePattern, and schemaNamePattern.",
             "Preconditions: objectNamePattern is required. databaseNamePattern requires connectionId. schemaNamePattern requires connectionId plus databaseNamePattern.",
             "After Success: the returned matches can support candidate comparison, deeper inspection with getObjectDetail, focused questioning, or broader discovery.",
             "After Partial Success: some scopes may return useful matches while others remain incomplete.",
             "After Failure: refine the pattern, adjust the scope, or gather more context before trying again.",
-            "Relation: often helpful before getObjectDetail or callingExplorerSubAgent. Results are capped at 100. If objectType is omitted, TABLE and VIEW are searched."
+            "Result limits: results are capped at 100. If objectType is omitted, TABLE and VIEW are searched."
     })
     public AgentToolResult searchObjects(
             @P("Search query parameters") ObjectSearchQuery query,

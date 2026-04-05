@@ -6,19 +6,19 @@ import edu.zsc.ai.common.enums.ai.MemoryScopeEnum;
 import edu.zsc.ai.domain.service.ai.MemoryService;
 import edu.zsc.ai.domain.service.ai.model.MemorySearchResult;
 import edu.zsc.ai.domain.service.handler.AbstractHandler;
-import edu.zsc.ai.observability.AgentLogFields;
-import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.common.constant.MemoryRecallLogConstant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractScopeMemoryRecallHandler extends AbstractHandler<MemoryRecallQuery, List<MemoryRecallItem>>
         implements MemoryRecallHandler {
 
-    private final MemoryService memoryService;
-    private final AgentLogService agentLogService;
+    private static final Logger runtimeLog = LoggerFactory.getLogger(MemoryRecallLogConstant.LOGGER_NAME);
 
-    protected AbstractScopeMemoryRecallHandler(MemoryService memoryService, AgentLogService agentLogService) {
+    private final MemoryService memoryService;
+
+    protected AbstractScopeMemoryRecallHandler(MemoryService memoryService) {
         this.memoryService = memoryService;
-        this.agentLogService = agentLogService;
     }
 
     @Override
@@ -28,13 +28,12 @@ public abstract class AbstractScopeMemoryRecallHandler extends AbstractHandler<M
 
     @Override
     protected List<MemoryRecallItem> doHandle(MemoryRecallQuery input) {
-        agentLogService.recordDebug(MemoryRecallLogConstant.LOGGER_NAME, MemoryRecallLogConstant.EVENT_RECALL_QUERY_HANDLER_MATCH,
-                AgentLogFields.of(
-                        MemoryRecallLogConstant.FIELD_QUERY_NAME, input.queryName(),
-                        MemoryRecallLogConstant.FIELD_PLANNING_REASON, input.planningReason(),
-                        MemoryRecallLogConstant.FIELD_TARGET_SCOPE, input.targetScope(),
-                        MemoryRecallLogConstant.FIELD_MATCHED_HANDLER, getClass().getSimpleName()
-                ));
+        runtimeLog.info("{} queryName={} planningReason={} targetScope={} matchedHandler={}",
+                MemoryRecallLogConstant.EVENT_RECALL_QUERY_HANDLER_MATCH,
+                input.queryName(),
+                input.planningReason(),
+                input.targetScope(),
+                getClass().getSimpleName());
         return memoryService.recallAccessibleMemories(input)
                 .stream()
                 .map(this::toRecallItem)

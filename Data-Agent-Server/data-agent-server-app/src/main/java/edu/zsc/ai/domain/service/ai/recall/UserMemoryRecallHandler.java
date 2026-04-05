@@ -4,13 +4,12 @@ import org.springframework.stereotype.Component;
 
 import edu.zsc.ai.common.enums.ai.MemoryScopeEnum;
 import edu.zsc.ai.domain.service.ai.MemoryService;
-import edu.zsc.ai.observability.AgentLogService;
 
 @Component
 public class UserMemoryRecallHandler extends AbstractScopeMemoryRecallHandler {
 
-    public UserMemoryRecallHandler(MemoryService memoryService, AgentLogService agentLogService) {
-        super(memoryService, agentLogService);
+    public UserMemoryRecallHandler(MemoryService memoryService) {
+        super(memoryService);
     }
 
     @Override

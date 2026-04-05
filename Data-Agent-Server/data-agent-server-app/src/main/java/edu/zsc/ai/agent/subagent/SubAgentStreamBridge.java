@@ -2,13 +2,13 @@ package edu.zsc.ai.agent.subagent;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.service.TokenStream;
+import edu.zsc.ai.common.constant.AgentRuntimeLoggerNames;
 import edu.zsc.ai.context.AgentExecutionContext;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
-import edu.zsc.ai.observability.AgentLogFields;
-import edu.zsc.ai.observability.AgentLogService;
-import edu.zsc.ai.observability.AgentLogType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Sinks;
 
@@ -28,11 +28,7 @@ import java.util.function.Consumer;
 @Component
 public class SubAgentStreamBridge {
 
-    private final AgentLogService agentLogService;
-
-    public SubAgentStreamBridge(AgentLogService agentLogService) {
-        this.agentLogService = agentLogService;
-    }
+    private static final Logger runtimeLog = LoggerFactory.getLogger(AgentRuntimeLoggerNames.SUB_AGENT);
 
     /**
      * Attach bridge handlers to the SubAgent's TokenStream and emit to the sink.
@@ -77,17 +73,12 @@ public class SubAgentStreamBridge {
                 log.debug("SubAgent tool call started: toolCallId={}, name={}, parentToolCallId={}", id, partialToolCall.name(), parentId);
             }
             String args = partialToolCall.partialArguments();
-            agentLogService.record(
-                    AgentLogType.TOKEN_TOOL_CALL,
-                    "SubAgentStreamBridge",
-                    "partial_tool_call",
-                    AgentLogFields.of(
-                            "toolCallId", id,
-                            "toolName", partialToolCall.name(),
-                            "arguments", args,
-                            "streaming", true,
-                            "parentToolCallId", parentId,
-                            "taskId", taskId));
+            runtimeLog.info("subagent_tool_call taskId={} parentToolCallId={} toolCallId={} toolName={} streaming=true arguments={}",
+                    taskId,
+                    parentId,
+                    id,
+                    partialToolCall.name(),
+                    StringUtils.defaultString(args));
             ChatResponseBlock block = ChatResponseBlock.toolCall(
                     id, partialToolCall.name(), args != null ? args : "", true);
             block.setParentToolCallId(parentId);
@@ -105,17 +96,12 @@ public class SubAgentStreamBridge {
             log.debug("[StreamBridge] intermediate response: {} tool requests", response.aiMessage().toolExecutionRequests().size());
             for (ToolExecutionRequest req : response.aiMessage().toolExecutionRequests()) {
                 if (streamedToolCallIds.contains(req.id())) continue;
-                agentLogService.record(
-                        AgentLogType.TOKEN_TOOL_CALL,
-                        "SubAgentStreamBridge",
-                        "tool_call",
-                        AgentLogFields.of(
-                                "toolCallId", req.id(),
-                                "toolName", req.name(),
-                                "arguments", req.arguments(),
-                                "streaming", false,
-                                "parentToolCallId", parentId,
-                                "taskId", taskId));
+                runtimeLog.info("subagent_tool_call taskId={} parentToolCallId={} toolCallId={} toolName={} streaming=false arguments={}",
+                        taskId,
+                        parentId,
+                        req.id(),
+                        req.name(),
+                        StringUtils.defaultString(req.arguments()));
                 ChatResponseBlock block = ChatResponseBlock.toolCall(
                         req.id(), req.name(), req.arguments() != null ? req.arguments() : "", false);
                 block.setParentToolCallId(parentId);
@@ -134,17 +120,14 @@ public class SubAgentStreamBridge {
             if (onToolExecutedCallback != null) {
                 onToolExecutedCallback.accept(req, rawResult);
             }
-            agentLogService.record(
-                    AgentLogType.TOKEN_TOOL_RESULT,
-                    "SubAgentStreamBridge",
-                    "tool_result",
-                    AgentLogFields.of(
-                            "toolCallId", req.id(),
-                            "toolName", req.name(),
-                            "failed", toolExecution.hasFailed(),
-                            "resultLength", result.length(),
-                            "parentToolCallId", parentId,
-                            "taskId", taskId));
+            runtimeLog.info("subagent_tool_result taskId={} parentToolCallId={} toolCallId={} toolName={} failed={} resultLength={} result={}",
+                    taskId,
+                    parentId,
+                    req.id(),
+                    req.name(),
+                    toolExecution.hasFailed(),
+                    result.length(),
+                    result);
             ChatResponseBlock block = ChatResponseBlock.toolResult(
                     req.id(), req.name(), result, toolExecution.hasFailed());
             block.setParentToolCallId(parentId);
@@ -156,15 +139,6 @@ public class SubAgentStreamBridge {
             if (firstPartial.compareAndSet(false, true)) {
                 log.debug("SubAgent started emitting text response, parentToolCallId={}", parentId);
             }
-            agentLogService.record(
-                    AgentLogType.TOKEN_PARTIAL_RESPONSE,
-                    "SubAgentStreamBridge",
-                    "partial_response",
-                    AgentLogFields.of(
-                            "parentToolCallId", parentId,
-                            "taskId", taskId,
-                            "length", content != null ? content.length() : 0,
-                            "preview", content));
             if (onPartialResponseCallback != null) onPartialResponseCallback.accept(content);
             // Do NOT emit SubAgent text to the main SSE sink here.
             // SubAgent LLM text is accumulated via onPartialResponseCallback and delivered

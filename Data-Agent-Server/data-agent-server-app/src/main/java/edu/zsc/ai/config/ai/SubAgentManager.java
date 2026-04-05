@@ -9,7 +9,6 @@ import edu.zsc.ai.agent.subagent.explorer.ExplorerSubAgent;
 import edu.zsc.ai.agent.subagent.planner.PlannerSubAgent;
 import lombok.Getter;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,8 +24,8 @@ public class SubAgentManager {
     private final SubAgentProperties properties;
 
     public SubAgentManager(
-            @Lazy @Qualifier("loggingExplorerSubAgent") SubAgent<SubAgentRequest, SchemaSummary> explorerSubAgent,
-            @Lazy @Qualifier("loggingPlannerSubAgent") SubAgent<PlannerRequest, SqlPlan> plannerSubAgent,
+            @Lazy ExplorerSubAgent explorerSubAgent,
+            @Lazy PlannerSubAgent plannerSubAgent,
             SubAgentProperties properties) {
         this.explorerSubAgent = explorerSubAgent;
         this.plannerSubAgent = plannerSubAgent;

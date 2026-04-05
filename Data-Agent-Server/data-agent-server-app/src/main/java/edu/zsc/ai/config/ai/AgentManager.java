@@ -1,10 +1,9 @@
 package edu.zsc.ai.config.ai;
 
-import org.apache.commons.lang3.StringUtils;
-
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.service.AiServices;
+import edu.zsc.ai.agent.PreparedReActAgent;
 import edu.zsc.ai.agent.ReActAgent;
 import edu.zsc.ai.agent.ReActAgentProvider;
 import edu.zsc.ai.common.enums.ai.AgentModeEnum;
@@ -14,13 +13,13 @@ import edu.zsc.ai.domain.service.agent.systemprompt.SystemPromptAssemblyContext;
 import edu.zsc.ai.domain.service.agent.systemprompt.SystemPromptManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Configuration
 @Slf4j
@@ -34,8 +33,6 @@ public class AgentManager {
     private final AgentSkillConfig agentSkillConfig;
     private final SystemPromptManager systemPromptManager;
 
-    private final Map<String, ReActAgent> dynamicAgentCache = new ConcurrentHashMap<>();
-
     @Bean
     @Primary
     public ReActAgentProvider reActAgentProvider() {
@@ -47,21 +44,18 @@ public class AgentManager {
                 throw new IllegalArgumentException(
                         "No StreamingChatModel configured for model=" + modelName);
             }
-            String cacheKey = buildCacheKey(modelName, promptLanguage.getCode(), mode.getCode(), AgentTypeEnum.MAIN);
-            return dynamicAgentCache.computeIfAbsent(cacheKey, key -> {
-                log.info("Create MainAgent dynamically: model={}, language={}, mode={}",
-                        modelName, promptLanguage.getCode(), mode.getCode());
-                String systemPrompt = systemPromptManager.render(SystemPromptAssemblyContext.builder()
-                                .promptEnum(promptLanguage)
-                                .agentType(AgentTypeEnum.MAIN)
-                                .agentMode(mode)
-                                .modelName(modelName)
-                                .language(promptLanguage.getCode())
-                                .availableSkills(agentSkillConfig.resolveAvailableSkills(AgentTypeEnum.MAIN, mode))
-                                .build())
-                        .renderedPrompt();
-                return buildMainAgent(model, mode, systemPrompt);
-            });
+            log.info("Create MainAgent dynamically: model={}, language={}, mode={}",
+                    modelName, promptLanguage.getCode(), mode.getCode());
+            String systemPrompt = systemPromptManager.render(SystemPromptAssemblyContext.builder()
+                            .promptEnum(promptLanguage)
+                            .agentType(AgentTypeEnum.MAIN)
+                            .agentMode(mode)
+                            .modelName(modelName)
+                            .language(promptLanguage.getCode())
+                            .availableSkills(agentSkillConfig.resolveAvailableSkills(AgentTypeEnum.MAIN, mode))
+                            .build())
+                    .renderedPrompt();
+            return new PreparedReActAgent(buildMainAgent(model, mode, systemPrompt), systemPrompt, promptLanguage);
         };
     }
 

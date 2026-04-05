@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 import edu.zsc.ai.api.model.request.ChatUserMention;
-import edu.zsc.ai.domain.service.agent.runtimecontext.strategy.ConnectionSummary;
 import edu.zsc.ai.domain.service.ai.model.MemoryPromptContext;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,9 +21,6 @@ public class RuntimeContextAssemblyContext {
     private LocalDate currentDate;
 
     private String timezone;
-
-    @Builder.Default
-    private List<ConnectionSummary> availableConnections = List.of();
 
     @Builder.Default
     private MemoryPromptContext memoryPromptContext = MemoryPromptContext.builder().build();

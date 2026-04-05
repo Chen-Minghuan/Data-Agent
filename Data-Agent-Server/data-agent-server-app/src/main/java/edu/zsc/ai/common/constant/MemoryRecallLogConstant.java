@@ -2,7 +2,7 @@ package edu.zsc.ai.common.constant;
 
 public final class MemoryRecallLogConstant {
 
-    public static final String LOGGER_NAME = "MemoryRecall";
+    public static final String LOGGER_NAME = AgentRuntimeLoggerNames.MEMORY_RECALL;
 
     public static final String EVENT_RECALL_START = "memory_recall_start";
     public static final String EVENT_RECALL_PLANNED = "memory_recall_planned";

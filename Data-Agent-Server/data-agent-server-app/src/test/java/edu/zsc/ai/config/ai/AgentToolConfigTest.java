@@ -18,6 +18,7 @@ import edu.zsc.ai.agent.tool.plan.ExitPlanModeTool;
 import edu.zsc.ai.agent.tool.skill.ActivateSkillTool;
 import edu.zsc.ai.agent.tool.sql.ExecuteSqlTool;
 import edu.zsc.ai.agent.tool.sql.GetDatabasesTool;
+import edu.zsc.ai.agent.tool.sql.GetAvailableConnectionsTool;
 import edu.zsc.ai.agent.tool.sql.GetObjectDetailTool;
 import edu.zsc.ai.agent.tool.sql.GetSchemasTool;
 import edu.zsc.ai.agent.tool.sql.SearchObjectsTool;
@@ -50,6 +51,7 @@ class AgentToolConfigTest {
     private SearchObjectsTool searchObjectsTool;
     private GetObjectDetailTool getObjectDetailTool;
     private ExecuteSqlTool executeSqlTool;
+    private GetAvailableConnectionsTool getAvailableConnectionsTool;
     private AskUserQuestionTool askUserQuestionTool;
     private CallingExplorerTool callingExplorerTool;
     private CallingPlannerTool callingPlannerTool;
@@ -71,8 +73,8 @@ class AgentToolConfigTest {
         getObjectDetailTool = new GetObjectDetailTool(null);
         executeSqlTool = new ExecuteSqlTool(null, null, null);
         askUserQuestionTool = new AskUserQuestionTool();
-        callingExplorerTool = new CallingExplorerTool(null, null, null);
-        callingPlannerTool = new CallingPlannerTool(null, null, null);
+        callingExplorerTool = new CallingExplorerTool(null, null);
+        callingPlannerTool = new CallingPlannerTool(null, null);
         todoTool = new TodoTool();
         exitPlanModeTool = new ExitPlanModeTool();
         activateSkillTool = new ActivateSkillTool(new AgentSkillConfig());
@@ -80,6 +82,7 @@ class AgentToolConfigTest {
         readMemoryTool = new ReadMemoryTool(null, null);
         updateMemoryTool = new UpdateMemoryTool(null);
         exportFileTool = new ExportFileTool(null);
+        getAvailableConnectionsTool = new GetAvailableConnectionsTool(null);
 
         allTools = List.of(
                 getDatabasesTool,
@@ -87,6 +90,7 @@ class AgentToolConfigTest {
                 searchObjectsTool,
                 getObjectDetailTool,
                 executeSqlTool,
+                getAvailableConnectionsTool,
                 askUserQuestionTool,
                 callingExplorerTool,
                 callingPlannerTool,
@@ -119,6 +123,7 @@ class AgentToolConfigTest {
             assertTrue(tools.contains(activateSkillTool));
             assertTrue(tools.contains(chartTool));
             assertTrue(tools.contains(exportFileTool));
+            assertTrue(tools.contains(getAvailableConnectionsTool));
             assertFalse(tools.contains(readMemoryTool));
             assertFalse(tools.contains(updateMemoryTool));
 
@@ -136,6 +141,7 @@ class AgentToolConfigTest {
             assertTrue(tools.contains(callingPlannerTool));
             assertTrue(tools.contains(todoTool));
             assertTrue(tools.contains(exitPlanModeTool));
+            assertTrue(tools.contains(getAvailableConnectionsTool));
 
             assertFalse(tools.contains(executeSqlTool));
             assertFalse(tools.contains(activateSkillTool));
@@ -156,6 +162,7 @@ class AgentToolConfigTest {
             List<Object> tools = config.resolveSubAgentTools(allTools, AgentTypeEnum.EXPLORER);
 
             assertEquals(4, tools.size(), "Explorer should have 4 scoped tools");
+            assertFalse(tools.contains(getAvailableConnectionsTool), "Explorer should NOT have GetAvailableConnectionsTool");
             assertFalse(tools.contains(getDatabasesTool), "Explorer should NOT have GetDatabasesTool");
             assertFalse(tools.contains(getSchemasTool), "Explorer should NOT have GetSchemasTool");
             assertTrue(tools.contains(todoTool), "Explorer should have TodoTool");
@@ -184,6 +191,7 @@ class AgentToolConfigTest {
             assertFalse(tools.contains(askUserQuestionTool), "Planner should NOT have AskUserQuestionTool");
             assertFalse(tools.contains(callingExplorerTool), "Planner should NOT have CallingExplorerTool");
             assertFalse(tools.contains(callingPlannerTool), "Planner should NOT have CallingPlannerTool");
+            assertFalse(tools.contains(getAvailableConnectionsTool), "Planner should NOT have GetAvailableConnectionsTool");
             assertFalse(tools.contains(activateSkillTool), "Planner should NOT have ActivateSkillTool");
             assertFalse(tools.contains(chartTool), "Planner should NOT have ChartTool");
             assertFalse(tools.contains(readMemoryTool), "Planner should NOT have ReadMemoryTool");

@@ -43,12 +43,12 @@ public class ExecuteSqlTool {
 
     @Tool({
         "Value: runs read-only SQL and returns real database results. This is the reliable basis for any user-facing query answer.",
-        "Use When: call after the target connection, database, schema, and referenced objects have been verified.",
+        "Scope requirement: call only after the target connection, database, schema, and referenced objects have been verified.",
         "Preconditions: sqls is required and every statement must be read-only. For large tables, include WHERE or LIMIT before executing.",
         "After Success: base the answer strictly on the returned results. If the user needs a visualization, pass the verified result set into renderChart.",
         "After Failure: inspect the statement-level errors, fix the SQL or scope, and retry only when the query is valid. Do not claim the query succeeded or fabricate results.",
-        "Do Not Use When: the statement writes data or the referenced objects are still unverified.",
-        "Relation: typically after identifying the target connection from the runtime context, using getDatabases/getSchemas and searchObjects/getObjectDetail, or after callingPlannerSubAgent for a read plan. Results are returned in the results array."
+        "Boundary: the statement must stay read-only and the referenced objects must already be verified.",
+        "Result shape: use the returned result set as the only source of truth for the final answer."
     })
     @DisallowInPlanMode(ToolNameEnum.EXECUTE_SELECT_SQL)
     public AgentSqlResult executeSelectSql(

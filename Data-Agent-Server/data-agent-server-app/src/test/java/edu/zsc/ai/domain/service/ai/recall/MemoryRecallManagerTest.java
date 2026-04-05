@@ -1,23 +1,17 @@
 package edu.zsc.ai.domain.service.ai.recall;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import edu.zsc.ai.common.constant.MemoryRecallLogConstant;
-import edu.zsc.ai.observability.AgentLogEvent;
-import edu.zsc.ai.observability.AgentLogService;
 
 @ExtendWith(MockitoExtension.class)
 class MemoryRecallManagerTest {
@@ -33,8 +27,7 @@ class MemoryRecallManagerTest {
 
     @Test
     void recall_plansQueriesDispatchesEachQueryAndPostProcessesMergedItems() {
-        CaptureAgentLogService agentLogService = new CaptureAgentLogService();
-        MemoryRecallManager manager = new MemoryRecallManager(queryPlanner, handlerChain, postProcessor, agentLogService);
+        MemoryRecallManager manager = new MemoryRecallManager(queryPlanner, handlerChain, postProcessor);
         MemoryRecallContext context = MemoryRecallContext.builder()
                 .conversationId(7L)
                 .queryText("find preference")
@@ -60,30 +53,5 @@ class MemoryRecallManagerTest {
         verify(handlerChain).handle(userQuery);
         verify(handlerChain).handle(conversationQuery);
         verify(postProcessor).process(eq(context), eq(List.of(userItem, conversationItem)));
-        assertEquals(List.of(
-                        MemoryRecallLogConstant.EVENT_RECALL_START,
-                        MemoryRecallLogConstant.EVENT_RECALL_PLANNED,
-                        MemoryRecallLogConstant.EVENT_RECALL_QUERY_DISPATCH,
-                        MemoryRecallLogConstant.EVENT_RECALL_QUERY_DISPATCH,
-                        MemoryRecallLogConstant.EVENT_RECALL_POST_PROCESS,
-                        MemoryRecallLogConstant.EVENT_RECALL_COMPLETE),
-                agentLogService.eventNames());
-    }
-
-    private static final class CaptureAgentLogService implements AgentLogService {
-
-        private final List<AgentLogEvent> events = new ArrayList<>();
-
-        @Override
-        public void record(AgentLogEvent event) {
-            events.add(event);
-        }
-
-        private List<String> eventNames() {
-            return events.stream()
-                    .map(event -> event.getPayload().get("eventName"))
-                    .map(String::valueOf)
-                    .toList();
-        }
     }
 }

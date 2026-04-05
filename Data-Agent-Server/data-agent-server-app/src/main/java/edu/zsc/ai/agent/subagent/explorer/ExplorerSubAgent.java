@@ -9,6 +9,7 @@ import edu.zsc.ai.agent.subagent.SubAgentPromptBuilder;
 import edu.zsc.ai.agent.subagent.SubAgentRequest;
 import edu.zsc.ai.agent.subagent.SubAgentStreamBridge;
 import edu.zsc.ai.agent.subagent.contract.SchemaSummary;
+import edu.zsc.ai.common.constant.AgentRuntimeLoggerNames;
 import edu.zsc.ai.common.constant.InvocationContextConstant;
 import edu.zsc.ai.config.ai.SubAgentFactory;
 import edu.zsc.ai.common.enums.ai.AgentTypeEnum;
@@ -20,14 +21,14 @@ import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
 import edu.zsc.ai.domain.model.dto.response.agent.ChatResponseBlock;
 import edu.zsc.ai.domain.service.agent.SseEmitterRegistry;
-import edu.zsc.ai.observability.AgentLogFields;
-import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.ConnectionIdUtil;
 import edu.zsc.ai.util.JsonUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Sinks;
 
@@ -47,12 +48,13 @@ import java.util.concurrent.TimeoutException;
 @RequiredArgsConstructor
 public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSummary> implements SubAgent<SubAgentRequest, SchemaSummary> {
 
+    private static final Logger runtimeLog = LoggerFactory.getLogger(AgentRuntimeLoggerNames.SUB_AGENT);
+
     private final SubAgentFactory subAgentFactory;
     private final SubAgentProperties properties;
     private final AiModelCatalog aiModelCatalog;
     private final SubAgentStreamBridge streamBridge;
     private final SseEmitterRegistry sseEmitterRegistry;
-    private final AgentLogService agentLogService;
 
     @Override
     public AgentTypeEnum getAgentType() {
@@ -84,24 +86,22 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                 StringUtils.length(request.context()),
                 preview(request.instruction()),
                 preview(request.context()));
-        agentLogService.recordDebug("ExplorerSubAgent", "invoke_start", AgentLogFields.of(
-                "conversationId", requestContextSnapshot != null ? requestContextSnapshot.getConversationId() : conversationId,
-                "taskId", taskId,
-                "parentToolCallId", parentToolCallId,
-                "modelName", modelName,
-                "connectionIds", request.connectionIds(),
-                "requestedTimeoutSeconds", requestedTimeoutSeconds,
-                "effectiveTimeoutSeconds", timeoutSeconds,
-                "instructionPreview", preview(request.instruction()),
-                "contextPreview", preview(request.context())
-        ));
+        runtimeLog.info("explorer_invoke_start conversationId={} taskId={} parentToolCallId={} modelName={} connectionIds={} requestedTimeoutSeconds={} effectiveTimeoutSeconds={} instructionPreview={} contextPreview={}",
+                requestContextSnapshot != null ? requestContextSnapshot.getConversationId() : conversationId,
+                taskId,
+                parentToolCallId,
+                modelName,
+                request.connectionIds(),
+                requestedTimeoutSeconds,
+                timeoutSeconds,
+                preview(request.instruction()),
+                preview(request.context()));
 
         // SSE progress emitter (replaces AgentListener-based observability)
         SubAgentObservabilityListener observer = new SubAgentObservabilityListener(
                 AgentTypeEnum.EXPLORER, conversationId, sseEmitterRegistry, null, taskId, parentToolCallId,
                 CollectionUtils.isNotEmpty(request.connectionIds()) ? request.connectionIds().get(0) : null,
-                timeoutSeconds,
-                agentLogService);
+                timeoutSeconds);
 
         observer.emitStart();
 
@@ -112,7 +112,7 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                     StringUtils.length(message),
                     preview(message));
             String systemPrompt = "(managed by SystemPromptManager)";
-            ExplorerAgentService agentService = subAgentFactory.buildExplorerAgent(modelName);
+            ExplorerAgentService agentService = subAgentFactory.buildExplorerAgent(modelName, conversationId);
 
             Map<String, Object> invocationContext = buildInvocationContext(request);
             log.info("[Explorer] invocation context built, taskId={}, defaultConnectionId={}, allowedConnectionIds={}, invocationKeys={}",
@@ -120,20 +120,18 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                     CollectionUtils.isNotEmpty(request.connectionIds()) ? request.connectionIds().get(0) : null,
                     request.connectionIds(),
                     invocationContext.keySet());
-            agentLogService.recordDebug("ExplorerSubAgent", "model_request_ready", AgentLogFields.of(
-                    "taskId", taskId,
-                    "conversationId", conversationId,
-                    "parentToolCallId", parentToolCallId,
-                    "modelName", modelName,
-                    "systemPromptLength", StringUtils.length(systemPrompt),
-                    "systemPromptPreview", preview(systemPrompt),
-                    "messageLength", StringUtils.length(message),
-                    "messagePreview", preview(message),
-                    "defaultConnectionId", CollectionUtils.isNotEmpty(request.connectionIds()) ? request.connectionIds().get(0) : null,
-                    "allowedConnectionIds", request.connectionIds(),
-                    "invocationKeys", invocationContext.keySet(),
-                    "messageProtocolHint", "agentService API does not expose raw tool-call messages before dispatch"
-            ));
+            runtimeLog.info("explorer_model_request_ready taskId={} conversationId={} parentToolCallId={} modelName={} systemPromptLength={} systemPromptPreview={} messageLength={} messagePreview={} defaultConnectionId={} allowedConnectionIds={} invocationKeys={}",
+                    taskId,
+                    conversationId,
+                    parentToolCallId,
+                    modelName,
+                    StringUtils.length(systemPrompt),
+                    preview(systemPrompt),
+                    StringUtils.length(message),
+                    preview(message),
+                    CollectionUtils.isNotEmpty(request.connectionIds()) ? request.connectionIds().get(0) : null,
+                    request.connectionIds(),
+                    invocationContext.keySet());
             InvocationParameters invocationParams = InvocationParameters.from(invocationContext);
             TokenStream tokenStream = agentService.explore(message, invocationParams);
 
@@ -150,12 +148,11 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                     taskId,
                     parentId,
                     timeoutSeconds);
-            agentLogService.recordDebug("ExplorerSubAgent", "token_stream_start", AgentLogFields.of(
-                    "taskId", taskId,
-                    "conversationId", conversationId,
-                    "parentToolCallId", parentId,
-                    "timeoutSeconds", timeoutSeconds
-            ));
+            runtimeLog.info("explorer_token_stream_start taskId={} conversationId={} parentToolCallId={} timeoutSeconds={}",
+                    taskId,
+                    conversationId,
+                    parentId,
+                    timeoutSeconds);
             tokenStream.start();
 
             String responseText;
@@ -170,14 +167,13 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                         preview(fullResponse.toString()),
                         System.currentTimeMillis() - startTime,
                         te);
-                agentLogService.recordDebug("ExplorerSubAgent", "timeout", AgentLogFields.of(
-                        "taskId", taskId,
-                        "conversationId", conversationId,
-                        "timeoutSeconds", timeoutSeconds,
-                        "partialResponseLength", fullResponse.length(),
-                        "partialResponsePreview", preview(fullResponse.toString()),
-                        "elapsedMs", System.currentTimeMillis() - startTime
-                ));
+                runtimeLog.warn("explorer_timeout taskId={} conversationId={} timeoutSeconds={} partialResponseLength={} partialResponsePreview={} elapsedMs={}",
+                        taskId,
+                        conversationId,
+                        timeoutSeconds,
+                        fullResponse.length(),
+                        preview(fullResponse.toString()),
+                        System.currentTimeMillis() - startTime);
                 throw te;
             }
 
@@ -185,12 +181,12 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                     taskId,
                     StringUtils.length(responseText),
                     preview(responseText));
-            agentLogService.recordDebug("ExplorerSubAgent", "response_received", AgentLogFields.of(
-                    "taskId", taskId,
-                    "conversationId", conversationId,
-                    "responseLength", StringUtils.length(responseText),
-                    "responsePreview", preview(responseText)
-            ));
+            runtimeLog.info("explorer_response_received taskId={} conversationId={} responseLength={} responsePreview={} response=\n{}",
+                    taskId,
+                    conversationId,
+                    StringUtils.length(responseText),
+                    preview(responseText),
+                    responseText);
             SchemaSummary summary = ExplorerResponseParser.parse(responseText);
             observer.emitComplete(summary.getSummaryText(), JsonUtil.object2json(summary));
             log.info("[Explorer] parse success, taskId={}, objectCount={}, summaryLength={}, rawResponseLength={}, summaryPreview={}, objectPreview={}, elapsedMs={}",
@@ -201,16 +197,16 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                     preview(summary.getSummaryText()),
                     summarizeObjects(summary.getObjects()),
                     System.currentTimeMillis() - startTime);
-            agentLogService.recordDebug("ExplorerSubAgent", "parse_success", AgentLogFields.of(
-                    "taskId", taskId,
-                    "conversationId", conversationId,
-                    "objectCount", CollectionUtils.size(summary.getObjects()),
-                    "summaryLength", StringUtils.length(summary.getSummaryText()),
-                    "rawResponseLength", StringUtils.length(summary.getRawResponse()),
-                    "summaryPreview", preview(summary.getSummaryText()),
-                    "objectPreview", summarizeObjects(summary.getObjects()),
-                    "elapsedMs", System.currentTimeMillis() - startTime
-            ));
+            runtimeLog.info("explorer_parse_success taskId={} conversationId={} objectCount={} summaryLength={} rawResponseLength={} summaryPreview={} objectPreview={} elapsedMs={} summaryJson={}",
+                    taskId,
+                    conversationId,
+                    CollectionUtils.size(summary.getObjects()),
+                    StringUtils.length(summary.getSummaryText()),
+                    StringUtils.length(summary.getRawResponse()),
+                    preview(summary.getSummaryText()),
+                    summarizeObjects(summary.getObjects()),
+                    System.currentTimeMillis() - startTime,
+                    JsonUtil.object2json(summary));
             return summary;
 
         } catch (Exception e) {
@@ -224,24 +220,23 @@ public class ExplorerSubAgent extends AbstractSubAgent<SubAgentRequest, SchemaSu
                     rootCause(e).getClass().getSimpleName(),
                     rootCauseMessage(e),
                     e);
-            agentLogService.recordDebug("ExplorerSubAgent", "invoke_failed", AgentLogFields.of(
-                    "conversationId", conversationId,
-                    "taskId", taskId,
-                    "parentToolCallId", parentToolCallId,
-                    "elapsedMs", System.currentTimeMillis() - startTime,
-                    "rootCauseClass", rootCause(e).getClass().getSimpleName(),
-                    "rootCauseMessage", rootCauseMessage(e),
-                    "instructionPreview", preview(request.instruction()),
-                    "contextPreview", preview(request.context())
-            ));
+            runtimeLog.error("explorer_invoke_failed conversationId={} taskId={} parentToolCallId={} elapsedMs={} rootCauseClass={} rootCauseMessage={} instructionPreview={} contextPreview={}",
+                    conversationId,
+                    taskId,
+                    parentToolCallId,
+                    System.currentTimeMillis() - startTime,
+                    rootCause(e).getClass().getSimpleName(),
+                    rootCauseMessage(e),
+                    preview(request.instruction()),
+                    preview(request.context()),
+                    e);
             if (StringUtils.containsIgnoreCase(rootCauseMessage(e), "tool_calls")
                     && StringUtils.containsIgnoreCase(rootCauseMessage(e), "tool_call_id")) {
-                agentLogService.recordDebug("ExplorerSubAgent", "protocol_error_hint", AgentLogFields.of(
-                        "taskId", taskId,
-                        "conversationId", conversationId,
-                        "hint", "assistant tool_calls were emitted but matching tool messages were not present in the next model request",
-                        "nextCheck", "inspect message assembly around streamBridge/tool-result replay for this task"
-                ));
+                runtimeLog.warn("explorer_protocol_error_hint taskId={} conversationId={} hint={} nextCheck={}",
+                        taskId,
+                        conversationId,
+                        "assistant tool_calls were emitted but matching tool messages were not present in the next model request",
+                        "inspect message assembly around streamBridge/tool-result replay for this task");
             }
             throw new RuntimeException("Explorer SubAgent failed: " + errorSummary, e);
         }

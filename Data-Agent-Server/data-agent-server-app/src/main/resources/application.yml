@@ -65,12 +65,12 @@ ai:
     parameters:
       thinking-budget: 1000
   embedding:
-    api-key: ${ALIYUN_AI_API_KEY:}
+    api-key: ${ALIYUN_AI_EMBEDDING_API_KEY:}
     model-name: text-embedding-v4
     dimension: 1024
   models:
     default-model: qwen3.5-plus
-    compression-model: qwen-plus
+    compression-model: qwen3.5-plus
     supported:
       - model-name: qwen3.5-plus
         api-model-name: qwen3.5-plus
@@ -87,28 +87,12 @@ ai:
         support-thinking: true
         max-context-tokens: 256000
         memory-threshold: 230000
-      - model-name: qwen-plus
-        api-model-name: qwen-plus
-        support-thinking: false
-        max-context-tokens: 1048576
-        memory-threshold: 900000
-
 # 全局通用线程池（发现、异步任务等共用）
 app:
   executor:
     pool-size: 20
 
 agent:
-  observability:
-    enabled: false
-    runtime-log-enabled: false
-    console-log-enabled: true
-    sse-event-log-enabled: true
-    model-event-log-enabled: true
-    tool-event-log-enabled: true
-    include-response: true
-    include-token-stream: true
-    runtime-log-dir: ~/.data-agent/logs/agent/runtime
   sub-agent:
     explorer:
       timeout-seconds: 180
@@ -123,7 +107,3 @@ memory:
   enabled: true
   retrieval:
     min-score: 0.72
-  maintenance:
-    enabled: true
-    fixed-delay-ms: 3600000
-    disable-duplicate-enabled: true

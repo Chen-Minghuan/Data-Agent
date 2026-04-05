@@ -14,6 +14,7 @@ import edu.zsc.ai.agent.tool.orchestrator.CallingExplorerTool;
 import edu.zsc.ai.agent.tool.orchestrator.CallingPlannerTool;
 import edu.zsc.ai.agent.tool.plan.ExitPlanModeTool;
 import edu.zsc.ai.agent.tool.skill.ActivateSkillTool;
+import edu.zsc.ai.agent.tool.sql.GetAvailableConnectionsTool;
 import edu.zsc.ai.agent.tool.sql.GetObjectDetailTool;
 import edu.zsc.ai.agent.tool.sql.GetDatabasesTool;
 import edu.zsc.ai.agent.tool.sql.GetSchemasTool;
@@ -47,6 +48,7 @@ public class AgentToolConfig {
                     SearchObjectsTool.class,
                     GetObjectDetailTool.class,
                     ExecuteSqlTool.class,
+                    GetAvailableConnectionsTool.class,
                     CallingExplorerTool.class,
                     CallingPlannerTool.class,
                     ChartTool.class,
@@ -58,6 +60,7 @@ public class AgentToolConfig {
             ToolScope.MAIN_PLAN, Set.of(
                     GetDatabasesTool.class,
                     GetSchemasTool.class,
+                    GetAvailableConnectionsTool.class,
                     CallingExplorerTool.class,
                     CallingPlannerTool.class,
                     AskUserQuestionTool.class,

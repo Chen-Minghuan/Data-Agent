@@ -10,7 +10,6 @@ import edu.zsc.ai.context.AgentExecutionContext;
 import edu.zsc.ai.context.RequestContext;
 import edu.zsc.ai.context.RequestContextInfo;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
-import edu.zsc.ai.observability.AgentLogService;
 import edu.zsc.ai.util.JsonUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +32,7 @@ class CallingPlannerToolTest {
         mockPlanner = mock(PlannerSubAgent.class);
         SubAgentProperties properties = new SubAgentProperties();
         SubAgentManager subAgentManager = new SubAgentManager(mockExplorer, mockPlanner, properties);
-        tool = new CallingPlannerTool(subAgentManager, new DefaultSchemaSummaryResolver(), mock(AgentLogService.class));
+        tool = new CallingPlannerTool(subAgentManager, new DefaultSchemaSummaryResolver());
     }
 
     @AfterEach

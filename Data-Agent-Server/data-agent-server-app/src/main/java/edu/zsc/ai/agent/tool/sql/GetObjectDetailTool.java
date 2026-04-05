@@ -35,12 +35,12 @@ public class GetObjectDetailTool {
 
     @Tool({
             "Value: fetches verified DDL, row counts, and indexes so SQL generation uses real structure instead of assumptions.",
-            "Use When: call after the target objects are narrowed down and before generating or executing SQL against them. If connection, database, or schema are omitted but already exist in the current context, this tool uses the current context by default.",
+            "Task placement: call after the target objects are narrowed down and before generating or executing SQL against them.",
+            "Scope defaults: if connection, database, or schema are omitted but already exist in the current context, this tool uses the current context by default.",
             "Preconditions: provide at least one concrete object. Batch multiple objects in one call when comparing or planning joins.",
             "After Success: use the returned DDL, row counts, and indexes to validate joins, filters, limits, and write impact before moving forward.",
             "After Partial Success: continue only with objects whose detail lookup succeeded; askUserQuestion or retry if failed objects may still matter.",
-            "After Failure: correct the object identifiers or scope and retry. Do not plan SQL against unknown structure.",
-            "Relation: usually after searchObjects and before callingPlannerSubAgent, executeSelectSql, or executeNonSelectSql for write flows."
+            "After Failure: correct the object identifiers or scope and retry. Do not plan SQL against unknown structure."
     })
     public AgentToolResult getObjectDetail(
             @P("List of objects to retrieve details for") List<ObjectQueryItem> objects,
