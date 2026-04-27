@@ -20,6 +20,4 @@ public class ConversationCompactResponse {
     private Integer compressedMessageCount;
 
     private Integer keptRecentCount;
-
-    private String summary;
 }

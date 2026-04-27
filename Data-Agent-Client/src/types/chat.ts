@@ -96,7 +96,7 @@ export interface ChatMessage {
   doneMetadata?: DoneMetadata;
   messageStatus?: 'NORMAL' | 'DELETED' | 'COMPRESSED' | 'COMPRESSION_SUMMARY';
   /** Frontend-only marker for ephemeral UI messages that should not be persisted. */
-  localKind?: 'compact-command' | 'compact-status' | 'compact-summary' | 'compact-result';
+  localKind?: 'compact-command' | 'compact-status' | 'compact-result';
   createdAt?: Date;
 }
 

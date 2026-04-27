@@ -291,14 +291,6 @@ export function AIAssistant({ onClosePanel, historyAsLeftSidebar = false }: AIAs
     createdAt: new Date(),
   }), []);
 
-  const buildCompactSummaryMessage = useCallback((summary: string): ChatMessage => ({
-    id: crypto.randomUUID(),
-    role: MessageRole.USER,
-    content: summary,
-    localKind: 'compact-summary',
-    createdAt: new Date(),
-  }), []);
-
   const buildCompactResultMessage = useCallback((content: string): ChatMessage => ({
     id: crypto.randomUUID(),
     role: MessageRole.ASSISTANT,
@@ -379,9 +371,11 @@ export function AIAssistant({ onClosePanel, historyAsLeftSidebar = false }: AIAs
             loadMessages(targetConversationId, [
               ...baseMessages,
               buildCompactCommandMessage(),
-              ...(result.summary && result.summary.trim() !== ''
-                ? [buildCompactSummaryMessage(result.summary)]
-                : []),
+              buildCompactResultMessage(t(I18N_KEYS.AI.COMPACT.DONE, {
+                before: result.tokenCountBefore ?? '?',
+                after: result.tokenCountAfter ?? '?',
+                kept: result.keptRecentCount ?? 0,
+              })),
             ]);
           } catch (error) {
             console.error('Compact request failed:', error);

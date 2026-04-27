@@ -99,7 +99,6 @@ public class ConversationController {
                 .tokenCountAfter(result.tokenCountAfter())
                 .compressedMessageCount(result.compressedMessageCount())
                 .keptRecentCount(result.keptRecentCount())
-                .summary(result.summary())
                 .build());
     }
 

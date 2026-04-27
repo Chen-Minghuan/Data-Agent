@@ -274,7 +274,7 @@
       "noop": "Nothing to compact yet.",
       "failed": "Compaction failed.",
       "failedWithReason": "Compaction failed: {{reason}}",
-      "summaryLabel": "Compacted Summary"
+      "summaryLabel": "Context compacted"
     },
     "chartType": {
       "line": "Line Chart",

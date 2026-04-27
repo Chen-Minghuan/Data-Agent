@@ -21,7 +21,6 @@ public record CompressionDoneMetadata(
         metadata.put("tokenCountAfter", tokenCountAfter);
         metadata.put("compressedMessageCount", compressedMessageCount);
         metadata.put("keptRecentCount", keptRecentCount);
-        metadata.put("summary", summary);
         metadata.put("compressionOutputTokens", compressionOutputTokens);
         metadata.put("compressionTotalTokens", compressionTotalTokens);
         return metadata;

@@ -15,7 +15,6 @@ export interface CompactConversationResponse {
   tokenCountAfter: number | null;
   compressedMessageCount: number;
   keptRecentCount: number;
-  summary?: string | null;
 }
 
 export interface PageResponse<T> {

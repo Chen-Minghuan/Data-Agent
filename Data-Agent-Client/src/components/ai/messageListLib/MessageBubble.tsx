@@ -28,7 +28,7 @@ export function MessageBubble({
   showElapsedTextForSubAgent = true,
 }: MessageBubbleProps) {
   if (isCompactSummaryMessage(message)) {
-    return <CompactSummaryBubble message={message} />;
+    return <CompactSummaryBubble />;
   }
   if (message.role === MessageRole.USER) {
     return <UserBubble message={message} />;
