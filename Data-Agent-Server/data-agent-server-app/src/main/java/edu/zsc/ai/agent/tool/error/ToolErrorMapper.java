@@ -1,6 +1,8 @@
 package edu.zsc.ai.agent.tool.error;
 
 import dev.langchain4j.invocation.InvocationParameters;
+import dev.langchain4j.agent.tool.P;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.ExecuteNonSelectToolResult;
@@ -25,7 +27,7 @@ public class ToolErrorMapper {
         Throwable cause = unwrap(throwable);
         Class<?> returnType = method.getReturnType();
         String toolName = resolveToolName(method, cause);
-        String sanitizedArgs = resolveSanitizedArgs(args, cause);
+        String sanitizedArgs = resolveSanitizedArgs(method, args, cause);
         String messageForModel = resolveMessageForModel(toolName, sanitizedArgs, cause);
 
         logFailure(toolName, sanitizedArgs, cause, messageForModel);
@@ -58,7 +60,7 @@ public class ToolErrorMapper {
                 .orElse(method.getName());
     }
 
-    private String resolveSanitizedArgs(Object[] args, Throwable cause) {
+    private String resolveSanitizedArgs(Method method, Object[] args, Throwable cause) {
         if (cause instanceof AgentToolExecuteException toolException && StringUtils.isNotBlank(toolException.getSanitizedArgs())) {
             return toolException.getSanitizedArgs();
         }
@@ -71,12 +73,23 @@ public class ToolErrorMapper {
             if (arg instanceof InvocationParameters) {
                 continue;
             }
+            if (isUiOnlyToolDescriptionParameter(method, i)) {
+                continue;
+            }
             if (builder.length() > 0) {
                 builder.append(", ");
             }
             builder.append("arg").append(i).append("=").append(sanitizeValue(arg));
         }
         return builder.toString();
+    }
+
+    private boolean isUiOnlyToolDescriptionParameter(Method method, int parameterIndex) {
+        if (method == null || parameterIndex < 0 || parameterIndex >= method.getParameterCount()) {
+            return false;
+        }
+        P annotation = method.getParameters()[parameterIndex].getAnnotation(P.class);
+        return annotation != null && ToolDescriptionParam.UI_STEP_DESCRIPTION.equals(annotation.value());
     }
 
     private String resolveMessageForModel(String toolName, String sanitizedArgs, Throwable cause) {

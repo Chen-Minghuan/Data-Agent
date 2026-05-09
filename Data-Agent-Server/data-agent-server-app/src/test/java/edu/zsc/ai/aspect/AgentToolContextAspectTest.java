@@ -1,7 +1,9 @@
 package edu.zsc.ai.aspect;
 
 import dev.langchain4j.invocation.InvocationParameters;
+import dev.langchain4j.agent.tool.P;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.agent.tool.error.ToolErrorMapper;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
@@ -70,6 +72,21 @@ class AgentToolContextAspectTest {
         assertTrue(result.getExecution().getError().contains("write execution failed"));
     }
 
+    @Test
+    void mappedFailureDoesNotExposeUiOnlyDescriptionAsBusinessArgument() {
+        TestTool proxy = proxy(new TestTool());
+
+        AgentToolResult result = proxy.failWithUiDescription(
+                "business-value",
+                "用户界面摘要",
+                InvocationParameters.from(Map.of())
+        );
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("arg0=business-value"));
+        assertFalse(result.getMessage().contains("用户界面摘要"));
+    }
+
     private static TestTool proxy(TestTool target) {
         AspectJProxyFactory factory = new AspectJProxyFactory(target);
         factory.addAspect(new AgentToolContextAspect(new ToolErrorMapper()));
@@ -89,6 +106,13 @@ class AgentToolContextAspectTest {
 
         ExecuteNonSelectToolResult failNonSelect(InvocationParameters parameters) {
             throw AgentToolExecuteException.preconditionFailed(ToolNameEnum.EXECUTE_NON_SELECT_SQL, "write execution failed");
+        }
+
+        AgentToolResult failWithUiDescription(
+                String value,
+                @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
+                InvocationParameters parameters) {
+            throw new IllegalArgumentException("bad value");
         }
     }
 }

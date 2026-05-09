@@ -9,6 +9,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.domain.service.db.DatabaseService;
@@ -31,6 +32,7 @@ public class GetDatabasesTool {
     })
     public AgentToolResult getDatabases(
             @P("The connection ID to get databases for") Long connectionId,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
         log.info("[Tool] getDatabases connectionId={}", connectionId);
         try {
@@ -45,6 +47,10 @@ public class GetDatabasesTool {
             log.warn("[Tool] getDatabases failed for connectionId={}: {}", connectionId, e.getMessage());
             return AgentToolResult.fail(buildFailureMessage(connectionId, e.getMessage()));
         }
+    }
+
+    public AgentToolResult getDatabases(Long connectionId, InvocationParameters parameters) {
+        return getDatabases(connectionId, null, parameters);
     }
 
     private String buildSuccessMessage(Long connectionId, int databaseCount) {

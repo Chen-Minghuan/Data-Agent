@@ -5,6 +5,7 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.DisallowInPlanMode;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.sql.approval.WriteExecutionApprovalStore;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.agent.tool.message.SqlToolMessageSupport;
@@ -59,6 +60,7 @@ public class ExecuteSqlTool {
             @P(value = "Schema name from current session context; omit if not used", required = false) String schemaName,
             @P("List of read-only SQL statements to execute.")
             List<String> sqls,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
         log.info("{} executeSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
                 "[Tool]", connectionId, databaseName, schemaName,
@@ -83,6 +85,15 @@ public class ExecuteSqlTool {
         return AgentSqlResult.fromBatch(responses);
     }
 
+    public AgentSqlResult executeSelectSql(
+            Long connectionId,
+            String databaseName,
+            String schemaName,
+            List<String> sqls,
+            InvocationParameters parameters) {
+        return executeSelectSql(connectionId, databaseName, schemaName, sqls, null, parameters);
+    }
+
     @Tool({
         "Value: executes write SQL when permission already allows it, otherwise returns a structured confirmation payload for the frontend.",
         "Use When: call after the SQL is finalized and you are ready either to execute it or to wait for the user's confirmation response.",
@@ -100,6 +111,7 @@ public class ExecuteSqlTool {
             @P(value = "Schema name from current session context; omit if not used", required = false) String schemaName,
             @P("List of non-SELECT SQL statements to execute (INSERT, UPDATE, DELETE, DDL, etc.).")
             List<String> sqls,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
         log.info("{} executeNonSelectSql, connectionId={}, database={}, schema={}, sqlCount={}",
                 "[Tool]", connectionId, databaseName, schemaName,
@@ -146,6 +158,15 @@ public class ExecuteSqlTool {
                         ? "Write SQL executed using a default-allow permission."
                         : "Write SQL executed after explicit user approval."
         );
+    }
+
+    public ExecuteNonSelectToolResult executeNonSelectSql(
+            Long connectionId,
+            String databaseName,
+            String schemaName,
+            List<String> sqls,
+            InvocationParameters parameters) {
+        return executeNonSelectSql(connectionId, databaseName, schemaName, sqls, null, parameters);
     }
 
     private List<WriteExecutionGrantOption> buildAvailableGrantOptions(String databaseName, String schemaName) {

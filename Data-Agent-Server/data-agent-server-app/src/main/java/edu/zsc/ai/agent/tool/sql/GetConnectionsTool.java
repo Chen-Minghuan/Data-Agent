@@ -3,8 +3,10 @@ package edu.zsc.ai.agent.tool.sql;
 import java.util.List;
 
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.agent.tool.sql.model.AvailableConnectionItem;
@@ -29,7 +31,9 @@ public class GetConnectionsTool {
             "After Success: use the returned id, name, and dbType to answer connection-inventory questions or choose the next scope-discovery step.",
             "After Failure: tell the user that the connection inventory could not be loaded. Do not invent hosts, ports, or hidden metadata."
     })
-    public AgentToolResult getConnections(InvocationParameters parameters) {
+    public AgentToolResult getConnections(
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
+            InvocationParameters parameters) {
         log.info("[Tool] getConnections");
         try {
             List<AvailableConnectionItem> connections = dbConnectionService.getAllConnections().stream()
@@ -50,6 +54,10 @@ public class GetConnectionsTool {
             return AgentToolResult.fail(
                     "Failed to list available connections: " + e.getMessage());
         }
+    }
+
+    public AgentToolResult getConnections(InvocationParameters parameters) {
+        return getConnections(null, parameters);
     }
 
     private AvailableConnectionItem mapToAvailableConnectionItem(ConnectionResponse connection) {

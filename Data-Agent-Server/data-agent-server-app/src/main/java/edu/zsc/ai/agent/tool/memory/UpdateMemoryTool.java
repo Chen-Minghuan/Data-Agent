@@ -7,6 +7,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.MemoryRecallConstant;
@@ -52,6 +53,7 @@ public class UpdateMemoryTool {
             @P(value = "Short memory title. Optional for CREATE or UPDATE, ignored for DELETE.", required = false) String title,
             @P(value = "Authoritative durable memory content. Required for CREATE and UPDATE. For object-level scope or concrete database knowledge, include exact identifiers when known: connectionId, connection name, catalog/database, schema, and object/table/view name.", required = false) String content,
             @P(value = "Short reason explaining why this memory should persist, be revised, or be removed", required = false) String reason,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
 
         AgentTypeEnum agentType = AgentTypeEnum.fromCode(AgentRequestContext.getAgentType());
@@ -104,5 +106,18 @@ public class UpdateMemoryTool {
             log.error("updateMemory failed", e);
             return AgentToolResult.fail("Failed to mutate memory. Review the memory classification, target memoryId, and content before retrying.");
         }
+    }
+
+    public AgentToolResult updateMemory(
+            MemoryOperationEnum operation,
+            Long memoryId,
+            MemoryScopeEnum scope,
+            MemoryTypeEnum memoryType,
+            MemorySubTypeEnum subType,
+            String title,
+            String content,
+            String reason,
+            InvocationParameters parameters) {
+        return updateMemory(operation, memoryId, scope, memoryType, subType, title, content, reason, null, parameters);
     }
 }

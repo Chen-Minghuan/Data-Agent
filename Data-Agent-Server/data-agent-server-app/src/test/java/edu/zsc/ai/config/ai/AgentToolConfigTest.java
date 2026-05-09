@@ -7,6 +7,7 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.service.tool.ToolExecutor;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.ask.AskUserQuestionTool;
 import edu.zsc.ai.agent.tool.chart.ChartTool;
 import edu.zsc.ai.agent.tool.export.ExportFileTool;
@@ -231,6 +232,18 @@ class AgentToolConfigTest {
 
         assertEquals(Set.of("immediateEcho"), toolBundle.immediateReturnToolNames());
         assertEquals(2, toolBundle.executors().size());
+    }
+
+    @Test
+    void buildToolBundle_exposesOptionalDescriptionForBackgroundToolWithoutMakingItRequired() {
+        AgentToolConfig.ToolBundle toolBundle = config.buildToolBundle(List.of(getDatabasesTool));
+        ToolSpecification specification = toolBundle.executors().keySet().iterator().next();
+
+        assertEquals("getDatabases", specification.name());
+        assertTrue(specification.parameters().properties().containsKey("description"));
+        assertEquals(ToolDescriptionParam.UI_STEP_DESCRIPTION,
+                specification.parameters().properties().get("description").description());
+        assertFalse(specification.parameters().required().contains("description"));
     }
 
     @Test

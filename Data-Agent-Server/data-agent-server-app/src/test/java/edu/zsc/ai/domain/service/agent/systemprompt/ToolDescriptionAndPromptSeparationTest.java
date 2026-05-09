@@ -31,11 +31,13 @@ class ToolDescriptionAndPromptSeparationTest {
                 SearchObjectsTool.class,
                 "searchObjects",
                 ObjectSearchQuery.class,
+                String.class,
                 InvocationParameters.class);
         String getObjectDetailDescription = readToolDescription(
                 GetObjectDetailTool.class,
                 "getObjectDetail",
                 List.class,
+                String.class,
                 InvocationParameters.class);
         String executeSelectSqlDescription = readToolDescription(
                 ExecuteSqlTool.class,
@@ -44,10 +46,12 @@ class ToolDescriptionAndPromptSeparationTest {
                 String.class,
                 String.class,
                 List.class,
+                String.class,
                 InvocationParameters.class);
         String getConnectionsDescription = readToolDescription(
                 GetConnectionsTool.class,
                 "getConnections",
+                String.class,
                 InvocationParameters.class);
 
         assertTrue(searchObjectsDescription.contains("Value:"));

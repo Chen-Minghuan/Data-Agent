@@ -238,6 +238,7 @@ class UpdateMemoryToolTest {
                 String.class,
                 String.class,
                 String.class,
+                String.class,
                 InvocationParameters.class
         );
 

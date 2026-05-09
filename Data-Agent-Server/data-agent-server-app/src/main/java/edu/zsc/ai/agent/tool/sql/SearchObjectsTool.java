@@ -4,6 +4,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.guard.ExplorerConnectionScopeGuard;
 import edu.zsc.ai.agent.tool.error.AgentToolExecuteException;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
@@ -48,6 +49,7 @@ public class SearchObjectsTool {
     })
     public AgentToolResult searchObjects(
             @P("Search query parameters") ObjectSearchQuery query,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
         String objectNamePattern = query.getObjectNamePattern();
         String objectType = query.getObjectType();
@@ -124,6 +126,10 @@ public class SearchObjectsTool {
         log.info("[Tool done] searchObjects, resultCount={}, truncated={}",
                 response.totalCount(), response.truncated());
         return AgentToolResult.success(response, buildSearchSuccessMessage(response, objectNamePattern, connectionId, databaseNamePattern, schemaNamePattern));
+    }
+
+    public AgentToolResult searchObjects(ObjectSearchQuery query, InvocationParameters parameters) {
+        return searchObjects(query, null, parameters);
     }
 
     private String buildSearchMessage(ObjectSearchResponse response,

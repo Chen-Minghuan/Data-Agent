@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Bridges a LangChain4j {@link TokenStream} into a reactive
@@ -58,6 +59,8 @@ public class ChatStreamBridge {
         sseEmitterRegistry.register(conversationId, sink);
         log.debug("[ChatStream] sink registered for conversation {}", conversationId);
         Set<String> streamedToolCallIds = new HashSet<>();
+        Map<String, Long> toolStartedAtById = new ConcurrentHashMap<>();
+        Map<String, String> toolDescriptionById = new ConcurrentHashMap<>();
         StringBuilder responseText = new StringBuilder();
         StringBuilder thinkingText = new StringBuilder();
 
@@ -82,6 +85,11 @@ public class ChatStreamBridge {
 
             if (Objects.nonNull(partialToolCall.id())) {
                 streamedToolCallIds.add(partialToolCall.id());
+                toolStartedAtById.computeIfAbsent(partialToolCall.id(), ignored -> System.currentTimeMillis());
+                String description = ChatResponseBlock.extractToolDescription(partialToolCall.partialArguments());
+                if (StringUtils.isNotBlank(description)) {
+                    toolDescriptionById.put(partialToolCall.id(), description);
+                }
                 if (ToolNameEnum.isSubAgentTool(partialToolCall.name())) {
                     log.debug("SubAgent tool detected: setting parentToolCallId={}", partialToolCall.id());
                     AgentExecutionContext.setParentToolCallId(partialToolCall.id());
@@ -97,7 +105,9 @@ public class ChatStreamBridge {
                     partialToolCall.id(),
                     partialToolCall.name(),
                     partialToolCall.partialArguments(),
-                    true
+                    true,
+                    StringUtils.isNotBlank(partialToolCall.id()) ? toolDescriptionById.get(partialToolCall.id()) : null,
+                    StringUtils.isNotBlank(partialToolCall.id()) ? toolStartedAtById.get(partialToolCall.id()) : null
             ));
         });
 
@@ -119,17 +129,28 @@ public class ChatStreamBridge {
                     log.debug("SubAgent tool detected (non-streaming): setting parentToolCallId={}", toolRequest.id());
                     AgentExecutionContext.setParentToolCallId(toolRequest.id());
                 }
+                if (StringUtils.isNotBlank(toolRequest.id())) {
+                    toolStartedAtById.putIfAbsent(toolRequest.id(), System.currentTimeMillis());
+                    String description = ChatResponseBlock.extractToolDescription(toolRequest.arguments());
+                    if (StringUtils.isNotBlank(description)) {
+                        toolDescriptionById.put(toolRequest.id(), description);
+                    }
+                }
                 runtimeLog.info("conversation_tool_call conversationId={} toolCallId={} toolName={} streaming=false arguments={}",
                         conversationId,
                         toolRequest.id(),
                         toolRequest.name(),
                         StringUtils.defaultString(toolRequest.arguments()));
 
+                Long startedAt = StringUtils.isNotBlank(toolRequest.id()) ? toolStartedAtById.get(toolRequest.id()) : null;
+                String description = StringUtils.isNotBlank(toolRequest.id()) ? toolDescriptionById.get(toolRequest.id()) : null;
                 sink.tryEmitNext(ChatResponseBlock.toolCall(
                         toolRequest.id(),
                         toolRequest.name(),
                         toolRequest.arguments(),
-                        false
+                        false,
+                        description,
+                        startedAt
                 ));
             }
         });
@@ -152,11 +173,17 @@ public class ChatStreamBridge {
                     toolExecution.result() != null ? toolExecution.result().toString().length() : 0,
                     toolExecution.result());
 
+            Long finishedAt = System.currentTimeMillis();
+            Long startedAt = StringUtils.isNotBlank(req.id()) ? toolStartedAtById.get(req.id()) : null;
+            String description = StringUtils.isNotBlank(req.id()) ? toolDescriptionById.get(req.id()) : null;
             sink.tryEmitNext(ChatResponseBlock.toolResult(
                     req.id(),
                     req.name(),
                     toolExecution.result(),
-                    toolExecution.hasFailed()));
+                    toolExecution.hasFailed(),
+                    description,
+                    startedAt,
+                    finishedAt));
         });
 
         tokenStream.onCompleteResponse(response -> {

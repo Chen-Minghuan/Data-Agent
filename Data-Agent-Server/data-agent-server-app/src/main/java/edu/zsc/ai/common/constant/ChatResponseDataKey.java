@@ -14,6 +14,9 @@ public final class ChatResponseDataKey {
     public static final String RESULT = "result";
     public static final String ERROR = "error";
     public static final String STREAMING = "streaming";
+    public static final String DESCRIPTION = "description";
+    public static final String STARTED_AT = "startedAt";
+    public static final String FINISHED_AT = "finishedAt";
 
     public static final String AGENT_TYPE = "agentType";
     public static final String MESSAGE = "message";

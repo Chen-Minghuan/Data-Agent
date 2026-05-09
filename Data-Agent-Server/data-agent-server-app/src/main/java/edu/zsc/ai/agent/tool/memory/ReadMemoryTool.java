@@ -11,6 +11,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.common.constant.MemoryRecallConstant;
@@ -53,6 +54,7 @@ public class ReadMemoryTool {
             @P(value = "Optional scope filter: USER or CONVERSATION", required = false) MemoryScopeEnum scope,
             @P(value = "Optional memory type filter. Valid values: PREFERENCE, BUSINESS_RULE, KNOWLEDGE_POINT, WORKFLOW_CONSTRAINT, GOLDEN_SQL_CASE", required = false) MemoryTypeEnum memoryType,
             @P(value = "Optional memory subType filter. Must exactly match one of: RESPONSE_FORMAT, LANGUAGE_PREFERENCE, PRODUCT_RULE, DOMAIN_RULE, GOVERNANCE_RULE, SAFETY_RULE, ARCHITECTURE_KNOWLEDGE, DOMAIN_KNOWLEDGE, GLOSSARY, OBJECT_KNOWLEDGE, PROCESS_RULE, APPROVAL_RULE, IMPLEMENTATION_CONSTRAINT, REVIEW_CONSTRAINT, QUERY_PATTERN, JOIN_STRATEGY, VALIDATED_SQL, METRIC_CALCULATION", required = false) MemorySubTypeEnum subType,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
 
         AgentTypeEnum agentType = AgentTypeEnum.fromCode(AgentRequestContext.getAgentType());
@@ -114,6 +116,15 @@ public class ReadMemoryTool {
             log.error("readMemory failed", e);
             return AgentToolResult.fail("Failed to recall memory. Refine the recall intent or filters before retrying.");
         }
+    }
+
+    public AgentToolResult readMemory(
+            String intent,
+            MemoryScopeEnum scope,
+            MemoryTypeEnum memoryType,
+            MemorySubTypeEnum subType,
+            InvocationParameters parameters) {
+        return readMemory(intent, scope, memoryType, subType, null, parameters);
     }
 
     private boolean isAllowedAgent(AgentTypeEnum agentType, AgentModeEnum agentMode) {

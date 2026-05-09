@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Sinks;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -63,16 +65,23 @@ public class SubAgentStreamBridge {
         String parentId = StringUtils.isNotBlank(parentToolCallId) ? parentToolCallId : null;
         String taskId = AgentExecutionContext.getTaskId();
         Set<String> streamedToolCallIds = new HashSet<>();
+        Map<String, Long> toolStartedAtById = new ConcurrentHashMap<>();
+        Map<String, String> toolDescriptionById = new ConcurrentHashMap<>();
         AtomicBoolean firstPartial = new AtomicBoolean(false);
 
         tokenStream.onPartialToolCallWithContext((partialToolCall, context) -> {
             if (partialToolCall == null) return;
             String id = partialToolCall.id();
+            String args = partialToolCall.partialArguments();
             if (id != null && !id.isEmpty()) {
                 streamedToolCallIds.add(id);
+                toolStartedAtById.computeIfAbsent(id, ignored -> System.currentTimeMillis());
+                String description = ChatResponseBlock.extractToolDescription(args);
+                if (StringUtils.isNotBlank(description)) {
+                    toolDescriptionById.put(id, description);
+                }
                 log.debug("SubAgent tool call started: toolCallId={}, name={}, parentToolCallId={}", id, partialToolCall.name(), parentId);
             }
-            String args = partialToolCall.partialArguments();
             runtimeLog.info("subagent_tool_call taskId={} parentToolCallId={} toolCallId={} toolName={} streaming=true arguments={}",
                     taskId,
                     parentId,
@@ -80,7 +89,12 @@ public class SubAgentStreamBridge {
                     partialToolCall.name(),
                     StringUtils.defaultString(args));
             ChatResponseBlock block = ChatResponseBlock.toolCall(
-                    id, partialToolCall.name(), args != null ? args : "", true);
+                    id,
+                    partialToolCall.name(),
+                    args != null ? args : "",
+                    true,
+                    StringUtils.isNotBlank(id) ? toolDescriptionById.get(id) : null,
+                    StringUtils.isNotBlank(id) ? toolStartedAtById.get(id) : null);
             block.setParentToolCallId(parentId);
             block.setSubAgentTaskId(taskId);
             if (sink != null) {
@@ -96,14 +110,28 @@ public class SubAgentStreamBridge {
             log.debug("[StreamBridge] intermediate response: {} tool requests", response.aiMessage().toolExecutionRequests().size());
             for (ToolExecutionRequest req : response.aiMessage().toolExecutionRequests()) {
                 if (streamedToolCallIds.contains(req.id())) continue;
+                if (StringUtils.isNotBlank(req.id())) {
+                    toolStartedAtById.putIfAbsent(req.id(), System.currentTimeMillis());
+                    String description = ChatResponseBlock.extractToolDescription(req.arguments());
+                    if (StringUtils.isNotBlank(description)) {
+                        toolDescriptionById.put(req.id(), description);
+                    }
+                }
                 runtimeLog.info("subagent_tool_call taskId={} parentToolCallId={} toolCallId={} toolName={} streaming=false arguments={}",
                         taskId,
                         parentId,
                         req.id(),
                         req.name(),
                         StringUtils.defaultString(req.arguments()));
+                Long startedAt = StringUtils.isNotBlank(req.id()) ? toolStartedAtById.get(req.id()) : null;
+                String description = StringUtils.isNotBlank(req.id()) ? toolDescriptionById.get(req.id()) : null;
                 ChatResponseBlock block = ChatResponseBlock.toolCall(
-                        req.id(), req.name(), req.arguments() != null ? req.arguments() : "", false);
+                        req.id(),
+                        req.name(),
+                        req.arguments() != null ? req.arguments() : "",
+                        false,
+                        description,
+                        startedAt);
                 block.setParentToolCallId(parentId);
                 block.setSubAgentTaskId(taskId);
                 if (sink != null) sink.tryEmitNext(block);
@@ -128,8 +156,16 @@ public class SubAgentStreamBridge {
                     toolExecution.hasFailed(),
                     result.length(),
                     result);
+            Long startedAt = StringUtils.isNotBlank(req.id()) ? toolStartedAtById.get(req.id()) : null;
+            String description = StringUtils.isNotBlank(req.id()) ? toolDescriptionById.get(req.id()) : null;
             ChatResponseBlock block = ChatResponseBlock.toolResult(
-                    req.id(), req.name(), result, toolExecution.hasFailed());
+                    req.id(),
+                    req.name(),
+                    result,
+                    toolExecution.hasFailed(),
+                    description,
+                    startedAt,
+                    System.currentTimeMillis());
             block.setParentToolCallId(parentId);
             block.setSubAgentTaskId(taskId);
             if (sink != null) sink.tryEmitNext(block);

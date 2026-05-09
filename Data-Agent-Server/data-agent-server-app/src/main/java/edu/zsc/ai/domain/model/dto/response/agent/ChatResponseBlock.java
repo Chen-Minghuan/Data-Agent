@@ -27,8 +27,34 @@ public class ChatResponseBlock {
     public static final String DATA_KEY_ERROR = ChatResponseDataKey.ERROR;
     /** True when tool arguments are still streaming (partial), false when complete */
     public static final String DATA_KEY_STREAMING = ChatResponseDataKey.STREAMING;
+    /** Optional model-authored label for UI display only. */
+    public static final String DATA_KEY_DESCRIPTION = ChatResponseDataKey.DESCRIPTION;
+    /** Epoch milliseconds for tool call/result timing. */
+    public static final String DATA_KEY_STARTED_AT = ChatResponseDataKey.STARTED_AT;
+    public static final String DATA_KEY_FINISHED_AT = ChatResponseDataKey.FINISHED_AT;
 
     private static final String EMPTY = "";
+
+    public static String extractToolDescription(String arguments) {
+        if (arguments == null || arguments.isBlank()) {
+            return null;
+        }
+        try {
+            Object parsed = JsonUtil.json2Object(arguments, Object.class);
+            if (parsed instanceof String text && !text.isBlank()) {
+                parsed = JsonUtil.json2Object(text, Object.class);
+            }
+            if (parsed instanceof Map<?, ?> map) {
+                Object description = map.get(DATA_KEY_DESCRIPTION);
+                if (description instanceof String text && !text.isBlank()) {
+                    return text.trim();
+                }
+            }
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+        return null;
+    }
 
     private String type;
     private String data;
@@ -83,7 +109,7 @@ public class ChatResponseBlock {
      * id is optional (from LangChain4j ToolExecutionRequest / PartialToolCall); used to merge streaming chunks and pair with TOOL_RESULT.
      */
     public static ChatResponseBlock toolCall(String id, String toolName, String arguments) {
-        return toolCall(id, toolName, arguments, null);
+        return toolCall(id, toolName, arguments, null, null, null);
     }
 
     /**
@@ -91,12 +117,26 @@ public class ChatResponseBlock {
      * data is JSON {"id":"...", "toolName":"...", "arguments":"...", "streaming": true|false}.
      */
     public static ChatResponseBlock toolCall(String id, String toolName, String arguments, Boolean streaming) {
+        return toolCall(id, toolName, arguments, streaming, null, null);
+    }
+
+    /**
+     * Tool call block with optional UI-only description and timing metadata.
+     */
+    public static ChatResponseBlock toolCall(String id, String toolName, String arguments,
+                                             Boolean streaming, String description, Long startedAt) {
         Map<String, Object> map = new java.util.LinkedHashMap<>();
         if (id != null && !id.isEmpty()) {
             map.put(DATA_KEY_ID, id);
         }
         map.put(DATA_KEY_TOOL_NAME, toolName != null ? toolName : EMPTY);
         map.put(DATA_KEY_ARGUMENTS, arguments != null ? arguments : EMPTY);
+        if (description != null && !description.isBlank()) {
+            map.put(DATA_KEY_DESCRIPTION, description.trim());
+        }
+        if (startedAt != null) {
+            map.put(DATA_KEY_STARTED_AT, startedAt);
+        }
         if (streaming != null) {
             map.put(DATA_KEY_STREAMING, streaming);
         }
@@ -125,12 +165,29 @@ public class ChatResponseBlock {
      * id matches the tool call id for pairing. error is true when tool execution failed (ToolExecution.hasFailed()).
      */
     public static ChatResponseBlock toolResult(String id, String toolName, String result, boolean isError) {
+        return toolResult(id, toolName, result, isError, null, null, null);
+    }
+
+    /**
+     * Tool result block with optional UI-only description and timing metadata.
+     */
+    public static ChatResponseBlock toolResult(String id, String toolName, String result, boolean isError,
+                                               String description, Long startedAt, Long finishedAt) {
         Map<String, Object> map = new LinkedHashMap<>();
         if (id != null && !id.isEmpty()) {
             map.put(DATA_KEY_ID, id);
         }
         map.put(DATA_KEY_TOOL_NAME, toolName != null ? toolName : EMPTY);
         map.put(DATA_KEY_RESULT, result != null ? result : EMPTY);
+        if (description != null && !description.isBlank()) {
+            map.put(DATA_KEY_DESCRIPTION, description.trim());
+        }
+        if (startedAt != null) {
+            map.put(DATA_KEY_STARTED_AT, startedAt);
+        }
+        if (finishedAt != null) {
+            map.put(DATA_KEY_FINISHED_AT, finishedAt);
+        }
         map.put(DATA_KEY_ERROR, isError);
         String data = JsonUtil.object2json(map);
         return ChatResponseBlock.builder()

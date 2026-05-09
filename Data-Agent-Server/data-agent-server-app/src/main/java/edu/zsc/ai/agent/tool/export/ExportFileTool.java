@@ -5,6 +5,7 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
 import edu.zsc.ai.agent.annotation.DisallowInPlanMode;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.export.model.ExportRowInput;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
@@ -40,6 +41,7 @@ public class ExportFileTool {
             @P("Column headers for the exported table.") List<String> headers,
             @P("Table rows. Provide a list of row objects, each shaped as { cells: [...] }. Every row must have the same number of cells as headers.")
             List<ExportRowInput> rows,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
         Long userId = RequestContext.getUserId();
         if (userId == null) {
@@ -60,5 +62,13 @@ public class ExportFileTool {
                 "Export file is ready for download.",
                 "Use the returned file card as the delivery artifact and keep any follow-up explanation consistent with the preview."
         ));
+    }
+
+    public AgentToolResult exportFile(
+            String format,
+            List<String> headers,
+            List<ExportRowInput> rows,
+            InvocationParameters parameters) {
+        return exportFile(format, headers, rows, null, parameters);
     }
 }

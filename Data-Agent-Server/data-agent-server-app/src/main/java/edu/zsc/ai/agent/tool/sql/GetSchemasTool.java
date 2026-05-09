@@ -9,6 +9,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.invocation.InvocationParameters;
 import edu.zsc.ai.agent.annotation.AgentTool;
+import edu.zsc.ai.agent.tool.ToolDescriptionParam;
 import edu.zsc.ai.agent.tool.message.ToolMessageSupport;
 import edu.zsc.ai.agent.tool.model.AgentToolResult;
 import edu.zsc.ai.domain.service.db.SchemaService;
@@ -32,6 +33,7 @@ public class GetSchemasTool {
     public AgentToolResult getSchemas(
             @P("The connection ID") Long connectionId,
             @P("The database (catalog) name") String databaseName,
+            @P(value = ToolDescriptionParam.UI_STEP_DESCRIPTION, required = false) String description,
             InvocationParameters parameters) {
         log.info("[Tool] getSchemas connectionId={}, database={}", connectionId, databaseName);
         try {
@@ -48,6 +50,10 @@ public class GetSchemasTool {
                     connectionId, databaseName, e.getMessage());
             return AgentToolResult.fail(buildFailureMessage(connectionId, databaseName, e.getMessage()));
         }
+    }
+
+    public AgentToolResult getSchemas(Long connectionId, String databaseName, InvocationParameters parameters) {
+        return getSchemas(connectionId, databaseName, null, parameters);
     }
 
     private String buildSuccessMessage(Long connectionId, String databaseName, int schemaCount) {
