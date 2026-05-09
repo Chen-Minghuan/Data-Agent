@@ -60,6 +60,10 @@ export interface ToolCallData {
   id?: string;
   toolName: string;
   arguments: string;
+  /** Optional model-authored UI label for this tool step. Never trusted as business input. */
+  description?: string;
+  /** Epoch milliseconds when backend first emitted this tool call. */
+  startedAt?: number;
   /** True when arguments are still streaming (partial), false when complete, undefined for stored messages. */
   streaming?: boolean;
 }
@@ -69,6 +73,12 @@ export interface ToolResultData {
   id?: string;
   toolName: string;
   result: string;
+  /** Optional model-authored UI label copied from the paired tool call when available. */
+  description?: string;
+  /** Epoch milliseconds when backend first emitted the paired tool call. */
+  startedAt?: number;
+  /** Epoch milliseconds when backend emitted this tool result. */
+  finishedAt?: number;
   /** True when tool execution failed (backend ToolExecution.hasFailed()). */
   error?: boolean;
 }

@@ -8,7 +8,6 @@ import { MessageAccumulator } from './MessageAccumulator';
 import { MessageListItem } from './MessageListItem';
 import { segmentsHaveTodo } from './segmentTodoUtils';
 import { useTodoInMessages } from './useTodoInMessages';
-import { groupSqlToolSegments } from './groupSqlToolSegments';
 import { PlanningIndicator } from '../blocks';
 import { getToolType, ToolType } from '../blocks/toolTypes';
 import type { Message, Segment, TodoBoxSpec } from './types';
@@ -70,8 +69,8 @@ export function MessageList({
             ? (() => {
                 const acc = new MessageAccumulator();
                 msg.blocks!.forEach((b) => acc.pushBlock(b));
-                return groupSqlToolSegments(acc.getSegments(), {
-                  keepTailGroupOpen: isLastAssistantStreaming,
+                return acc.getSegments({
+                  keepTailBackgroundToolGroupOpen: isLastAssistantStreaming,
                 });
               })()
             : msg.role === MessageRole.ASSISTANT && (msg.content ?? '').trim() !== ''
@@ -174,6 +173,8 @@ function getSegmentSignature(segments: Segment[]): string {
             seg.kind,
             seg.groupType,
             seg.pending ? '1' : '0',
+            seg.startedAt ?? '',
+            seg.finishedAt ?? '',
             getSegmentSignature(seg.nestedToolRuns),
           ].join(':');
         case SegmentKind.TOOL_RUN:
@@ -182,6 +183,9 @@ function getSegmentSignature(segments: Segment[]): string {
             seg.toolName,
             seg.parametersData,
             seg.responseData,
+            seg.description ?? '',
+            seg.startedAt ?? '',
+            seg.finishedAt ?? '',
             seg.responseError ? '1' : '0',
             seg.pending ? '1' : '0',
             seg.executionState ?? '',

@@ -35,15 +35,20 @@ export type Segment =
   | { kind: SegmentKind.STATUS; statusKey: string }
   | {
       kind: SegmentKind.TOOL_GROUP;
-      groupType: 'sql-explore';
+      groupType: 'background-tools';
       nestedToolRuns: Segment[];
       pending?: boolean;
+      startedAt?: number;
+      finishedAt?: number;
     }
   | {
       kind: SegmentKind.TOOL_RUN;
       toolName: string;
       parametersData: string;
       responseData: string;
+      description?: string;
+      startedAt?: number;
+      finishedAt?: number;
       responseError?: boolean;
       pending?: boolean;
       executionState?: ToolExecutionState;

@@ -4,6 +4,7 @@ import { normalizeSubAgentType, type SubAgentProgressEvent } from '../blocks/sub
 import { ExecuteNonSelectToolStatus } from '../blocks/executeNonSelectTypes';
 import { getToolType, ToolType } from '../blocks/toolTypes';
 import { parseToolCall, parseToolResult, idStr } from './blockParsing';
+import { groupBackgroundToolSegments } from './groupBackgroundToolSegments';
 import type { Segment } from './types';
 import { SegmentKind, ToolExecutionState } from './types';
 
@@ -33,11 +34,18 @@ interface ToolCallEntry {
   toolName: string;
   parametersData: string;
   responseData: string;
+  description?: string;
+  startedAt?: number;
+  finishedAt?: number;
   responseError: boolean;
   executionState: ToolExecutionState;
   parentToolCallId?: string;
   subAgentTaskId?: string;
   segmentIndex?: number;
+}
+
+export interface GetSegmentsOptions {
+  keepTailBackgroundToolGroupOpen?: boolean;
 }
 
 /**
@@ -68,6 +76,23 @@ export class MessageAccumulator {
 
   /** Track what the last segment type was for buffer flushing */
   private lastSegmentType: SegmentKind | null = null;
+
+  private extractDescription(parametersData: string): string | undefined {
+    if (!parametersData.trim()) return undefined;
+    try {
+      let parsed: unknown = JSON.parse(parametersData);
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed) as unknown;
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return undefined;
+      }
+      const value = (parsed as Record<string, unknown>).description;
+      return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   /**
    * Process a single block and update internal segments.
@@ -118,10 +143,10 @@ export class MessageAccumulator {
    * reference -- callers should treat it as read-only or shallow-copy if
    * needed for React state updates.
    */
-  getSegments(): Segment[] {
+  getSegments(options?: GetSegmentsOptions): Segment[] {
     this.flushBuffers();
 
-    return this.segments.map((segment) => {
+    const enrichedSegments = this.segments.map((segment) => {
       if (segment.kind !== SegmentKind.TOOL_RUN) return segment;
       if (getToolType(segment.toolName) !== ToolType.CALLING_SUB_AGENT) return segment;
 
@@ -134,6 +159,10 @@ export class MessageAccumulator {
         progressEvents: progressEvents?.length ? progressEvents : undefined,
         nestedToolRuns: nestedToolRuns?.length ? nestedToolRuns : undefined,
       };
+    });
+
+    return groupBackgroundToolSegments(enrichedSegments, {
+      keepTailGroupOpen: options?.keepTailBackgroundToolGroupOpen,
     });
   }
 
@@ -200,11 +229,15 @@ export class MessageAccumulator {
     if (callId && this.streamingMerge.has(callId)) {
       const existing = this.streamingMerge.get(callId)!;
       existing.args += call.arguments ?? '';
+      const description = call.description ?? this.extractDescription(existing.args);
 
       // Update the segment in place
       const seg = existing.segmentIndex != null ? this.segments[existing.segmentIndex] : undefined;
       if (seg && seg.kind === SegmentKind.TOOL_RUN) {
         (seg as any).parametersData = existing.args;
+        if (description) {
+          (seg as any).description = description;
+        }
         // Update execution state: still streaming if flag set
         if (!isStreaming) {
           (seg as any).executionState = ToolExecutionState.EXECUTING;
@@ -215,6 +248,9 @@ export class MessageAccumulator {
       const entry = this.toolCallsById.get(callId);
       if (entry) {
         entry.parametersData = existing.args;
+        if (description) {
+          entry.description = description;
+        }
         if (!isStreaming) {
           entry.executionState = ToolExecutionState.EXECUTING;
         }
@@ -231,6 +267,7 @@ export class MessageAccumulator {
       ? ToolExecutionState.STREAMING_ARGUMENTS
       : ToolExecutionState.EXECUTING;
     const parametersData = call.arguments ?? '';
+    const description = call.description ?? this.extractDescription(parametersData);
     const parentToolCallId = block.parentToolCallId ? idStr(block.parentToolCallId) : undefined;
     let segmentIndex: number | undefined;
 
@@ -244,6 +281,8 @@ export class MessageAccumulator {
         toolName: call.toolName,
         parametersData,
         responseData: '',
+        description,
+        startedAt: call.startedAt,
         responseError: false,
         pending: true,
         executionState,
@@ -257,6 +296,8 @@ export class MessageAccumulator {
       toolName: call.toolName,
       parametersData,
       responseData: '',
+      description,
+      startedAt: call.startedAt,
       responseError: false,
       executionState,
       parentToolCallId,
@@ -305,6 +346,13 @@ export class MessageAccumulator {
 
       // Update the entry
       entry.responseData = result.result ?? '';
+      entry.finishedAt = result.finishedAt;
+      if (result.description) {
+        entry.description = result.description;
+      }
+      if (result.startedAt != null && entry.startedAt == null) {
+        entry.startedAt = result.startedAt;
+      }
       entry.responseError = error;
       entry.executionState = ToolExecutionState.COMPLETE;
 
@@ -312,6 +360,13 @@ export class MessageAccumulator {
       const seg = entry.segmentIndex != null ? this.segments[entry.segmentIndex] : undefined;
       if (seg && seg.kind === SegmentKind.TOOL_RUN) {
         (seg as any).responseData = result.result ?? '';
+        (seg as any).finishedAt = result.finishedAt;
+        if (result.description) {
+          (seg as any).description = result.description;
+        }
+        if (result.startedAt != null && (seg as any).startedAt == null) {
+          (seg as any).startedAt = result.startedAt;
+        }
         (seg as any).responseError = error;
         (seg as any).pending = false;
         (seg as any).executionState = ToolExecutionState.COMPLETE;
@@ -328,6 +383,9 @@ export class MessageAccumulator {
         toolName: result.toolName ?? '',
         parametersData: '',
         responseData: result.result ?? '',
+        description: result.description,
+        startedAt: result.startedAt,
+        finishedAt: result.finishedAt,
         responseError: isResultError(result.error ?? false, result.result),
         pending: false,
         toolCallId: result.id,
@@ -386,6 +444,9 @@ export class MessageAccumulator {
       toolName: entry.toolName,
       parametersData: entry.parametersData,
       responseData: entry.responseData,
+      description: entry.description,
+      startedAt: entry.startedAt,
+      finishedAt: entry.finishedAt,
       responseError: entry.responseError,
       pending: entry.executionState !== ToolExecutionState.COMPLETE,
       executionState: entry.executionState,

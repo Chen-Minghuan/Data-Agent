@@ -6,7 +6,6 @@ import { GenericToolRun } from './GenericToolRun';
 import { ChartToolBlock } from './ChartToolBlock';
 import { ExecuteSelectSqlBlock } from './ExecuteSelectSqlBlock';
 import { GetObjectDetailBlock } from './GetObjectDetailBlock';
-import { DiscoveryListToolBlock } from './DiscoveryListToolBlock';
 import { SkillToolBlock } from './SkillToolBlock';
 import { ExportFileToolBlock } from './ExportFileToolBlock';
 import { parseTodoListResponse } from './todoTypes';
@@ -62,7 +61,6 @@ export interface ToolRunBlockProps {
  * - TODO: TodoWrite → TodoListBlock
  * - ASK_USER: AskUserQuestion → AskUserQuestionCard (Inline)
  * - executeNonSelectSql (when confirmation required) → WriteExecutionConfirmCard (Inline)
- * - SQL_DISCOVERY_LIST: getDatabases/getSchemas → DiscoveryListToolBlock
  * - GENERIC: All other tools → ToolRunDetail
  */
 export function ToolRunBlock({
@@ -154,7 +152,6 @@ export function ToolRunBlock({
     responseError
     && toolType !== ToolType.CHART
     && toolType !== ToolType.FILE_EXPORT
-    && toolType !== ToolType.SQL_DISCOVERY_LIST
   ) {
     return (
       <GenericToolRun
@@ -229,16 +226,6 @@ export function ToolRunBlock({
           responseData={executeNonSelectExecutionData}
           responseError={responseError}
           checkAvailability={isHistoricalMessage}
-        />
-      );
-
-    case ToolType.SQL_DISCOVERY_LIST:
-      return (
-        <DiscoveryListToolBlock
-          toolName={toolName}
-          formattedParameters={formattedParameters}
-          responseData={executeNonSelectExecutionData}
-          responseError={responseError}
         />
       );
 

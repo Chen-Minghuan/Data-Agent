@@ -6,9 +6,21 @@ export function formatParameters(parametersData: string): string {
   if (!parametersData?.trim()) return parametersData;
 
   try {
-    const parsed = JSON.parse(parametersData);
-    return JSON.stringify(parsed, null, 2);
+    let parsed: unknown = JSON.parse(parametersData);
+    if (typeof parsed === 'string') {
+      parsed = JSON.parse(parsed) as unknown;
+    }
+    return JSON.stringify(removeUiOnlyDescription(parsed), null, 2);
   } catch {
     return parametersData;
   }
+}
+
+function removeUiOnlyDescription(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+
+  const { description: _description, ...rest } = value as Record<string, unknown>;
+  return rest;
 }
